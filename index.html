@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#1D191B">
+    <meta
+      name="description"
+      content="아이의 사진을 온라인에 공유하기 전, 개인정보와 아이의 권리를 생각해 보는 이야기."
+    >
+    <title>Posted by — 아이의 사진은 어디까지 기록될까요?</title>
+    <link rel="stylesheet" href="./style.css">
+    <script src="./script.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">본문으로 건너뛰기</a>
+    <header class="site-header">
+      <a class="wordmark" href="#home" aria-label="Posted by, 홈으로">Posted by</a>
+      <nav aria-label="주요 메뉴">
+        <a href="#home">Home</a>
+        <a href="#about">About</a>
+        <a href="#archive">Archive</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="home" aria-labelledby="hero-title">
+        <!-- Swap this image with images/3page.jpg to change the opening scene. -->
+        <div class="image-frame hero-image">
+          <img src="./images/3page.jpg" alt="교실에서 그림을 그리는 아이">
+        </div>
+        <div class="hero-shade" aria-hidden="true"></div>
+        <div class="hero-copy reveal">
+          <p class="hero-eyebrow">A NOTE ON SHARENTING</p>
+          <h1 id="hero-title">아이의 사진은<br>어디까지 기록될까요?</h1>
+        </div>
+        <div class="scroll-note">
+          <div class="scroll-cue" aria-hidden="true">
+            <span class="scroll-arrow"></span>
+            <span class="scroll-arrow"></span>
+          </div>
+          <p>탐색하려면 아래로 스크롤하세요.</p>
+        </div>
+      </section>
+
+      <section class="impact section-shell" id="about" aria-labelledby="impact-title">
+        <div class="impact-sticky reveal">
+        <div class="impact-diagram" aria-label="아이의 사진에서 네 가지 문제로 이어지는 연결도">
+          <svg class="impact-lines" viewBox="0 0 1000 500" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M310 250 C405 250 440 72 650 72"></path>
+            <path d="M310 250 C425 250 450 190 650 190"></path>
+            <path d="M310 250 C425 250 450 310 650 310"></path>
+            <path d="M310 250 C405 250 440 428 650 428"></path>
+            <circle cx="310" cy="250" r="4"></circle>
+          </svg>
+          <figure class="impact-photo">
+            <div class="image-frame">
+              <!-- Replace with images/title.jpg for a different everyday moment. -->
+              <img src="./images/title.jpg" alt="아기 침대 옆에서 걸음을 연습하는 아이">
+            </div>
+            <figcaption>
+              <h2 class="impact-caption" id="impact-title">한 장에서 시작한 사진은<br>
+                <span class="impact-ending"><span>수많은 문제</span>로 이어질 수 있습니다.</span>
+              </h2>
+            </figcaption>
+          </figure>
+          <ul class="impact-list">
+            <li>개인정보 노출</li>
+            <li>범죄 악용</li>
+            <li>아동 권리 침해</li>
+            <li>디지털 발자국과 후유증</li>
+          </ul>
+        </div>
+        </div>
+      </section>
+
+      <section class="privacy section-shell reveal" id="archive" aria-labelledby="privacy-title">
+        <p class="eyebrow">01 — 개인정보 노출</p>
+        <div class="privacy-layout">
+          <div class="section-copy">
+            <h2 id="privacy-title">사진 한 장에는 아이에 대한<br class="desktop-break"> 많은 정보가 담겨 있습니다.</h2>
+            <p>
+              일상의 사진에서도 이름, 학교, 거주지 등 
+              다양한 개인정보가 쉽게 유추될 수 있습니다.
+            </p>
+          </div>
+          <figure class="social-figure">
+            <article class="social-post" aria-label="아이의 정보 노출을 보여주는 가상의 SNS 게시물">
+              <header class="post-header">
+                <span class="profile-avatar" aria-hidden="true">m</span>
+                <span class="profile-name">moms_daily</span>
+                <span class="post-more" aria-label="더보기">•••</span>
+              </header>
+              <div class="post-photo-interaction" tabindex="0" role="button" aria-label="사진에 담긴 개인정보 보기" aria-pressed="false">
+                <div class="post-image image-frame">
+                  <img class="portrait-default" src="./images/happy.jpg" alt="이름표가 보이는 유치원 원복을 입은 아이">
+                  <img class="portrait-mad" src="./images/mad.jpg" alt="" aria-hidden="true">
+                </div>
+                <div class="privacy-tags">
+                  <span class="privacy-tag tag-name">이름: 이사랑</span>
+                  <span class="privacy-tag tag-family">가족 관계: 부모, 여동생</span>
+                  <span class="privacy-tag tag-area">거주 지역: 서울시 강남</span>
+                  <span class="privacy-tag tag-location">위치: 쑥쑥 어린이집</span>
+                  <span class="privacy-tag tag-date">촬영 시간: 2026.09.11</span>
+                </div>
+              </div>
+              <div class="post-actions" aria-label="좋아요, 댓글, 공유">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 8.8c0 5.1-8.8 11-8.8 11s-8.8-5.9-8.8-11A4.8 4.8 0 0 1 12 6.2a4.8 4.8 0 0 1 8.8 2.6Z"></path></svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-8.8 8.4 9 9 0 0 1-3.8-.8L3 21l1.8-4.7a8 8 0 0 1-1.5-4.8A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5Z"></path></svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 3-7.2 18-3.9-7.9L2 9.2 21 3Zm0 0L9.9 13.1"></path></svg>
+                <span class="post-bookmark" aria-hidden="true"></span>
+              </div>
+              <p class="post-likes">좋아요 128개</p>
+              <p class="post-caption"><strong>moms_daily</strong> 오늘도 즐거운 등원길 ✿</p>
+            </article>
+            <figcaption>사진 속 아이 얼굴에 마우스를 올려보세요.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="spread section-shell reveal" aria-labelledby="spread-title" data-step="0">
+        <h2 class="eyebrow" id="spread-title">범죄 대상 위험</h2>
+        <div class="spread-stage">
+          <div class="spread-scene">
+            <div class="spread-card">
+              <p>한 장의 사진이 선택되었습니다.</p>
+              <img src="./images/3page.jpg" alt="교실에서 그림을 그리며 웃는 아이" loading="lazy">
+              <span class="spread-check" aria-hidden="true">✓</span>
+            </div>
+            <div class="spread-routes" aria-hidden="true">
+              <span>개인 기기에 저장</span><span>해외 플랫폼 확산</span>
+              <span>SNS 재업로드</span><span>2차 재가공</span>
+            </div>
+            <div class="spread-details" aria-hidden="true">
+              <span>얼굴과 이름</span><span>나이</span><span>일상 패턴</span>
+              <span>가족 관계</span><span>장소, 학교 정보</span>
+            </div>
+            <div class="share-device" aria-hidden="true">
+              <img class="share-device-frame" src="./images/mokup.png" alt="">
+              <div class="share-device-screen">
+                <div class="share-gallery">
+                  <header>갤러리 <span>최근 항목</span></header>
+                  <div class="share-gallery-grid"><img src="./images/3page.jpg" alt=""><img src="./images/title.jpg" alt=""><img src="./images/happy.jpg" alt=""><img class="share-saved-photo" src="./images/3page.jpg" alt=""></div>
+                  <p class="share-saved-notice">✓ 사진이 저장되었습니다</p>
+                </div>
+                <div class="share-social">
+                  <header>SNS <span>새 게시물</span></header>
+                  <p class="share-social-user">● daily_archive</p>
+                  <img src="./images/3page.jpg" alt="">
+                  <p>♡　◯　↗</p><p>공유된 일상이 다시 게시되었습니다.</p>
+                  <span class="share-posted-notice">✓ 업로드 완료</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="spread-result" hidden>
+            <div class="spread-result-copy">
+              <h3>셰어런팅으로 인해 아이가<br>범죄의 위험에 노출될 수 있습니다.</h3>
+              <p>월평균 부모가 공유하는 자녀 이미지 수 : 63장.<br class="desktop-break">
+            전문가가 경고한 딥페이크 제작에 충분할 수 있는 이미지 수 : 20장
+            </p>
+            </div>
+            <img class="spread-data-image" src="./images/data.png" alt="공유된 사진의 저장과 복제, 재업로드를 보여주는 이미지">
+          </div>
+        </div>
+        <div class="spread-controls">
+          <button class="spread-back" type="button" disabled>이전</button>
+          <button class="spread-next" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 7H5v14h14V7h-3M12 15V2m-4 4 4-4 4 4"/></svg>
+            <span>사진 공유하기</span>
+          </button>
+          <span class="spread-progress" aria-live="polite">1 / 4</span>
+        </div>
+        <p class="spread-hint" aria-live="polite">아이콘을 눌러 아이 사진을 공유해보세요.</p>
+      </section>
+
+      <section class="rights section-shell reveal" aria-labelledby="rights-title">
+        <p class="eyebrow">02 — 아이의 권리</p>
+        <div class="section-copy rights-copy">
+          <h2 id="rights-title">모든 아이는 태어나는 순간부터 권리의 주체입니다.</h2>
+          <p>
+            성장하면서 자신의 생각을 이해하고 표현하고,<br class="desktop-break">
+            자신의 삶에 관한 결정에 참여하는 범위가 점차 넓어집니다.
+          </p>
+        </div>
+
+        <div class="timeline" aria-label="영유아기부터 성인기까지의 성장 타임라인">
+          <svg width="0" height="0" aria-hidden="true" class="rights-filter"><defs>
+            <filter id="rights-silhouette" color-interpolation-filters="sRGB">
+              <feColorMatrix type="matrix" values="0 0 0 0 0.114 0 0 0 0 0.098 0 0 0 0 0.106 5 0 0 0 -1" />
+            </filter>
+          </defs></svg>
+          <div class="timeline-figures" aria-hidden="true">
+            <div class="figure-slot">
+              <svg class="person person-baby" viewBox="233 363 163 207" width="163" height="207">
+                <image href="./images/baby1.png" width="1954" height="598"></image>
+              </svg>
+            </div>
+            <div class="figure-slot">
+              <svg class="person person-child" viewBox="701 242 146 329" width="146" height="329">
+                <image href="./images/baby2.png" width="1954" height="598"></image>
+              </svg>
+            </div>
+            <div class="figure-slot">
+              <svg class="person person-teen" viewBox="1179 134 138 432" width="138" height="432">
+                <image href="./images/baby3.png" width="1954" height="598"></image>
+              </svg>
+            </div>
+            <div class="figure-slot">
+              <svg class="person person-adult" viewBox="1550 31 179 538" width="179" height="538">
+                <image href="./images/baby4.png" width="1954" height="598"></image>
+              </svg>
+            </div>
+          </div>
+          <div class="timeline-track">
+            <div><span></span><p>영유아기</p></div>
+            <div><span></span><p>아동기</p></div>
+            <div><span></span><p>청소년기</p></div>
+            <div><span></span><p>성인기</p></div>
+          </div>
+        </div>
+        <p class="timeline-note">아이의 실루엣에 마우스를 올려보세요.</p>
+        <div class="rights-regions" aria-label="성장 단계별 아이의 권리">
+          <button class="rights-region" type="button" data-stage="0" aria-pressed="false">
+            <span class="rights-message"><strong>느끼고 표현하는 시기</strong><span>말뿐 아니라<br>표정, 울음, 몸짓 등으로<br>자신의 욕구와 감정을<br>표현합니다.</span></span>
+            <span class="sr-only">영유아기 권리 보기</span>
+          </button>
+          <button class="rights-region" type="button" data-stage="1" aria-pressed="false">
+            <span class="rights-message"><strong>자신을 알고 존중받는 시기</strong><span>자신만의 생각과 취향을<br>갖게 되며,<br>의견을 표현하고<br>그 의견을 존중받습니다.</span></span>
+            <span class="sr-only">아동기 권리 보기</span>
+          </button>
+          <button class="rights-region" type="button" data-stage="2" aria-pressed="false">
+            <span class="rights-message"><strong>스스로 생각하고<br>참여하는 시기</strong><span>자신의 삶과 관련된 일에<br>적극적으로 의견을 내고<br>결정에 참여합니다.</span></span>
+            <span class="sr-only">청소년기 권리 보기</span>
+          </button>
+          <button class="rights-region" type="button" data-stage="3" aria-pressed="false">
+            <span class="rights-message"><strong>스스로 결정하고<br>책임지는 시기</strong><span>자신의 판단에 따라<br>삶의 방향을 선택하고<br>그 선택을 책임지는<br>주체가 됩니다.</span></span>
+            <span class="sr-only">성인기 권리 보기</span>
+          </button>
+        </div>
+        <div class="explore-action">
+          <button class="explore-button" type="button" aria-controls="cases" aria-expanded="false">explore</button>
+        </div>
+      </section>
+
+      <dialog class="cases-dialog" aria-labelledby="cases-title">
+        <button class="cases-close" type="button" aria-label="사례 탐색 닫기">닫기 ×</button>
+      <section class="case-explorer section-shell" id="cases" aria-labelledby="cases-title" hidden>
+        <div class="cases-header"><div><h2 class="eyebrow" id="cases-title" tabindex="-1">04 — 사례 탐색</h2></div></div>
+        <div class="case-filters" role="group" aria-label="사례 분야 선택">
+          <button type="button" data-filter="all" aria-pressed="true">모든 사례</button>
+          <button type="button" data-filter="privacy" aria-pressed="false">개인정보 노출</button>
+          <button type="button" data-filter="crime" aria-pressed="false">범죄 악용</button>
+          <button type="button" data-filter="rights" aria-pressed="false">아동 권리 침해</button>
+          <button type="button" data-filter="footprint" aria-pressed="false">디지털 발자국과 후유증</button>
+        </div>
+        <p class="case-status" aria-live="polite">전체 12개 사례</p>
+        <div class="case-field">
+          <article class="case-card" role="button" aria-haspopup="dialog" data-categories="privacy crime" tabindex="0" style="--x:4%;--y:8%;--w:13%;--h:22%;--delay:0ms;--tone:300">
+            <div class="case-thumbnail" aria-hidden="true"></div>
+            <span class="case-number">CASE 01 · 가상</span>
+            <h3>이름표까지 담긴 등원 사진</h3><p>원복의 이름표와 어린이집 간판이 함께 담긴 사진을 공개한 상황.</p>
+            <div class="case-tags"><span>개인정보 노출</span><span>범죄 악용</span></div>
+          </article>
+          <article class="case-card" role="button" aria-haspopup="dialog" data-categories="privacy crime footprint" tabindex="0" style="--x:22%;--y:29%;--w:15%;--h:23%;--delay:65ms;--tone:319">
+            <div class="case-thumbnail" aria-hidden="true"></div>
+            <span class="case-number">CASE 02 · 가상</span>
+            <h3>매일 같은 시간, 같은 장소</h3><p>등하원 장소와 시간을 반복해서 게시해 생활 동선이 드러나는 상황.</p>
+            <div class="case-tags"><span>개인정보 노출</span><span>범죄 악용</span><span>디지털 발자국과 후유증</span></div>
+          </article>
+          <article class="case-card" role="button" aria-haspopup="dialog" data-categories="rights" tabindex="0" style="--x:39%;--y:10%;--w:15%;--h:28%;--delay:130ms;--tone:338">
+            <div class="case-thumbnail" aria-hidden="true"></div>
+            <span class="case-number">CASE 03 · 가상</span>
+            <h3>싫다고 했지만 올라간 영상</h3><p>아이가 촬영과 게시를 거부했는데도 영상을 공개한 상황.</p>
+            <div class="case-tags"><span>아동 권리 침해</span></div>
+          </article>
+          <article class="case-card" role="button" aria-haspopup="dialog" data-categories="footprint rights" tabindex="0" style="--x:73%;--y:8%;--w:14%;--h:23%;--delay:195ms;--tone:357">
+            <div class="case-thumbnail" aria-hidden="true"></div>
+            <span class="case-number">CASE 04 · 가상</span>
+            <h3>삭제해도 남아 있는 복사본</h3><p>원본을 지운 뒤에도 다른 계정의 캡처와 재게시물이 남아 있는 상황.</p>
+            <div class="case-tags"><span>디지털 발자국과 후유증</span><span>아동 권리 침해</span></div>
+          </article>
+          <article class="case-card" role="button" aria-haspopup="dialog" data-categories="crime rights" tabindex="0" style="--x:89%;--y:28%;--w:10%;--h:22%;--delay:260ms;--tone:376">
+            <div class="case-thumbnail" aria-hidden="true"></div>
+            <span class="case-number">CASE 05 · 가상</span>
+            <h3>낯선 계정의 사진 도용</h3><p>공개한 아이 사진이 다른 사람의 프로필에 사용된 상황.</p>
+            <div class="case-tags"><span>범죄 악용</span><span>아동 권리 침해</span></div>
+          </article>
+          <article class="case-card" role="button" aria-haspopup="dialog" data-categories="privacy" tabindex="0" style="--x:3%;--y:49%;--w:11%;--h:17%;--delay:325ms;--tone:395">
+            <div class="case-thumbnail" aria-hidden="true"></div>
+            <span class="case-number">CASE 06 · 가상</span>
+            <h3>위치가 표시된 주말 기록</h3><p>사진의 위치 태그를 통해 자주 찾는 장소가 드러나는 상황.</p>
+            <div class="case-tags"><span>개인정보 노출</span></div>
+          </article>
+          <article class="case-card" role="button" aria-haspopup="dialog" data-categories="footprint rights" tabindex="0" style="--x:20%;--y:60%;--w:15%;--h:25%;--delay:390ms;--tone:414">
+            <div class="case-thumbnail" aria-hidden="true"></div>
+            <span class="case-number">CASE 07 · 가상</span>
+            <h3>친구에게 다시 공유된 영상</h3><p>어린 시절 영상이 친구들 사이에 퍼져 아이가 불편함을 느끼는 상황.</p>
+            <div class="case-tags"><span>디지털 발자국과 후유증</span><span>아동 권리 침해</span></div>
+          </article>
+          <article class="case-card" role="button" aria-haspopup="dialog" data-categories="privacy crime" tabindex="0" style="--x:49%;--y:38%;--w:22%;--h:28%;--delay:455ms;--tone:433">
+            <div class="case-thumbnail" aria-hidden="true"></div>
+            <span class="case-number">CASE 08 · 가상</span>
+            <h3>아이 사진을 이용한 사칭</h3><p>이름과 얼굴이 공개된 사진으로 가족을 사칭하는 계정을 만든 상황.</p>
+            <div class="case-tags"><span>개인정보 노출</span><span>범죄 악용</span></div>
+          </article>
+          <article class="case-card" role="button" aria-haspopup="dialog" data-categories="privacy footprint" tabindex="0" style="--x:42%;--y:77%;--w:13%;--h:20%;--delay:520ms;--tone:452">
+            <div class="case-thumbnail" aria-hidden="true"></div>
+            <span class="case-number">CASE 09 · 가상</span>
+            <h3>공개된 가족의 일상</h3><p>게시물 여러 개를 통해 가족 관계와 생활 정보가 모이는 상황.</p>
+            <div class="case-tags"><span>개인정보 노출</span><span>디지털 발자국과 후유증</span></div>
+          </article>
+          <article class="case-card" role="button" aria-haspopup="dialog" data-categories="rights" tabindex="0" style="--x:68%;--y:73%;--w:14%;--h:25%;--delay:585ms;--tone:471">
+            <div class="case-thumbnail" aria-hidden="true"></div>
+            <span class="case-number">CASE 10 · 가상</span>
+            <h3>동의 없이 사용된 홍보 사진</h3><p>아이의 의견을 묻지 않고 사진을 홍보 게시물에 사용한 상황.</p>
+            <div class="case-tags"><span>아동 권리 침해</span></div>
+          </article>
+          <article class="case-card" role="button" aria-haspopup="dialog" data-categories="crime footprint rights" tabindex="0" style="--x:86%;--y:65%;--w:13%;--h:21%;--delay:650ms;--tone:490">
+            <div class="case-thumbnail" aria-hidden="true"></div>
+            <span class="case-number">CASE 11 · 가상</span>
+            <h3>다른 맥락으로 편집된 사진</h3><p>사진이 원래의 설명과 다른 맥락으로 재가공되어 퍼지는 상황.</p>
+            <div class="case-tags"><span>범죄 악용</span><span>디지털 발자국과 후유증</span><span>아동 권리 침해</span></div>
+          </article>
+          <article class="case-card" role="button" aria-haspopup="dialog" data-categories="footprint" tabindex="0" style="--x:55%;--y:7%;--w:11%;--h:18%;--delay:715ms;--tone:509">
+            <div class="case-thumbnail" aria-hidden="true"></div>
+            <span class="case-number">CASE 12 · 가상</span>
+            <h3>미래의 내가 마주한 기록</h3><p>성인이 된 뒤 검색 결과에서 어린 시절의 사적인 기록을 발견한 상황.</p>
+            <div class="case-tags"><span>디지털 발자국과 후유증</span></div>
+          </article>
+        </div>
+        <p class="cases-note">하나의 사례가 여러 분야에 해당할 수 있습니다. 박스를 누르면 사례를 자세히 볼 수 있습니다.</p>
+      </section>
+      </dialog>
+      <dialog class="case-detail" aria-labelledby="case-detail-title" aria-describedby="case-detail-description">
+        <div class="case-detail-sheet">
+          <p class="case-detail-id">사례 001</p>
+          <button class="case-detail-close" type="button" aria-label="사례 목록으로 돌아가기">사례 목록으로 돌아가기 →</button>
+          <div class="case-detail-main">
+            <div class="case-detail-placeholder" role="img" aria-label="사례 이미지 준비 중"></div>
+            <div class="case-detail-heading">
+              <h2 id="case-detail-title"></h2>
+              <p class="case-detail-categories"></p>
+              <p id="case-detail-description"></p>
+              <span class="case-detail-demo">가상 사례</span>
+            </div>
+          </div>
+        </div>
+      </dialog>
+    </main>
+
+    <footer class="site-footer">
+      <a class="wordmark" href="#home">Posted by</a>
+      <p>공유하기 전, 아이의 내일을 먼저 생각합니다.</p>
+      <a class="back-to-top" href="#home">처음으로 ↑</a>
+    </footer>
+  </body>
+</html>
