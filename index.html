@@ -19,7 +19,7 @@
       <nav aria-label="주요 메뉴">
         <a href="#home">Home</a>
         <a href="#about">About</a>
-        <a href="#archive">Archive</a>
+        <a href="#cases" class="archive-link" aria-haspopup="dialog" aria-controls="cases">Archive</a>
       </nav>
     </header>
 
@@ -166,12 +166,12 @@
         <div class="spread-controls">
           <button class="spread-back" type="button" disabled>이전</button>
           <button class="spread-next" type="button">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 7H5v14h14V7h-3M12 15V2m-4 4 4-4 4 4"/></svg>
-            <span>사진 공유하기</span>
+            <img class="share-button-icon" src="./images/share.svg" alt="" aria-hidden="true">
+            <span>공유하기</span>
           </button>
-          <span class="spread-progress" aria-live="polite">1 / 4</span>
+          <span class="spread-progress sr-only" aria-live="polite">1 / 4</span>
         </div>
-        <p class="spread-hint" aria-live="polite">아이콘을 눌러 아이 사진을 공유해보세요.</p>
+        <p class="spread-hint sr-only" aria-live="polite">아이콘을 눌러 아이 사진을 공유해보세요.</p>
       </section>
 
       <section class="rights section-shell reveal" aria-labelledby="rights-title">
@@ -329,7 +329,6 @@
             <div class="case-tags"><span>디지털 발자국과 후유증</span></div>
           </article>
         </div>
-        <p class="cases-note">하나의 사례가 여러 분야에 해당할 수 있습니다. 박스를 누르면 사례를 자세히 볼 수 있습니다.</p>
       </section>
       </dialog>
       <dialog class="case-detail" aria-labelledby="case-detail-title" aria-describedby="case-detail-description">

@@ -8,7 +8,7 @@
   --line: rgb(255 255 255 / 30%);
   --content-width: 1200px;
   --page-gutter: clamp(1.25rem, 6.2vw, 6rem);
-  --header-height: 5.4rem;
+  --header-height: 4.2rem;
   --gap-3-to-4-extra: 220px; /* 개인정보 노출 → 범죄 대상 위험 추가 간격 */
   --gap-4-to-5-extra: 220px; /* 범죄 대상 위험 → 아이의 권리 추가 간격 */
   --section-space: calc(clamp(9rem, 18vw, 17rem) + 550px);
@@ -86,6 +86,8 @@ a:focus-visible {
   text-decoration: none;
 }
 
+.site-header .wordmark { font-size: 1.25rem; }
+
 .site-header nav {
   display: flex;
   align-items: center;
@@ -94,7 +96,7 @@ a:focus-visible {
 
 .site-header nav a {
   color: #d0cacc;
-  font-size: 0.8rem;
+  font-size: 1rem;
   text-decoration: none;
   transition: color 180ms ease;
 }
@@ -646,7 +648,7 @@ a:focus-visible {
 
 @media (max-width: 760px) {
   :root {
-    --header-height: 4.5rem;
+    --header-height: 3.8rem;
     --page-gutter: clamp(1.25rem, 6vw, 2rem);
     --section-space: calc(clamp(7rem, 22vw, 10rem) + 90px);
   }
@@ -777,7 +779,7 @@ a:focus-visible {
   }
 
   .site-header nav a {
-    font-size: 0.75rem;
+    font-size: 0.9rem;
   }
 
   .hero h1 {
@@ -972,16 +974,27 @@ a:focus-visible {
   cursor: pointer;
   transition: background 220ms ease;
 }
-.rights-region.is-active {
-  /* 하단에서 이 높이만큼 분홍색이 서서히 사라집니다. */
+.rights-region::before {
+  content: "";
+  position: absolute;
+  /* 문구 60px 위에서 시작하고 Explore 버튼 위치에서 끝납니다. */
+  top: calc(var(--message-top) - 120px);
+  bottom: var(--hover-bottom-inset, 2rem);
+  left: 0;
+  right: 0;
   --hover-fade-height: 400px;
   background: linear-gradient(
     to bottom,
-    var(--accent) 0,
-    var(--accent) max(0px, calc(100% - var(--hover-fade-height))),
+    transparent 0,
+    var(--accent) 0px,
+    var(--accent) max(60px, calc(100% - var(--hover-fade-height))),
     transparent 100%
   );
+  opacity: 0;
+  transition: opacity 220ms ease;
+  pointer-events: none;
 }
+.rights-region.is-active::before { opacity: 1; }
 .rights-region:focus-visible { outline: 2px solid white; outline-offset: -3px; }
 .rights-message {
   position: absolute;
@@ -1005,11 +1018,15 @@ a:focus-visible {
 .rights-message > span { display: block; }
 .rights-region.is-active .rights-message { opacity: 1; transform: none; }
 .rights .eyebrow, .rights-copy, .rights .timeline, .rights .timeline-note { pointer-events: none; }
-.rights .figure-slot .person { transition: filter 180ms ease; }
+.rights .figure-slot .person {
+  transform-origin: center bottom;
+  scale: 1;
+  transition: filter 180ms ease, scale 250ms ease;
+}
+.rights .figure-slot.is-active .person { scale: 1.15; }
 .rights .figure-slot.is-active .person { filter: url(#rights-silhouette); }
 .rights .timeline-track > div.is-active p { color: white; }
 .rights .timeline-track > div.is-active span { background: var(--page-bg); border-color: var(--accent); }
-.rights:has(.rights-region.is-active) .rights-copy { opacity: 0; }
 .rights-copy { transition: opacity 180ms ease; }
 /* Reserve space above the silhouettes for the hover copy. */
 .rights .timeline-figures { height: clamp(18rem, 37vw, 32rem); }
@@ -1166,7 +1183,7 @@ a:focus-visible {
   .case-card { transition: none; }
 }
 
-.explore-action { position: relative; margin-top: calc(2rem + 200px); text-align: center; }
+.explore-action { position: relative; margin-top: calc(2rem + 100px); text-align: center; }
 .explore-button:hover { background: var(--accent); border-color: var(--accent); color: var(--page-bg); }
 .case-explorer {
   opacity: 0;
@@ -1221,13 +1238,13 @@ body.cases-open { overflow: hidden; }
 /* A white folder sheet opens above the case field. */
 .case-card { cursor: pointer; }
 .case-detail {
-  --detail-tab-height: clamp(3.5rem, 4.5vw, 5rem);
+  --detail-tab-height: 2.25rem;
   border: 0;
   padding: var(--detail-tab-height) 0 0;
-  width: min(100rem, 84vw);
+  width: min(48rem, 90vw);
   max-width: none;
-  max-height: 84dvh;
-  margin: auto auto 0;
+  max-height: 85dvh;
+  margin: auto;
   overflow: auto;
   background: transparent;
   color: #303030;
@@ -1238,8 +1255,8 @@ body.cases-open { overflow: hidden; }
 .case-detail-sheet {
   position: relative;
   background: white;
-  min-height: 65dvh;
-  padding: clamp(7rem, 10vw, 12rem) clamp(1.5rem, 4.7vw, 6rem) clamp(3rem, 6vw, 7rem);
+  min-height: 0;
+  padding: 3.5rem 3rem 3rem;
 }
 .case-detail-sheet::before {
   position: absolute;
@@ -1263,36 +1280,36 @@ body.cases-open { overflow: hidden; }
   display: flex;
   align-items: center;
   margin: 0;
-  font-size: clamp(0.8rem, 1.7vw, 1.8rem);
+  font-size: 0.85rem;
   font-weight: 600;
 }
 .case-detail-close {
   position: absolute;
-  top: clamp(1.25rem, 2vw, 2.5rem);
+  top: calc(clamp(1.25rem, 2vw, 2.5rem) - 15px);
   right: clamp(1.5rem, 2vw, 3rem);
   border: 0;
   border-bottom: 1px solid currentColor;
   background: transparent;
   color: #ff65c0;
   font: inherit;
-  font-size: clamp(0.85rem, 1.5vw, 1.7rem);
+  font-size: 0.85rem;
   cursor: pointer;
   padding: 0 0 0.25rem;
 }
 .case-detail-close:focus { outline: none; }
 .case-detail-close:focus-visible { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 6px; }
-.case-detail-main { display: grid; grid-template-columns: 1.1fr 1fr; align-items: start; gap: clamp(1.5rem, 4vw, 5rem); }
+.case-detail-main { display: grid; grid-template-columns: 1.1fr 1fr; align-items: start; gap: 1.5rem; }
 .case-detail-main > img { width: 100%; height: auto; aspect-ratio: 1.4; object-fit: cover; object-position: center; }
-.case-detail-heading { padding-top: clamp(0rem, 2.5vw, 3rem); }
-.case-detail-heading h2 { margin: 0 0 0.7rem; font-size: clamp(1.4rem, 2.4vw, 2.8rem); line-height: 1.35; word-break: keep-all; }
-.case-detail-categories { font-size: clamp(0.85rem, 1.6vw, 1.8rem); line-height: 1.7; margin: 0; color: #666; }
+.case-detail-heading { padding-top: 0.5rem; }
+.case-detail-heading h2 { margin: 0 0 0.7rem; font-size: 1.4rem; line-height: 1.35; word-break: keep-all; }
+.case-detail-categories { font-size: 0.8rem; line-height: 1.7; margin: 0; color: #666; }
 .case-detail-demo { display: block; margin-top: 1rem; font-size: 0.75rem; color: #777; }
-#case-detail-description { margin: clamp(2rem, 5vw, 6rem) 0 0; font-size: clamp(1rem, 1.7vw, 2rem); line-height: 1.5; word-break: keep-all; }
+#case-detail-description { margin: 1.5rem 0 0; font-size: 0.95rem; line-height: 1.5; word-break: keep-all; }
 @media (max-width: 700px) {
   .case-detail { width: 94vw; max-height: 90dvh; }
   .case-detail-main { grid-template-columns: 1fr; gap: 1.5rem; }
   .case-detail-main > img { max-height: 35svh; object-fit: contain; }
-  .case-detail-sheet { padding-top: 6rem; }
+  .case-detail-sheet { padding: 4rem 1.5rem 2rem; }
   .case-detail-sheet::before { width: 90%; }
   .case-detail-id { left: 12%; width: 68%; font-size: 0.9rem; }
   .case-detail-heading { padding-top: 0; }
@@ -1305,8 +1322,8 @@ body.cases-open { overflow: hidden; }
 .case-detail-placeholder { width: 100%; aspect-ratio: 1.4; background: #999; }
 
 /* Automatic sharing sequence: photo → device gallery → SNS. */
-.spread-scene { transition: width 650ms ease; }
-.spread-card { transition: transform 650ms ease, filter 250ms ease; }
+.spread-scene { transition: width 1100ms ease; }
+.spread-card { transition: transform 1100ms ease, filter 250ms ease; }
 .share-device {
   position: absolute;
   width: 220px;
@@ -1316,7 +1333,7 @@ body.cases-open { overflow: hidden; }
   opacity: 0;
   transform: translate(50px, -50%);
   pointer-events: none;
-  transition: opacity 650ms ease 150ms, transform 650ms ease 150ms;
+  transition: opacity 1100ms ease 350ms, transform 1100ms ease 350ms;
 }
 .share-device-frame { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
 .share-device-screen { position: absolute; inset: 3% 4%; border-radius: 27px; overflow: hidden; background: #fafafa; color: #222; }
@@ -1336,11 +1353,11 @@ body.cases-open { overflow: hidden; }
 .spread[data-step="0"] .spread-card { transform: translateX(0); }
 .spread[data-step="1"] .share-device, .spread[data-step="2"] .share-device { opacity: 1; transform: translate(0, -50%); }
 .spread[data-step="1"] .spread-routes, .spread[data-step="2"] .spread-routes, .spread[data-step="2"] .spread-details { display: none; }
-.spread[data-step="1"] .share-saved-photo { animation: share-save 400ms ease 900ms both; }
-.spread[data-step="1"] .share-saved-notice { animation: share-save 300ms ease 1250ms both; }
+.spread[data-step="1"] .share-saved-photo { animation: share-save 700ms ease 1600ms both; }
+.spread[data-step="1"] .share-saved-notice { animation: share-save 500ms ease 2400ms both; }
 .spread[data-step="2"] .share-gallery { opacity: 0; transform: translateX(-25px); }
 .spread[data-step="2"] .share-social { opacity: 1; transform: none; }
-.spread[data-step="2"] .share-posted-notice { animation: share-save 300ms ease 700ms both; }
+.spread[data-step="2"] .share-posted-notice { animation: share-save 600ms ease 1600ms both; }
 .spread:not([data-step="0"]) { cursor: default; }
 @keyframes share-save { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @media (max-width: 760px) {
@@ -1359,3 +1376,69 @@ body.cases-open { overflow: hidden; }
 @media (max-width: 760px) {
   .spread-data-image { width: min(65%, 16rem); }
 }
+
+/* Invite a click with expanding rings around the share icon. */
+.spread-next { position: relative; isolation: isolate; }
+.spread[data-step="0"] .spread-next::before,
+.spread[data-step="0"] .spread-next::after {
+  content: "";
+  position: absolute;
+  top: calc(0.6rem + 1rem);
+  left: 50%;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+  animation: share-button-ripple 2.6s ease-out infinite;
+}
+.spread[data-step="0"] .spread-next::after { animation-delay: -1.3s; }
+@keyframes share-button-ripple {
+  0% { transform: translate(-50%, -50%) scale(0.65); opacity: 0; }
+  15% { opacity: 0.8; }
+  100% { transform: translate(-50%, -50%) scale(1.85); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spread[data-step="0"] .spread-next::before,
+  .spread[data-step="0"] .spread-next::after { animation: none; display: none; }
+}
+
+/* During sharing, show only the device in the center. */
+.spread[data-step="1"] .spread-card,
+.spread[data-step="2"] .spread-card { display: none; }
+.spread[data-step="1"] .share-device,
+.spread[data-step="2"] .share-device {
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+}
+
+/* 공유 화면 하단 안내는 보조기기에만 전달합니다. */
+.spread-progress.sr-only, .spread-hint.sr-only { margin: 0; padding: 0; min-width: 0; }
+
+/* Center the share button independently of the back control. */
+.spread-controls {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+.spread-controls .spread-back { grid-column: 1; grid-row: 1; justify-self: end; }
+.spread-controls .spread-next { grid-column: 2; grid-row: 1; justify-self: center; }
+
+/* Stack the restart control below the share button. */
+.spread-controls { grid-template-columns: 1fr; gap: 0.75rem; }
+.spread-controls .spread-next { grid-column: 1; grid-row: 1; }
+.spread-controls .spread-back { grid-column: 1; grid-row: 2; justify-self: center; }
+
+.spread-controls .spread-back[hidden] { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rights .figure-slot .person { transition: none; }
+}
+
+/* Filtered-out cases remain visible but cannot be opened or hovered. */
+.case-card[aria-disabled="true"] { pointer-events: none; cursor: default; }
+.case-card[aria-disabled="true"] h3 { opacity: 0; }
+
+.spread-next .share-button-icon { display: block; width: 2rem; height: 2rem; object-fit: contain; }

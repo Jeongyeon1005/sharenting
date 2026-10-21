@@ -98,6 +98,19 @@ if (rights) {
   const regions = [...rights.querySelectorAll(".rights-region")];
   const figures = [...rights.querySelectorAll(".figure-slot")];
   const tracks = [...rights.querySelectorAll(".timeline-track > div")];
+  const exploreAction = rights.querySelector(".explore-action");
+  const updateHoverEnd = () => {
+    if (!exploreAction) return;
+    const sectionBounds = rights.getBoundingClientRect();
+    const buttonBounds = exploreAction.getBoundingClientRect();
+    const inset = Math.max(0, sectionBounds.bottom - (buttonBounds.top + buttonBounds.height / 2));
+    rights.style.setProperty("--hover-bottom-inset", `${inset}px`);
+  };
+  const hoverResizeObserver = new ResizeObserver(updateHoverEnd);
+  hoverResizeObserver.observe(rights);
+  if (exploreAction) hoverResizeObserver.observe(exploreAction);
+  window.addEventListener("resize", updateHoverEnd);
+  updateHoverEnd();
   let selectedStage = -1;
   const showStage = (stage) => {
     regions.forEach((region, index) => {
@@ -134,6 +147,9 @@ const spread = document.querySelector(".spread");
 if (spread) {
   let step = 0;
   let playbackTimers = [];
+  // Automatic sharing sequence timings (milliseconds).
+  const galleryDuration = 4250;
+  const repostDuration = 4250;
   const next = spread.querySelector(".spread-next");
   const back = spread.querySelector(".spread-back");
   const hints = ["아이콘을 눌러 아이 사진을 공유해보세요.", "공유된 사진이 다른 사람의 갤러리에 저장됩니다.", "저장된 사진이 SNS에 다시 업로드됩니다.", "공유하기 전, 사진 속 아이의 정보를 한 번 더 확인해주세요."];
@@ -147,10 +163,11 @@ if (spread) {
     spread.querySelector(".spread-result").hidden = step !== 3;
     spread.querySelector(".spread-routes").setAttribute("aria-hidden", "true");
     spread.querySelector(".spread-details").setAttribute("aria-hidden", "true");
-    next.hidden = step === 1 || step === 2;
-    next.querySelector("span").textContent = step === 3 ? "다시 보기" : "사진 공유하기";
+    next.hidden = step !== 0;
+    next.querySelector("span").textContent = step === 3 ? "다시 보기" : "공유하기";
     spread.querySelector(".spread-progress").textContent = `${step + 1} / 4`;
     spread.querySelector(".spread-hint").textContent = hints[step];
+    back.hidden = step === 0;
     back.disabled = step === 0;
     back.textContent = "처음으로";
   };
@@ -158,13 +175,12 @@ if (spread) {
     stopPlayback();
     step = 1;
     renderSpread();
-    playbackTimers.push(setTimeout(() => { step = 2; renderSpread(); }, 2600));
+    playbackTimers.push(setTimeout(() => { step = 2; renderSpread(); }, galleryDuration));
     playbackTimers.push(setTimeout(() => {
       step = 3;
       renderSpread();
-      // Keep keyboard focus available after the share button is revealed again.
-      if (document.activeElement === back || document.activeElement === document.body) next.focus({ preventScroll: true });
-    }, 5400));
+      if (document.activeElement === document.body) back.focus({ preventScroll: true });
+    }, galleryDuration + repostDuration));
   };
   next.addEventListener("click", startPlayback);
   back.addEventListener("click", () => {
@@ -192,6 +208,9 @@ if (caseExplorer) {
       if (all || match) matches++;
       card.classList.toggle("is-match", !all && match);
       card.classList.toggle("is-dimmed", !all && !match);
+      const disabled = !all && !match;
+      card.setAttribute("aria-disabled", String(disabled));
+      card.tabIndex = disabled ? -1 : 0;
     });
     caseExplorer.querySelector(".case-status").textContent = all ? `전체 ${cards.length}개 사례` : `${button.textContent}: ${matches}개 사례 · 여러 분야에 중복될 수 있습니다.`;
   }));
@@ -201,7 +220,12 @@ if (caseExplorer) {
 const exploreButton = document.querySelector(".explore-button");
 const casesDialog = document.querySelector(".cases-dialog");
 if (exploreButton && caseExplorer && casesDialog) {
-  exploreButton.addEventListener("click", () => {
+  const archiveLink = document.querySelector(".archive-link");
+  let casesTrigger = exploreButton;
+  const openCases = (event) => {
+    event.preventDefault();
+    casesTrigger = event.currentTarget;
+    if (casesDialog.open) return;
     caseExplorer.hidden = false;
     caseExplorer.classList.remove("is-visible");
     exploreButton.setAttribute("aria-expanded", "true");
@@ -214,14 +238,16 @@ if (exploreButton && caseExplorer && casesDialog) {
         caseExplorer.querySelector("#cases-title").focus({ preventScroll: true });
       });
     });
-  });
+  };
+  exploreButton.addEventListener("click", openCases);
+  archiveLink?.addEventListener("click", openCases);
   casesDialog.querySelector(".cases-close").addEventListener("click", () => casesDialog.close());
   casesDialog.addEventListener("close", () => {
     document.body.classList.remove("cases-open");
     exploreButton.setAttribute("aria-expanded", "false");
     caseExplorer.classList.remove("is-visible");
     caseExplorer.hidden = true;
-    exploreButton.focus({ preventScroll: true });
+    casesTrigger.focus({ preventScroll: true });
   });
 }
 
@@ -230,6 +256,7 @@ const caseDetail = document.querySelector(".case-detail");
 if (caseExplorer && caseDetail) {
   let activeCard = null;
   const openCase = (card, index) => {
+    if (card.getAttribute("aria-disabled") === "true") return;
     activeCard = card;
     caseDetail.querySelector(".case-detail-id").textContent = `${card.querySelector(".case-tags span").textContent} / 사례 ${String(index + 1).padStart(3, "0")}`;
     caseDetail.querySelector("#case-detail-title").textContent = card.querySelector("h3").textContent;
