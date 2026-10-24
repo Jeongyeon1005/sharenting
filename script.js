@@ -193,7 +193,46 @@ if (spread) {
 }
 
 
+const categoryLabels = {
+  privacy: "개인정보 노출", crime: "범죄 악용",
+  rights: "아동 권리 침해", footprint: "디지털 발자국과 후유증"
+};
+const formatCaseDate = (date) => date ? date.split("-").map((part, index) => `${Number(part)}${["년", "월", "일"][index]}`).join(" ") : "날짜 미상";
+const sortedCases = [...archiveCases].sort((a, b) => {
+  // Partial dates sort at the beginning of their known year/month; unknown dates go last.
+  const key = (date) => date ? date.split("-").concat(["01", "01"]).slice(0, 3).join("-") : "9999-12-31";
+  return key(a.date).localeCompare(key(b.date));
+});
 const caseExplorer = document.querySelector(".case-explorer");
+if (caseExplorer) {
+  const field = caseExplorer.querySelector(".case-field");
+  sortedCases.forEach((item, index) => {
+    const card = document.createElement("article");
+    card.className = "case-card";
+    card.setAttribute("role", "button");
+    card.setAttribute("aria-haspopup", "dialog");
+    card.tabIndex = 0;
+    card.dataset.categories = item.categories.join(" ");
+    card.style.setProperty("--delay", `${Math.min(index * 30, 350)}ms`);
+    const number = document.createElement("span");
+    number.className = "case-number";
+    number.textContent = `CASE ${String(index + 1).padStart(2, "0")}`;
+    const date = document.createElement("p");
+    date.className = "case-card-date";
+    date.textContent = `${formatCaseDate(item.date)} / ${item.country}`;
+    const title = document.createElement("h3");
+    title.textContent = item.title;
+    const tags = document.createElement("div");
+    tags.className = "case-tags";
+    item.categories.forEach((category) => {
+      const tag = document.createElement("span");
+      tag.textContent = categoryLabels[category];
+      tags.append(tag);
+    });
+    card.append(number, date, title, tags);
+    field.append(card);
+  });
+}
 if (caseExplorer) {
   const filters = [...caseExplorer.querySelectorAll(".case-filters button")];
   const cards = [...caseExplorer.querySelectorAll(".case-card")];
@@ -212,7 +251,7 @@ if (caseExplorer) {
       card.setAttribute("aria-disabled", String(disabled));
       card.tabIndex = disabled ? -1 : 0;
     });
-    caseExplorer.querySelector(".case-status").textContent = all ? `전체 ${cards.length}개 사례` : `${button.textContent}: ${matches}개 사례 · 여러 분야에 중복될 수 있습니다.`;
+    caseExplorer.querySelector(".case-status").textContent = all ? `전체 ${cards.length}개 사례` : `${button.textContent}: ${matches}개 사례 · 날짜순`;
   }));
 }
 
@@ -258,10 +297,28 @@ if (caseExplorer && caseDetail) {
   const openCase = (card, index) => {
     if (card.getAttribute("aria-disabled") === "true") return;
     activeCard = card;
-    caseDetail.querySelector(".case-detail-id").textContent = `${card.querySelector(".case-tags span").textContent} / 사례 ${String(index + 1).padStart(3, "0")}`;
-    caseDetail.querySelector("#case-detail-title").textContent = card.querySelector("h3").textContent;
-    caseDetail.querySelector("#case-detail-description").textContent = card.querySelector("p").textContent;
-    caseDetail.querySelector(".case-detail-categories").textContent = [...card.querySelectorAll(".case-tags span")].map((tag) => `#${tag.textContent}`).join("  ");
+    const item = sortedCases[index];
+    caseDetail.querySelector(".case-detail-id").textContent = `사례 ${String(index + 1).padStart(3, "0")}`;
+    caseDetail.querySelector("#case-detail-title").textContent = item.title;
+    caseDetail.querySelector("#case-detail-description").textContent = item.summary;
+    caseDetail.querySelector(".case-detail-categories").textContent = item.categories.map((category) => `#${categoryLabels[category]}`).join("  ");
+    caseDetail.querySelector(".case-detail-date").textContent = `${formatCaseDate(item.date)} / ${item.country}`;
+    caseDetail.querySelector(".case-detail-age").textContent = item.age;
+    const note = caseDetail.querySelector(".case-detail-note");
+    note.hidden = !item.note;
+    note.textContent = item.note;
+    const sources = caseDetail.querySelector(".case-detail-sources");
+    sources.replaceChildren();
+    item.sources.forEach((url) => {
+      const row = document.createElement("li");
+      const link = document.createElement("a");
+      link.href = url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = `${new URL(url).hostname.replace(/^www\./, "")} · 원문 보기 ↗`;
+      row.append(link);
+      sources.append(row);
+    });
     caseDetail.showModal();
     caseDetail.scrollTop = 0;
   };
