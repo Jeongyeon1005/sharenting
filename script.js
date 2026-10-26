@@ -30,6 +30,7 @@ const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 if (impact) {
   const paths = [...impact.querySelectorAll(".impact-lines path")];
+  const labels = [...impact.querySelectorAll(".impact-list li")];
   const pathLengths = paths.map((path) => {
     path.removeAttribute("pathLength");
     const length = path.getTotalLength();
@@ -53,6 +54,7 @@ if (impact) {
       path.style.strokeDashoffset = String(pathLengths[index] * (1 - lineProgress));
       path.style.opacity = lineProgress > 0 ? "1" : "0";
       path.classList.toggle("is-active", active);
+      labels[index]?.classList.toggle("is-active", lineProgress >= 1);
     });
   };
 
@@ -74,10 +76,80 @@ if (impact) {
 
 const portraitInteraction = document.querySelector(".post-photo-interaction");
 if (portraitInteraction) {
-  const togglePortrait = () => {
-    const open = portraitInteraction.classList.toggle("is-open");
+  const section = portraitInteraction.closest(".privacy");
+  const panel = section.querySelector(".privacy-analysis");
+  const rows = [...panel.querySelectorAll("[data-text]")];
+  const landmarks = section.querySelector(".face-landmarks");
+  // Landmark coordinates match the original photo, which keeps its native ratio.
+  const contours = [
+    [[626,312],[626,356],[639,404],[662,448],[700,480],[748,492],[796,480],[840,450],[870,408],[884,360],[884,312]],
+    [[646,303],[670,290],[698,291],[719,302]],
+    [[774,296],[800,283],[830,285],[851,297]],
+    [[651,326],[675,316],[701,322],[679,333],[651,326]],
+    [[782,320],[805,309],[831,314],[809,326],[782,320]],
+    [[741,318],[739,343],[730,366],[749,374],[769,362]],
+    [[682,396],[712,382],[748,379],[783,376],[815,386],[793,419],[755,436],[716,427],[682,396]],
+    [[700,397],[736,399],[773,394],[800,389]],
+    [[650,267],[686,249],[731,242],[776,239],[825,253],[859,270]]
+  ];
+  contours.forEach((points) => {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", points.map(([x,y], index) => `${index ? "L" : "M"}${x} ${y}`).join(" "));
+    landmarks.append(path);
+    points.forEach(([x,y]) => {
+      const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      dot.setAttribute("cx", x);
+      dot.setAttribute("cy", y);
+      dot.setAttribute("r", "3.2");
+      landmarks.append(dot);
+    });
+  });
+  let typingTimer;
+  let active = false;
+  let pinned = false;
+  const setAnalysis = (open) => {
+    if (active === open) return;
+    active = open;
+    clearTimeout(typingTimer);
+    section.classList.toggle("is-analyzing", open);
+    portraitInteraction.classList.toggle("is-open", open);
     portraitInteraction.setAttribute("aria-pressed", String(open));
+    panel.setAttribute("aria-hidden", String(!open));
+    rows.forEach((row) => { row.textContent = ""; row.classList.remove("is-typing"); });
+    if (!open) return;
+    if (reducedMotion.matches) {
+      rows.forEach((row) => { row.textContent = row.dataset.text; });
+      return;
+    }
+    let rowIndex = 0;
+    let charIndex = 0;
+    const type = () => {
+      const row = rows[rowIndex];
+      row.classList.add("is-typing");
+      row.textContent = row.dataset.text.slice(0, ++charIndex);
+      if (charIndex < row.dataset.text.length) {
+        typingTimer = setTimeout(type, 65);
+      } else {
+        row.classList.remove("is-typing");
+        rowIndex++;
+        charIndex = 0;
+        if (rowIndex < rows.length) typingTimer = setTimeout(type, 220);
+      }
+    };
+    typingTimer = setTimeout(type, 650);
   };
+  const figure = portraitInteraction.closest(".social-figure");
+  figure.addEventListener("pointerenter", (event) => {
+    if (event.pointerType !== "touch") setAnalysis(true);
+  });
+  figure.addEventListener("pointerleave", () => {
+    if (!pinned && document.activeElement !== portraitInteraction) setAnalysis(false);
+  });
+  portraitInteraction.addEventListener("focus", () => setAnalysis(true));
+  portraitInteraction.addEventListener("blur", () => {
+    if (!pinned && !figure.matches(":hover")) setAnalysis(false);
+  });
+  const togglePortrait = () => { pinned = !pinned; setAnalysis(pinned); };
   portraitInteraction.addEventListener("click", togglePortrait);
   portraitInteraction.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -85,8 +157,8 @@ if (portraitInteraction) {
       togglePortrait();
     }
     if (event.key === "Escape") {
-      portraitInteraction.classList.remove("is-open");
-      portraitInteraction.setAttribute("aria-pressed", "false");
+      pinned = false;
+      setAnalysis(false);
       portraitInteraction.blur();
     }
   });
@@ -148,24 +220,26 @@ if (spread) {
   let step = 0;
   let playbackTimers = [];
   // Automatic sharing sequence timings (milliseconds).
-  const galleryDuration = 4250;
-  const repostDuration = 4250;
+  const galleryDuration = 4000;
   const next = spread.querySelector(".spread-next");
   const back = spread.querySelector(".spread-back");
+  const scrollPrompt = spread.querySelector(".spread-scroll-prompt");
+  spread.querySelector(".share-posted-notice").addEventListener("animationend", (event) => {
+    if (event.animationName === "share-save" && step === 2) scrollPrompt.hidden = false;
+  });
   const hints = ["아이콘을 눌러 아이 사진을 공유해보세요.", "공유된 사진이 다른 사람의 갤러리에 저장됩니다.", "저장된 사진이 SNS에 다시 업로드됩니다.", "공유하기 전, 사진 속 아이의 정보를 한 번 더 확인해주세요."];
   const stopPlayback = () => {
     playbackTimers.forEach(clearTimeout);
     playbackTimers = [];
+    scrollPrompt.hidden = true;
   };
   const renderSpread = () => {
     spread.dataset.step = String(step);
-    spread.querySelector(".spread-scene").hidden = step === 3;
-    spread.querySelector(".spread-result").hidden = step !== 3;
     spread.querySelector(".spread-routes").setAttribute("aria-hidden", "true");
     spread.querySelector(".spread-details").setAttribute("aria-hidden", "true");
     next.hidden = step !== 0;
-    next.querySelector("span").textContent = step === 3 ? "다시 보기" : "공유하기";
-    spread.querySelector(".spread-progress").textContent = `${step + 1} / 4`;
+    next.querySelector("span").textContent = "공유하기";
+    spread.querySelector(".spread-progress").textContent = `${step + 1} / 3`;
     spread.querySelector(".spread-hint").textContent = hints[step];
     back.hidden = step === 0;
     back.disabled = step === 0;
@@ -176,11 +250,7 @@ if (spread) {
     step = 1;
     renderSpread();
     playbackTimers.push(setTimeout(() => { step = 2; renderSpread(); }, galleryDuration));
-    playbackTimers.push(setTimeout(() => {
-      step = 3;
-      renderSpread();
-      if (document.activeElement === document.body) back.focus({ preventScroll: true });
-    }, galleryDuration + repostDuration));
+
   };
   next.addEventListener("click", startPlayback);
   back.addEventListener("click", () => {
@@ -214,22 +284,23 @@ if (caseExplorer) {
     card.tabIndex = 0;
     card.dataset.categories = item.categories.join(" ");
     card.style.setProperty("--delay", `${Math.min(index * 30, 350)}ms`);
-    const number = document.createElement("span");
-    number.className = "case-number";
-    number.textContent = `CASE ${String(index + 1).padStart(2, "0")}`;
-    const date = document.createElement("p");
-    date.className = "case-card-date";
-    date.textContent = `${formatCaseDate(item.date)} / ${item.country}`;
+    card.setAttribute("aria-label", item.title);
     const title = document.createElement("h3");
     title.textContent = item.title;
-    const tags = document.createElement("div");
-    tags.className = "case-tags";
-    item.categories.forEach((category) => {
-      const tag = document.createElement("span");
-      tag.textContent = categoryLabels[category];
-      tags.append(tag);
-    });
-    card.append(number, date, title, tags);
+    if (item.image) {
+      const thumbnail = document.createElement("img");
+      thumbnail.className = "case-thumbnail";
+      thumbnail.src = item.image;
+      thumbnail.alt = "";
+      thumbnail.loading = "lazy";
+      card.append(thumbnail);
+    } else {
+      const placeholder = document.createElement("div");
+      placeholder.className = "case-thumbnail case-thumbnail-placeholder";
+      placeholder.setAttribute("aria-hidden", "true");
+      card.append(placeholder);
+    }
+    card.append(title);
     field.append(card);
   });
 }
@@ -260,10 +331,8 @@ const exploreButton = document.querySelector(".explore-button");
 const casesDialog = document.querySelector(".cases-dialog");
 if (exploreButton && caseExplorer && casesDialog) {
   const archiveLink = document.querySelector(".archive-link");
-  let casesTrigger = exploreButton;
   const openCases = (event) => {
     event.preventDefault();
-    casesTrigger = event.currentTarget;
     if (casesDialog.open) return;
     caseExplorer.hidden = false;
     caseExplorer.classList.remove("is-visible");
@@ -286,7 +355,9 @@ if (exploreButton && caseExplorer && casesDialog) {
     exploreButton.setAttribute("aria-expanded", "false");
     caseExplorer.classList.remove("is-visible");
     caseExplorer.hidden = true;
-    casesTrigger.focus({ preventScroll: true });
+    document.querySelector("#hero-title").focus({ preventScroll: true });
+    window.scrollTo({ top: 0, behavior: "instant" });
+    history.replaceState(null, "", "#home");
   });
 }
 
@@ -298,15 +369,22 @@ if (caseExplorer && caseDetail) {
     if (card.getAttribute("aria-disabled") === "true") return;
     activeCard = card;
     const item = sortedCases[index];
-    caseDetail.querySelector(".case-detail-id").textContent = `사례 ${String(index + 1).padStart(3, "0")}`;
+    caseDetail.querySelector(".case-detail-id").textContent = `Case. ${String(index + 1).padStart(3, "0")}`;
     caseDetail.querySelector("#case-detail-title").textContent = item.title;
+    const imageArea = caseDetail.querySelector(".case-detail-placeholder");
+    imageArea.replaceChildren();
+    imageArea.setAttribute("aria-label", item.image ? item.title : "사례 이미지 준비 중");
+    if (item.image) {
+      const image = document.createElement("img");
+      image.src = item.image;
+      image.alt = "";
+      imageArea.append(image);
+    }
     caseDetail.querySelector("#case-detail-description").textContent = item.summary;
     caseDetail.querySelector(".case-detail-categories").textContent = item.categories.map((category) => `#${categoryLabels[category]}`).join("  ");
-    caseDetail.querySelector(".case-detail-date").textContent = `${formatCaseDate(item.date)} / ${item.country}`;
+    caseDetail.querySelector(".case-detail-country").textContent = item.country;
+    caseDetail.querySelector(".case-detail-date").textContent = `사건일 / 보도일: ${formatCaseDate(item.date)}`;
     caseDetail.querySelector(".case-detail-age").textContent = item.age;
-    const note = caseDetail.querySelector(".case-detail-note");
-    note.hidden = !item.note;
-    note.textContent = item.note;
     const sources = caseDetail.querySelector(".case-detail-sources");
     sources.replaceChildren();
     item.sources.forEach((url) => {
@@ -337,4 +415,105 @@ if (caseExplorer && caseDetail) {
     if (event.target === caseDetail && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)) caseDetail.close();
   });
   caseDetail.addEventListener("close", () => activeCard?.focus({ preventScroll: true }));
+}
+
+// A visual simulation: no photo is uploaded or sent to a platform.
+const footprint = document.querySelector(".footprint");
+if (footprint) {
+  const artwork = footprint.querySelector(".footprint-artwork");
+  const phone = footprint.querySelector(".footprint-phone");
+  const confirm = footprint.querySelector(".footprint-confirm");
+  const copies = [...footprint.querySelectorAll(".footprint-copy")];
+  const ending = footprint.querySelector(".footprint-ending");
+  const status = footprint.querySelector(".footprint-status");
+  const platforms = ["블로그", "유튜브", "인스타", "페이스북", "X"];
+  const network = footprint.querySelector(".footprint-network");
+  const svgNS = "http://www.w3.org/2000/svg";
+  const lineGroups = platforms.map(() => []);
+  // Coordinates share the PNG canvas, so the bundles stay attached on resize.
+  const phones = [
+    [882, 792, 1], [199, 706, 0.85], [1370, 720, 0.85],
+    [461, 652, 0.55], [1120, 675, 0.6], [52, 643, 0.38],
+    [302, 623, 0.35], [670, 617, 0.3], [1012, 626, 0.34], [1532, 640, 0.4]
+  ];
+  let seed = 437;
+  const random = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+  phones.forEach(([x, y, scale], sourceIndex) => {
+    const count = sourceIndex === 0 ? 230 : Math.round(100 * scale);
+    for (let i = 0; i < count; i++) {
+      const path = document.createElementNS(svgNS, "path");
+      // A narrow neck makes each bundle gather above its physical phone.
+      const neckX = x + 25 * scale + (random() - 0.5) * 24 * scale;
+      const neckY = y - (100 + random() * 90) * scale;
+      const endX = random() * 1900 - 136;
+      const endY = random() * 430 - 100;
+      const midX = neckX + (endX - neckX) * 0.45 + (random() - 0.5) * 240;
+      const midY = 150 + random() * 270;
+      path.setAttribute("d", `M${x + (random() - 0.5) * 8} ${y} C${x + 8} ${y - 45 * scale} ${neckX} ${neckY + 40} ${neckX} ${neckY} C${midX} ${midY} ${endX + (random() - 0.5) * 600} ${endY + 160} ${endX} ${endY}`);
+      const bold = i % 11 === 0;
+      path.setAttribute("stroke-width", bold ? String(1.5 + random() * 1.1) : String(0.3 + random() * 0.85));
+      path.setAttribute("stroke", i % 4 === 0 ? "#ff87c2" : "#f52b96");
+      path.setAttribute("stroke-opacity", String(bold ? 0.9 : 0.2 + random() * 0.45));
+      path.setAttribute("pathLength", "1");
+      path.classList.add("footprint-network-line");
+      const groupIndex = sourceIndex === 0 ? i % 5 : Math.min(4, Math.ceil(sourceIndex / 2));
+      lineGroups[groupIndex].push(path);
+      network.append(path);
+    }
+  });
+  let timers = [];
+  let sharing = false;
+  // Time each platform stays visible before the next downward name transition.
+  const platformDuration = 650;
+  const reset = () => {
+    timers.forEach(clearTimeout);
+    timers = [];
+    sharing = false;
+    footprint.querySelector(".footprint-yes").disabled = false;
+    footprint.classList.remove("is-sharing");
+    ending.hidden = true;
+    phone.disabled = false;
+    confirm.classList.remove("is-stacked");
+    copies.forEach((card) => { card.hidden = true; });
+    artwork.style.setProperty("--line-opacity", "0");
+    lineGroups.flat().forEach((path) => path.classList.remove("is-drawn"));
+    artwork.style.setProperty("--share-opacity", "0");
+    status.textContent = "";
+  };
+  phone.addEventListener("click", () => {
+    if (!sharing) {
+      confirm.showModal();
+      footprint.querySelector("#footprint-question").focus({ preventScroll: true });
+    }
+  });
+  footprint.querySelector(".footprint-no").addEventListener("click", () => confirm.close());
+  footprint.querySelector(".footprint-yes").addEventListener("click", () => {
+    if (sharing) return;
+    footprint.querySelector(".footprint-yes").disabled = true;
+    sharing = true;
+    phone.disabled = true;
+    footprint.classList.add("is-sharing");
+    const revealPlatform = (index) => {
+      if (index > 0) {
+        confirm.classList.add("is-stacked");
+        copies[index - 1].hidden = false;
+      }
+      // Draw connected bundles while the supplied crowd fades in.
+      artwork.style.setProperty("--line-opacity", ["0.4", "0.6", "0.8", "0.9", "1"][index]);
+      artwork.style.setProperty("--share-opacity", ["0", "0.1", "0.35", "0.7", "1"][index]);
+      lineGroups[index].forEach((path) => path.classList.add("is-drawn"));
+      status.textContent = `${platforms[index]}: 사진이 이어지고 온라인에 흔적이 남습니다.`;
+    };
+    platforms.forEach((_, index) => {
+      timers.push(setTimeout(() => revealPlatform(index), index * platformDuration));
+    });
+    timers.push(setTimeout(() => {
+      confirm.close();
+      ending.hidden = false;
+    }, platforms.length * platformDuration + 900));
+  });
+  footprint.querySelector(".footprint-reset").addEventListener("click", () => {
+    reset();
+    phone.focus({ preventScroll: true });
+  });
 }

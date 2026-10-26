@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="213" height="62" viewBox="0 0 213 62" fill="none">
+  <defs><linearGradient id="tab" x1="106" y1="0" x2="106" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#E96BB4"/><stop offset="1" stop-color="#B63886"/></linearGradient></defs>
+  <path d="M0 62V13C0 5.82 5.82 0 13 0H178C189 0 196 5 200 16L213 62H0Z" fill="url(#tab)"/>
+</svg>

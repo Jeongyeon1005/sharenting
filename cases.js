@@ -5,6 +5,7 @@
 const archiveCases = [
   {
     "id": "jake",
+    "image": "./images/1.jpg",
     "title": "Jake의 아기 사진 입양 사기 도용 사건",
     "date": "2009-08-03",
     "country": "미국",
@@ -22,6 +23,7 @@ const archiveCases = [
   },
   {
     "id": "darren",
+    "image": "./images/2.jpg",
     "title": "자녀 사진 올렸다간 셰어런팅으로 고소당해",
     "date": "2016",
     "country": "캐나다 앨버타주 캘거리시",
@@ -38,6 +40,7 @@ const archiveCases = [
   },
   {
     "id": "roman",
+    "image": "./images/3.jpg",
     "title": "어머니가 올린 글이 전 세계에 퍼진 11세 소년",
     "date": "2016-11-05",
     "country": "영국",
@@ -54,6 +57,7 @@ const archiveCases = [
   },
   {
     "id": "boram",
+    "image": "./images/4.jpg",
     "title": "보람튜브 아동 출연 강요 및 아동 권리 침해 논란",
     "date": "2017",
     "country": "대한민국",
@@ -69,6 +73,7 @@ const archiveCases = [
   },
   {
     "id": "italy",
+    "image": "./images/5.jpg",
     "title": "어머니가 아들의 사생활을 SNS에 반복적으로 공개한 사건",
     "date": "2017-12-23",
     "country": "이탈리아",
@@ -86,6 +91,7 @@ const archiveCases = [
   },
   {
     "id": "familyofive",
+    "image": "./images/6.jpg",
     "title": "FamilyOFive — 조회수를 위한 장난 콘텐츠와 아동 권리 침해",
     "date": "2018-07-19",
     "country": "미국",
@@ -101,6 +107,7 @@ const archiveCases = [
   },
   {
     "id": "estonia",
+    "image": "./images/7.jpg",
     "title": "육아 블로그 사진을 ‘성적 거래’ 게시물에 사용",
     "date": "2019",
     "country": "에스토니아",
@@ -117,6 +124,7 @@ const archiveCases = [
   },
   {
     "id": "bath",
+    "image": "./images/8.jpg",
     "title": "2세 딸의 목욕 사진을 게시한 뒤 낯선 사람들의 비난 댓글을 받은 어머니",
     "date": "2019-07",
     "country": "미국",
@@ -132,6 +140,7 @@ const archiveCases = [
   },
   {
     "id": "barnes",
+    "image": "./images/9.jpg",
     "title": "아버지가 11세 아동의 사진을 촬영해 온라인에 유포한 사건",
     "date": "2020-03",
     "country": "미국",
@@ -148,6 +157,7 @@ const archiveCases = [
   },
   {
     "id": "grandmother-nl",
+    "image": "./images/10.jpg",
     "title": "네덜란드 할머니의 손주 사진 삭제 판결",
     "date": "2020-05-13",
     "country": "네덜란드",
@@ -164,6 +174,7 @@ const archiveCases = [
   },
   {
     "id": "hoodie",
+    "image": "./images/11.jpg",
     "title": "“취업하거나 연애할 때도 검색될 것” — 인플루언서 어머니의 콘텐츠에 반대한 자녀",
     "date": "2020-10-11",
     "country": "미국",
@@ -180,6 +191,7 @@ const archiveCases = [
   },
   {
     "id": "claudia",
+    "image": "./images/12.jpg",
     "title": "어머니의 트위터 계정에 게시된 16세 딸의 상반신 노출 사진",
     "date": "2021-01-26",
     "country": "미국",
@@ -196,6 +208,7 @@ const archiveCases = [
   },
   {
     "id": "momcafe",
+    "image": "./images/13.jpg",
     "title": "“엄마가 제 사진을 맘카페에 올려요” — 부모의 게시물에 수치심을 느낀 13세 아동",
     "date": "2021-08-11",
     "country": "대한민국",
@@ -212,6 +225,7 @@ const archiveCases = [
   },
   {
     "id": "minois",
+    "image": "./images/15.jpg",
     "title": "어머니가 아들의 사진을 화장품 브랜드 광고에 사용한 사건",
     "date": "2021-12",
     "country": "프랑스",
@@ -228,6 +242,7 @@ const archiveCases = [
   },
   {
     "id": "prichard",
+    "image": "./images/16.jpg",
     "title": "인스타그램에 공개한 아이 사진의 무단 도용 및 신원 사칭",
     "date": "2022-02",
     "country": "미국",
@@ -244,6 +259,7 @@ const archiveCases = [
   },
   {
     "id": "actor",
+    "image": "./images/31.jpg",
     "title": "배우 A씨의 아들 나체 사진 게시 논란",
     "date": "",
     "country": "자료에 미기재",
@@ -259,6 +275,7 @@ const archiveCases = [
   },
   {
     "id": "vlog",
+    "image": "./images/17.jpg",
     "title": "가족 브이로그 속에서 자란 청소년의 사생활 침해",
     "date": "2022-09",
     "country": "호주(제공 자료 기준)",
@@ -276,6 +293,7 @@ const archiveCases = [
   },
   {
     "id": "steele",
+    "image": "./images/18.jpg",
     "title": "Meredith Steele 가족사진 도용 및 ‘디지털 납치’",
     "date": "2022-12-15",
     "country": "미국",
@@ -292,6 +310,7 @@ const archiveCases = [
   },
   {
     "id": "jurik",
+    "image": "./images/19.jpg",
     "title": "Stacey Jurik의 자녀 인스타그램 계정 사건",
     "date": "2023",
     "country": "미국",
@@ -309,6 +328,7 @@ const archiveCases = [
   },
   {
     "id": "bella",
+    "image": "./images/20.jpg",
     "title": "만성질환을 앓는 딸의 의료정보를 대규모 팔로워에게 공개한 어머니",
     "date": "2023-05-11",
     "country": "캐나다",
@@ -324,6 +344,7 @@ const archiveCases = [
   },
   {
     "id": "cam",
+    "image": "./images/22.jpg",
     "title": "Cam Barrett — 초경·사고·병원 사진과 어린 시절 사진의 지속적 노출",
     "date": "2023-07-06",
     "country": "미국",
@@ -340,6 +361,7 @@ const archiveCases = [
   },
   {
     "id": "kasket",
+    "image": "./images/24.jpg",
     "title": "부모가 7년간 올린 이야기를 아이가 직접 삭제해 달라고 요구한 사례",
     "date": "2023-08-30",
     "country": "영국",
@@ -356,6 +378,7 @@ const archiveCases = [
   },
   {
     "id": "indiana",
+    "image": "./images/25.jpg",
     "title": "생후 18개월 자녀를 성적으로 학대하고 영상·사진을 제작한 부모",
     "date": "2023-12",
     "country": "미국 인디애나주",
@@ -373,6 +396,7 @@ const archiveCases = [
   },
   {
     "id": "colombia",
+    "image": "./images/26.jpg",
     "title": "콜롬비아 메데인의 어머니 사건",
     "date": "2024",
     "country": "콜롬비아 / 미국 연계",
@@ -389,6 +413,7 @@ const archiveCases = [
   },
   {
     "id": "brisbane",
+    "image": "./images/27.jpg",
     "title": "어린 자녀 사진을 WhatsApp에서 교환한 아버지",
     "date": "2024",
     "country": "호주 브리즈번",
@@ -405,6 +430,7 @@ const archiveCases = [
   },
   {
     "id": "grandmother-au",
+    "image": "./images/28.jpg",
     "title": "손녀에 대한 아동 학대물을 촬영해 틱톡에 게시한 할머니",
     "date": "2024-04-30",
     "country": "호주",
@@ -422,6 +448,7 @@ const archiveCases = [
   },
   {
     "id": "kaylin",
+    "image": "./images/29.jpg",
     "title": "Kaylin Hayman의 인스타그램 사진을 이용한 AI 성착취 이미지 제작",
     "date": "2024-10",
     "country": "미국",
@@ -438,6 +465,7 @@ const archiveCases = [
   },
   {
     "id": "grok",
+    "image": "./images/30.jpg",
     "title": "어린 시절 사진을 이용한 AI 성착취 이미지 제작 및 유포",
     "date": "2026-08-15",
     "country": "자료에 미기재",
@@ -455,6 +483,7 @@ const archiveCases = [
   },
   {
     "id": "claire",
+    "image": "./images/32.jpg",
     "title": "가족 생계를 위해 촬영을 계속해야 한다는 압박",
     "date": "",
     "country": "미국",
@@ -471,6 +500,7 @@ const archiveCases = [
   },
   {
     "id": "jordan-cheyenne",
+    "image": "./images/14.jpg",
     "title": "Jordan Cheyenne의 아들 — 썸네일을 위한 울음 연출 요구",
     "date": "2021-09-08",
     "country": "미국",
@@ -486,6 +516,7 @@ const archiveCases = [
   },
   {
     "id": "korean-study-14",
+    "image": "./images/21.jpg",
     "title": "온라인 사진을 보고 현실에서 아이를 알아본 낯선 사람 — 국내 연구 참여자 #14",
     "date": "2023-06-30",
     "country": "대한민국",
@@ -501,6 +532,7 @@ const archiveCases = [
   },
   {
     "id": "kodye-elyse",
+    "image": "./images/23.jpg",
     "title": "Kodye Elyse의 딸 — 영상 삭제 후에도 학교 주소 유출과 협박",
     "date": "2023-07-06",
     "country": "미국",
