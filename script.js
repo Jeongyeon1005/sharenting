@@ -409,7 +409,6 @@ if (caseExplorer && caseDetail) {
       }
     });
   });
-  caseDetail.querySelector(".case-detail-close").addEventListener("click", () => caseDetail.close());
   caseDetail.addEventListener("click", (event) => {
     const bounds = caseDetail.getBoundingClientRect();
     if (event.target === caseDetail && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)) caseDetail.close();
@@ -463,8 +462,8 @@ if (footprint) {
   });
   let timers = [];
   let sharing = false;
-  // Time each platform stays visible before the next downward name transition.
-  const platformDuration = 650;
+  // Successive popup gaps shrink: 320ms → 220ms → 140ms → 90ms.
+  const popupTimes = [0, 320, 540, 680, 770];
   const reset = () => {
     timers.forEach(clearTimeout);
     timers = [];
@@ -474,6 +473,7 @@ if (footprint) {
     ending.hidden = true;
     phone.disabled = false;
     confirm.classList.remove("is-stacked");
+    confirm.classList.remove("is-dismissing");
     copies.forEach((card) => { card.hidden = true; });
     artwork.style.setProperty("--line-opacity", "0");
     lineGroups.flat().forEach((path) => path.classList.remove("is-drawn"));
@@ -498,22 +498,94 @@ if (footprint) {
         confirm.classList.add("is-stacked");
         copies[index - 1].hidden = false;
       }
-      // Draw connected bundles while the supplied crowd fades in.
-      artwork.style.setProperty("--line-opacity", ["0.4", "0.6", "0.8", "0.9", "1"][index]);
-      artwork.style.setProperty("--share-opacity", ["0", "0.1", "0.35", "0.7", "1"][index]);
-      lineGroups[index].forEach((path) => path.classList.add("is-drawn"));
-      status.textContent = `${platforms[index]}: 사진이 이어지고 온라인에 흔적이 남습니다.`;
+      status.textContent = `${platforms[index]} 공유 상태창`;
     };
-    platforms.forEach((_, index) => {
-      timers.push(setTimeout(() => revealPlatform(index), index * platformDuration));
+    popupTimes.forEach((delay, index) => {
+      timers.push(setTimeout(() => revealPlatform(index), delay));
     });
+    const dismissAt = popupTimes[popupTimes.length - 1] + 400;
+    const fadeDuration = reducedMotion.matches ? 0 : 180;
+    timers.push(setTimeout(() => confirm.classList.add("is-dismissing"), dismissAt));
     timers.push(setTimeout(() => {
       confirm.close();
-      ending.hidden = false;
-    }, platforms.length * platformDuration + 900));
+      status.textContent = "공유된 사진이 연결되고 온라인에 흔적이 남습니다.";
+      // The network starts only after every popup has disappeared.
+      lineGroups.forEach((paths, index) => {
+        timers.push(setTimeout(() => {
+          artwork.style.setProperty("--line-opacity", ["0.4", "0.6", "0.8", "0.9", "1"][index]);
+          artwork.style.setProperty("--share-opacity", ["0", "0.1", "0.35", "0.7", "1"][index]);
+          paths.forEach((path) => path.classList.add("is-drawn"));
+        }, index * 180));
+      });
+      timers.push(setTimeout(() => { ending.hidden = false; }, 2300));
+    }, dismissAt + fadeDuration));
   });
   footprint.querySelector(".footprint-reset").addEventListener("click", () => {
     reset();
     phone.focus({ preventScroll: true });
   });
+}
+
+// Reveal the final connector when the Explore destination enters view.
+const finalExplore = document.querySelector(".footprint .explore-action");
+if (finalExplore) {
+  const button = finalExplore.querySelector(".explore-button");
+  let hasFormed = false;
+  const formButton = () => {
+    if (hasFormed) return;
+    hasFormed = true;
+    if (!reducedMotion.matches) {
+      const root = document.documentElement;
+      const oldRootOverflow = root.style.overflow;
+      const oldBodyOverflow = document.body.style.overflow;
+      const oldPadding = document.body.style.paddingRight;
+      const scrollbarWidth = window.innerWidth - root.clientWidth;
+      const padding = parseFloat(getComputedStyle(document.body).paddingRight) || 0;
+      let released = false;
+      let fallback;
+      const stopScroll = (event) => event.preventDefault();
+      const stopKeys = (event) => {
+        if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) event.preventDefault();
+        if (event.key === "Escape") release();
+      };
+      const text = button.querySelector("span");
+      const onFinished = (event) => {
+        if (event.target === text && event.propertyName === "opacity") release();
+      };
+      const release = () => {
+        if (released) return;
+        released = true;
+        clearTimeout(fallback);
+        root.style.overflow = oldRootOverflow;
+        document.body.style.overflow = oldBodyOverflow;
+        document.body.style.paddingRight = oldPadding;
+        window.removeEventListener("wheel", stopScroll);
+        window.removeEventListener("touchmove", stopScroll);
+        window.removeEventListener("keydown", stopKeys);
+        text.removeEventListener("transitionend", onFinished);
+      };
+      if (scrollbarWidth > 0) document.body.style.paddingRight = `${padding + scrollbarWidth}px`;
+      root.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+      window.addEventListener("wheel", stopScroll, { passive: false });
+      window.addEventListener("touchmove", stopScroll, { passive: false });
+      window.addEventListener("keydown", stopKeys);
+      text.addEventListener("transitionend", onFinished);
+      // Also release if the transition is interrupted or the tab becomes inactive.
+      fallback = setTimeout(release, 2350);
+    }
+    finalExplore.classList.add("is-formed");
+  };
+  button.addEventListener("focus", formButton);
+  if ("IntersectionObserver" in window) {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        formButton();
+        observer.disconnect();
+      }
+    }, { threshold: 1, rootMargin: "0px 0px -60px 0px" });
+    observer.observe(button);
+  } else {
+    formButton();
+  }
 }
