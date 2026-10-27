@@ -925,7 +925,8 @@ a:focus-visible {
 .privacy.is-analyzing .privacy-layout { grid-template-columns: minmax(0, 0.85fr) minmax(18rem, 1.15fr); gap: clamp(2rem, 5vw, 5rem); }
 .privacy.is-analyzing .social-figure { max-width: 34rem; }
 .privacy .post-image { position: relative; aspect-ratio: 1489 / 1056; }
-.privacy .post-image img { object-fit: contain; }
+.privacy .post-image img { object-fit: contain; filter: brightness(1); transition: filter 300ms ease; }
+.privacy.is-analyzing .post-image img { filter: brightness(0.8); }
 .privacy-analysis { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; opacity: 0; visibility: hidden; transition: opacity 350ms ease; color: #f4eff1; }
 .privacy.is-analyzing .section-copy > h2, .privacy.is-analyzing .section-copy > p { opacity: 0; pointer-events: none; }
 .privacy.is-analyzing .privacy-analysis { opacity: 1; visibility: visible; }
@@ -974,7 +975,7 @@ a:focus-visible {
   content: "";
   position: absolute;
   /* 문구 60px 위에서 시작하고 Explore 버튼 위치에서 끝납니다. */
-  top: calc(var(--message-top) - 120px);
+  top: calc(var(--message-top) - var(--hover-top-extension, 120px));
   bottom: var(--hover-bottom-inset, 2rem);
   left: 0;
   right: 0;
@@ -1006,10 +1007,30 @@ a:focus-visible {
   word-break: keep-all;
 }
 /* Stage message positions: smaller percentages move the text upward. */
-.rights-region:nth-child(1) { --message-top: 49%; }
-.rights-region:nth-child(2) { --message-top: 39%; }
-.rights-region:nth-child(3) { --message-top: 33%; }
-.rights-region:nth-child(4) { --message-top: 21%; }
+/* 영유아기: 위쪽 확장값을 줄이거나 아래 여백을 늘리면 핑크 영역이 짧아집니다. */
+.rights-region:nth-child(1) {
+  --message-top: 58%;
+  --hover-top-extension: 120px;
+  --hover-bottom-inset: 2rem;
+}
+/* 아동기: 위쪽 확장값을 줄이거나 아래 여백을 늘리면 핑크 영역이 짧아집니다. */
+.rights-region:nth-child(2) {
+  --message-top: 48%;
+  --hover-top-extension: 120px;
+  --hover-bottom-inset: 2rem;
+}
+/* 청소년기: 위쪽 확장값을 줄이거나 아래 여백을 늘리면 핑크 영역이 짧아집니다. */
+.rights-region:nth-child(3) {
+  --message-top: 42%;
+  --hover-top-extension: 120px;
+  --hover-bottom-inset: 2rem;
+}
+/* 성인기: 위쪽 확장값을 줄이거나 아래 여백을 늘리면 핑크 영역이 짧아집니다. */
+.rights-region:nth-child(4) {
+  --message-top: 28%;
+  --hover-top-extension: 120px;
+  --hover-bottom-inset: 2rem;
+}
 .rights-message strong { display: block; margin-bottom: 0.8rem; }
 .rights-message > span { display: block; }
 .rights-region.is-active .rights-message { opacity: 1; transform: none; }
@@ -1357,6 +1378,7 @@ body.cases-open { overflow: hidden; }
 .share-device-screen header span { display: block; margin-top: 7px; font-size: 10px; font-weight: 400; color: #888; }
 .share-gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
 .share-gallery-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; }
+.share-gallery-placeholder { display: block; width: 100%; aspect-ratio: 1; background: #d9d9d9; }
 .share-saved-photo { opacity: 0; }
 .share-saved-notice, .share-posted-notice { display: block; font-size: 10px; background: #242024; color: white; padding: 10px 6px; border-radius: 5px; text-align: center; opacity: 0; }
 .share-social { opacity: 0; transform: translateX(25px); background: #fafafa; }
@@ -1480,13 +1502,25 @@ body.cases-open { overflow: hidden; }
   transform: scale(1);
   transition: filter 180ms ease, transform 120ms ease;
 }
+.case-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border: 0;
+  box-shadow: none;
+  opacity: 0;
+  transition: opacity 180ms ease;
+  pointer-events: none;
+}
+.case-card:is(:hover, :focus-visible)::before { opacity: 1; }
 .case-card::after {
   content: "";
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: linear-gradient(135deg, #ff73c79c, #a2226db8);
-  mix-blend-mode: multiply;
+  background: #ef4ab5;
+  mix-blend-mode: screen;
   opacity: 0;
   transition: opacity 300ms ease;
   pointer-events: none;
@@ -1514,12 +1548,12 @@ body.cases-open { overflow: hidden; }
   pointer-events: none;
 }
 .case-explorer.is-visible .case-card:is(:hover, :focus-visible) { transform: scale(1.04); }
-.case-card:is(:hover, :focus-visible) .case-thumbnail { filter: grayscale(1) brightness(1); transform: scale(1.035); }
-.case-card:is(:hover, :focus-visible)::after { opacity: 1; }
+.case-card:is(:hover, :focus-visible) .case-thumbnail { filter: grayscale(1) contrast(0.9) brightness(1.08); transform: scale(1.035); }
+.case-card:is(:hover, :focus-visible)::after { opacity: 0.72; }
 .case-card:is(:hover, :focus-visible) h3 { opacity: 1; transform: none; }
 .case-card[aria-disabled="true"] h3 { opacity: 0; }
 @media (prefers-reduced-motion: reduce) {
-  .case-card .case-thumbnail, .case-card::after, .case-card h3 { transition: none; }
+  .case-card .case-thumbnail, .case-card::before, .case-card::after, .case-card h3 { transition: none; }
   .case-explorer.is-visible .case-card:is(:hover, :focus-visible),
   .case-card:is(:hover, :focus-visible) .case-thumbnail { transform: none; }
 }
@@ -1624,7 +1658,7 @@ body.cases-open { overflow: hidden; }
 .case-detail-main { display: grid; grid-template-columns: 0.9fr 1.1fr; align-items: start; gap: clamp(1.5rem, 3.2vw, 3rem); }
 .case-detail-placeholder { width: 100%; aspect-ratio: 1.62; background: #d9d9d9; }
 .case-detail-heading { padding: 0; }
-.case-detail-heading h2 { margin: -0.12em 0 1.6rem; color: #080808; font-size: clamp(1.6rem, 2.8vw, 2.75rem); line-height: 1.35; font-weight: 750; letter-spacing: -0.05em; }
+.case-detail-heading h2 { margin: -0.12em 0 1.6rem; color: #080808; font-size: clamp(1.3rem, 2.1vw, 2rem); line-height: 1.35; font-weight: 750; letter-spacing: -0.05em; }
 .case-detail-meta { margin: 0; display: grid; gap: 1.25rem; }
 .case-detail-meta > div { display: grid; grid-template-columns: 5rem 1fr; align-items: baseline; gap: 1rem; padding: 0; border: 0; }
 .case-detail-meta dt { color: #111; font-size: 1rem; font-weight: 700; }
@@ -1643,7 +1677,7 @@ body.cases-open { overflow: hidden; }
   .case-detail-main { grid-template-columns: 1fr; gap: 1.75rem; }
   .case-detail-id { left: 0; width: 13rem; font-size: 1.25rem; }
   .case-detail-sheet::before { width: 13rem; }
-  .case-detail-heading h2 { font-size: 1.7rem; }
+  .case-detail-heading h2 { font-size: 1.35rem; }
   .case-detail-meta { gap: 1rem; }
   .case-detail-summary { margin-top: calc(2.5rem - 15px); }
 }
@@ -1784,3 +1818,35 @@ body.cases-open { overflow: hidden; }
 /* The dialog heading receives focus for navigation without a visible box. */
 #cases-title:focus,
 #cases-title:focus-visible { outline: none; }
+
+/* Leave only the photograph and analysis when inspecting the post. */
+.privacy .social-post { transition: background-color 300ms ease, border-radius 300ms ease; }
+.privacy .post-header,
+.privacy .post-actions,
+.privacy .post-likes,
+.privacy .post-caption,
+.privacy .social-figure > figcaption { transition: opacity 220ms ease, visibility 220ms ease; }
+.privacy .post-image { transition: margin 300ms ease; }
+.privacy.is-analyzing .social-post { background: transparent; border-radius: 0; }
+.privacy.is-analyzing .post-header,
+.privacy.is-analyzing .post-actions,
+.privacy.is-analyzing .post-likes,
+.privacy.is-analyzing .post-caption,
+.privacy.is-analyzing .social-figure > figcaption { opacity: 0; visibility: hidden; }
+.privacy.is-analyzing .post-image { margin-inline: 0; }
+
+/* Lift the statistics copy and phone into view as this block is reached. */
+.spread-result.reveal { opacity: 1; transform: none; transition: none; }
+.spread-result.reveal > .spread-result-copy,
+.spread-result.reveal > .spread-data-image {
+  opacity: 0;
+  transform: translateY(90px);
+  transition: opacity 700ms ease, transform 1000ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.spread-result.reveal > .spread-data-image { transition-delay: 140ms; }
+.spread-result.reveal.is-visible > .spread-result-copy,
+.spread-result.reveal.is-visible > .spread-data-image { opacity: 1; transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  .spread-result.reveal > .spread-result-copy,
+  .spread-result.reveal > .spread-data-image { opacity: 1; transform: none; transition: none; }
+}
