@@ -38,6 +38,21 @@ if (impact) {
     return length;
   });
 
+  const links = [...impact.querySelectorAll(".impact-list a")];
+  let readyTimer;
+  let linksReady = false;
+  const setLinksReady = (ready) => {
+    linksReady = ready;
+    impact.classList.toggle("is-navigable", ready);
+    links.forEach((link) => {
+      link.setAttribute("aria-disabled", String(!ready));
+      link.tabIndex = ready ? 0 : -1;
+    });
+  };
+  links.forEach((link) => link.addEventListener("click", (event) => {
+    if (!linksReady) event.preventDefault();
+  }));
+
   const updateImpact = () => {
     const animated = !reducedMotion.matches;
     impact.classList.toggle("impact-scroll", animated);
@@ -47,15 +62,28 @@ if (impact) {
     // Smaller values make the lines appear with less scrolling.
     const lineStagger = 0.12; // Scroll progress between each line's start.
     const lineDuration = 0.08; // Scroll progress needed to draw one line.
+    let complete = true;
     paths.forEach((path, index) => {
       const start = index * lineStagger;
       const lineProgress = animated ? Math.max(0, Math.min(1, (progress - start) / lineDuration)) : 1;
+      if (lineProgress < 1) complete = false;
       const active = lineProgress >= 0.5;
       path.style.strokeDashoffset = String(pathLengths[index] * (1 - lineProgress));
       path.style.opacity = lineProgress > 0 ? "1" : "0";
       path.classList.toggle("is-active", active);
       labels[index]?.classList.toggle("is-active", lineProgress >= 1);
     });
+    if (!complete) {
+      clearTimeout(readyTimer);
+      readyTimer = undefined;
+      setLinksReady(false);
+    } else if (!linksReady && readyTimer === undefined) {
+      // Wait for the final stroke transition before enabling every label.
+      readyTimer = setTimeout(() => {
+        setLinksReady(true);
+        readyTimer = undefined;
+      }, animated ? 180 : 0);
+    }
   };
 
   let impactFramePending = false;
@@ -79,6 +107,21 @@ if (portraitInteraction) {
   const section = portraitInteraction.closest(".privacy");
   const panel = section.querySelector(".privacy-analysis");
   const rows = [...panel.querySelectorAll("[data-text]")];
+  // Keep label and value styling throughout the typing animation.
+  const analysisRows = new Map(rows.map((row) => {
+    const label = document.createElement("strong");
+    label.className = "analysis-label";
+    const value = document.createElement("span");
+    value.className = "analysis-value";
+    row.replaceChildren(label, value);
+    return [row, { label, value, split: row.dataset.text.indexOf(":") + 1 }];
+  }));
+  const renderAnalysisRow = (row, length) => {
+    const { label, value, split } = analysisRows.get(row);
+    const text = row.dataset.text.slice(0, length);
+    label.textContent = text.slice(0, split);
+    value.textContent = text.slice(split);
+  };
   const landmarks = section.querySelector(".face-landmarks");
   // Landmark coordinates match the original photo, which keeps its native ratio.
   const contours = [
@@ -115,10 +158,10 @@ if (portraitInteraction) {
     portraitInteraction.classList.toggle("is-open", open);
     portraitInteraction.setAttribute("aria-pressed", String(open));
     panel.setAttribute("aria-hidden", String(!open));
-    rows.forEach((row) => { row.textContent = ""; row.classList.remove("is-typing"); });
+    rows.forEach((row) => { renderAnalysisRow(row, 0); row.classList.remove("is-typing"); });
     if (!open) return;
     if (reducedMotion.matches) {
-      rows.forEach((row) => { row.textContent = row.dataset.text; });
+      rows.forEach((row) => { renderAnalysisRow(row, row.dataset.text.length); });
       return;
     }
     let rowIndex = 0;
@@ -126,7 +169,7 @@ if (portraitInteraction) {
     const type = () => {
       const row = rows[rowIndex];
       row.classList.add("is-typing");
-      row.textContent = row.dataset.text.slice(0, ++charIndex);
+      renderAnalysisRow(row, ++charIndex);
       if (charIndex < row.dataset.text.length) {
         typingTimer = setTimeout(type, 65);
       } else {
@@ -306,10 +349,16 @@ if (caseExplorer) {
 }
 if (caseExplorer) {
   const filters = [...caseExplorer.querySelectorAll(".case-filters button")];
+  // This array retains the original date order even after DOM reordering.
   const cards = [...caseExplorer.querySelectorAll(".case-card")];
+  const field = caseExplorer.querySelector(".case-field");
+  const moves = new Map();
   filters.forEach((button) => button.addEventListener("click", () => {
     const category = button.dataset.filter;
     const all = category === "all";
+    const previous = new Map(cards.map((card) => [card, card.getBoundingClientRect()]));
+    moves.forEach((animation) => animation.cancel());
+    moves.clear();
     let matches = 0;
     caseExplorer.classList.toggle("has-filter", !all);
     filters.forEach((filter) => filter.setAttribute("aria-pressed", String(filter === button)));
@@ -322,7 +371,32 @@ if (caseExplorer) {
       card.setAttribute("aria-disabled", String(disabled));
       card.tabIndex = disabled ? -1 : 0;
     });
-    caseExplorer.querySelector(".case-status").textContent = all ? `전체 ${cards.length}개 사례` : `${button.textContent}: ${matches}개 사례 · 날짜순`;
+    const isMatch = (card) => card.dataset.categories.split(/\s+/).includes(category);
+    // Stable grouping keeps chronological order within both groups.
+    const ordered = all ? cards : [...cards.filter(isMatch), ...cards.filter((card) => !isMatch(card))];
+    field.append(...ordered);
+    const destinations = new Map(cards.map((card) => [card, card.getBoundingClientRect()]));
+    if (!reducedMotion.matches) {
+      ordered.forEach((card, index) => {
+        const before = previous.get(card);
+        const after = destinations.get(card);
+        const dx = before.left - after.left;
+        const dy = before.top - after.top;
+        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+        const animation = card.animate([
+          { translate: `${dx}px ${dy}px` },
+          { translate: "0px 0px" }
+        ], {
+          duration: 1120,
+          delay: Math.min(index * 12, 140),
+          easing: "cubic-bezier(0.45, 0, 0.2, 1)",
+          fill: "backwards"
+        });
+        moves.set(card, animation);
+        animation.onfinish = () => moves.delete(card);
+      });
+    }
+    caseExplorer.querySelector(".case-status").textContent = all ? `전체 ${cards.length}개 사례 · 날짜순` : `${button.textContent}: ${matches}개 사례 · 해당 사례 먼저 · 그룹 내 날짜순`;
   }));
 }
 
@@ -349,21 +423,45 @@ if (exploreButton && caseExplorer && casesDialog) {
   };
   exploreButton.addEventListener("click", openCases);
   archiveLink?.addEventListener("click", openCases);
-  casesDialog.querySelector(".cases-close").addEventListener("click", () => casesDialog.close());
+  let returnTarget = "#home";
+  casesDialog.querySelectorAll(".site-header a").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      const target = link.getAttribute("href");
+      if (target === "#cases") {
+        casesDialog.scrollTo({ top: 0, behavior: reducedMotion.matches ? "instant" : "smooth" });
+        return;
+      }
+      returnTarget = target;
+      casesDialog.close();
+    });
+  });
   casesDialog.addEventListener("close", () => {
     document.body.classList.remove("cases-open");
     exploreButton.setAttribute("aria-expanded", "false");
     caseExplorer.classList.remove("is-visible");
     caseExplorer.hidden = true;
-    document.querySelector("#hero-title").focus({ preventScroll: true });
-    window.scrollTo({ top: 0, behavior: "instant" });
-    history.replaceState(null, "", "#home");
+    const destination = document.querySelector(returnTarget);
+    const heading = destination?.querySelector("h1, h2");
+    if (heading) {
+      heading.setAttribute("tabindex", "-1");
+      heading.focus({ preventScroll: true });
+    }
+    destination?.scrollIntoView({ behavior: "instant", block: "start" });
+    history.replaceState(null, "", returnTarget);
+    returnTarget = "#home";
   });
 }
 
 
 const caseDetail = document.querySelector(".case-detail");
 if (caseExplorer && caseDetail) {
+  caseDetail.querySelector(".case-detail-exit").addEventListener("click", () => caseDetail.close());
+  const detailCards = [...caseExplorer.querySelectorAll(".case-card")];
+  const previousCase = caseDetail.querySelector(".case-detail-prev");
+  const nextCase = caseDetail.querySelector(".case-detail-next");
+  const position = caseDetail.querySelector(".case-detail-position");
+  const availableCards = () => [...caseExplorer.querySelectorAll('.case-card:not([aria-disabled="true"])')];
   let activeCard = null;
   const openCase = (card, index) => {
     if (card.getAttribute("aria-disabled") === "true") return;
@@ -397,10 +495,30 @@ if (caseExplorer && caseDetail) {
       row.append(link);
       sources.append(row);
     });
-    caseDetail.showModal();
+    const available = availableCards();
+    const current = available.indexOf(card);
+    previousCase.disabled = current <= 0;
+    nextCase.disabled = current >= available.length - 1;
+    const selected = caseExplorer.querySelector('.case-filters button[aria-pressed="true"]');
+    position.textContent = `${selected?.textContent || "모든 사례"} · ${current + 1} / ${available.length}`;
+    if (!caseDetail.open) caseDetail.showModal();
     caseDetail.scrollTop = 0;
   };
-  caseExplorer.querySelectorAll(".case-card").forEach((card, index) => {
+  const moveCase = (direction) => {
+    const available = availableCards();
+    const card = available[available.indexOf(activeCard) + direction];
+    if (card) openCase(card, detailCards.indexOf(card));
+  };
+  previousCase.addEventListener("click", () => moveCase(-1));
+  nextCase.addEventListener("click", () => moveCase(1));
+  caseDetail.addEventListener("keydown", (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      moveCase(event.key === "ArrowLeft" ? -1 : 1);
+    }
+  });
+  detailCards.forEach((card, index) => {
     card.addEventListener("click", () => openCase(card, index));
     card.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
@@ -421,53 +539,29 @@ const footprint = document.querySelector(".footprint");
 if (footprint) {
   const artwork = footprint.querySelector(".footprint-artwork");
   const phone = footprint.querySelector(".footprint-phone");
+  const phoneArtwork = footprint.querySelector(".footprint-base");
+  // Preload the still version so the first tap can stop the shimmer immediately.
+  const stillArtwork = new Image();
+  stillArtwork.src = "./images/digital-foreground-still.svg";
   const confirm = footprint.querySelector(".footprint-confirm");
   const copies = [...footprint.querySelectorAll(".footprint-copy")];
   const ending = footprint.querySelector(".footprint-ending");
   const status = footprint.querySelector(".footprint-status");
   const platforms = ["블로그", "유튜브", "인스타", "페이스북", "X"];
   const network = footprint.querySelector(".footprint-network");
-  const svgNS = "http://www.w3.org/2000/svg";
   const lineGroups = platforms.map(() => []);
-  // Coordinates share the PNG canvas, so the bundles stay attached on resize.
-  const phones = [
-    [882, 792, 1], [199, 706, 0.85], [1370, 720, 0.85],
-    [461, 652, 0.55], [1120, 675, 0.6], [52, 643, 0.38],
-    [302, 623, 0.35], [670, 617, 0.3], [1012, 626, 0.34], [1532, 640, 0.4]
-  ];
-  let seed = 437;
-  const random = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
-  phones.forEach(([x, y, scale], sourceIndex) => {
-    const count = sourceIndex === 0 ? 230 : Math.round(100 * scale);
-    for (let i = 0; i < count; i++) {
-      const path = document.createElementNS(svgNS, "path");
-      // A narrow neck makes each bundle gather above its physical phone.
-      const neckX = x + 25 * scale + (random() - 0.5) * 24 * scale;
-      const neckY = y - (100 + random() * 90) * scale;
-      const endX = random() * 1900 - 136;
-      const endY = random() * 430 - 100;
-      const midX = neckX + (endX - neckX) * 0.45 + (random() - 0.5) * 240;
-      const midY = 150 + random() * 270;
-      path.setAttribute("d", `M${x + (random() - 0.5) * 8} ${y} C${x + 8} ${y - 45 * scale} ${neckX} ${neckY + 40} ${neckX} ${neckY} C${midX} ${midY} ${endX + (random() - 0.5) * 600} ${endY + 160} ${endX} ${endY}`);
-      const bold = i % 11 === 0;
-      path.setAttribute("stroke-width", bold ? String(1.5 + random() * 1.1) : String(0.3 + random() * 0.85));
-      path.setAttribute("stroke", i % 4 === 0 ? "#ff87c2" : "#f52b96");
-      path.setAttribute("stroke-opacity", String(bold ? 0.9 : 0.2 + random() * 0.45));
-      path.setAttribute("pathLength", "1");
-      path.classList.add("footprint-network-line");
-      const groupIndex = sourceIndex === 0 ? i % 5 : Math.min(4, Math.ceil(sourceIndex / 2));
-      lineGroups[groupIndex].push(path);
-      network.append(path);
-    }
+  [...network.querySelectorAll("path")].forEach((path, index) => {
+    lineGroups[Math.min(4, Math.floor(index / 4))].push(path);
   });
   let timers = [];
   let sharing = false;
-  // Successive popup gaps shrink: 320ms → 220ms → 140ms → 90ms.
-  const popupTimes = [0, 320, 540, 680, 770];
+  // Slower successive popup gaps: 800ms → 650ms → 500ms → 400ms.
+  const popupTimes = [0, 800, 1450, 1950, 2350];
   const reset = () => {
     timers.forEach(clearTimeout);
     timers = [];
     sharing = false;
+    phoneArtwork.src = "./images/digital-foreground.svg";
     footprint.querySelector(".footprint-yes").disabled = false;
     footprint.classList.remove("is-sharing");
     ending.hidden = true;
@@ -482,6 +576,7 @@ if (footprint) {
   };
   phone.addEventListener("click", () => {
     if (!sharing) {
+      phoneArtwork.src = stillArtwork.src;
       confirm.showModal();
       footprint.querySelector("#footprint-question").focus({ preventScroll: true });
     }
@@ -493,6 +588,8 @@ if (footprint) {
     sharing = true;
     phone.disabled = true;
     footprint.classList.add("is-sharing");
+    artwork.style.setProperty("--line-opacity", "0");
+    lineGroups.flat().forEach((path) => path.classList.remove("is-drawn"));
     const revealPlatform = (index) => {
       if (index > 0) {
         confirm.classList.add("is-stacked");
@@ -503,7 +600,7 @@ if (footprint) {
     popupTimes.forEach((delay, index) => {
       timers.push(setTimeout(() => revealPlatform(index), delay));
     });
-    const dismissAt = popupTimes[popupTimes.length - 1] + 400;
+    const dismissAt = popupTimes[popupTimes.length - 1] + 900;
     const fadeDuration = reducedMotion.matches ? 0 : 180;
     timers.push(setTimeout(() => confirm.classList.add("is-dismissing"), dismissAt));
     timers.push(setTimeout(() => {
@@ -588,4 +685,41 @@ if (finalExplore) {
   } else {
     formButton();
   }
+}
+
+
+const storyCarousel = document.querySelector(".story-carousel");
+if (storyCarousel) {
+  const viewport = storyCarousel.querySelector(".story-viewport");
+  const slides = [...viewport.querySelectorAll(".story-slide")];
+  const dots = [...storyCarousel.querySelectorAll(".story-dots button")];
+  const status = storyCarousel.querySelector(".story-status");
+  let current = 0;
+  const goToStory = (index) => {
+    current = (index + slides.length) % slides.length;
+    viewport.scrollTo({
+      left: current * viewport.clientWidth,
+      behavior: reducedMotion.matches ? "instant" : "smooth"
+    });
+  };
+  dots.forEach((dot, index) => dot.addEventListener("click", () => goToStory(index)));
+  storyCarousel.querySelector(".story-prev").addEventListener("click", () => goToStory(current - 1));
+  storyCarousel.querySelector(".story-next").addEventListener("click", () => goToStory(current + 1));
+  viewport.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    goToStory(current + (event.key === "ArrowRight" ? 1 : -1));
+  });
+  viewport.addEventListener("scroll", () => {
+    const visible = Math.round(viewport.scrollLeft / viewport.clientWidth);
+    dots.forEach((dot, index) => {
+      if (index === visible) dot.setAttribute("aria-current", "true");
+      else dot.removeAttribute("aria-current");
+    });
+    current = visible;
+    status.textContent = `${visible + 1} / ${slides.length}`;
+  }, { passive: true });
+  window.addEventListener("resize", () => {
+    viewport.scrollTo({ left: current * viewport.clientWidth, behavior: "instant" });
+  });
 }

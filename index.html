@@ -66,10 +66,10 @@
             </figcaption>
           </figure>
           <ul class="impact-list">
-            <li>개인정보 노출</li>
-            <li>아동 권리 침해</li>
-            <li>범죄 악용</li>
-            <li>디지털 발자국과 후유증</li>
+            <li><a href="#archive" aria-disabled="true" tabindex="-1">개인정보 노출</a></li>
+            <li><a href="#rights" aria-disabled="true" tabindex="-1">아동 권리 침해</a></li>
+            <li><a href="#spread" aria-disabled="true" tabindex="-1">범죄 악용</a></li>
+            <li><a href="#footprint" aria-disabled="true" tabindex="-1">디지털 발자국과 후유증</a></li>
           </ul>
         </div>
         </div>
@@ -129,7 +129,27 @@
         </div>
       </section>
 
-      <section class="rights section-shell reveal" aria-labelledby="rights-title">
+      <section class="story-carousel section-shell reveal" aria-label="사진 공유와 아이의 권리 이야기" aria-roledescription="캐러셀">
+        <div class="story-viewport" id="story-slides" tabindex="0" aria-label="좌우로 넘겨 이야기 보기">
+          <figure class="story-slide" role="group" aria-roledescription="슬라이드" aria-label="1 / 2">
+            <img src="./images/story1.jpg" width="1533" height="776" loading="lazy" alt="부모가 올린 어린 시절 나체 사진으로 소송 제기. 캐나다의 Darren Randall은 부모가 자신의 나체 사진 등 수천 장을 페이스북에 공개했다며, 자신의 이미지와 향후 구직에 미칠 영향을 이유로 소송을 제기한 사례.">
+          </figure>
+          <figure class="story-slide" role="group" aria-roledescription="슬라이드" aria-label="2 / 2">
+            <img src="./images/story2.jpg" width="1471" height="743" loading="lazy" alt="두 살 딸의 목욕 사진을 게시한 어머니. 미국의 Katherine Revelle은 비난 댓글을 받고 사진을 삭제했으며, 아이를 보호하고 싶지만 아이의 신체를 위험의 대상으로만 바라보고 싶지는 않다고 밝힌 사례.">
+          </figure>
+        </div>
+        <div class="story-controls">
+          <button class="story-prev" type="button" aria-label="이전 이야기" aria-controls="story-slides"><img src="./images/point.svg" alt="" aria-hidden="true"></button>
+          <div class="story-dots" role="group" aria-label="이야기 선택">
+            <button type="button" aria-label="첫 번째 이야기" aria-current="true" aria-controls="story-slides"></button>
+            <button type="button" aria-label="두 번째 이야기" aria-controls="story-slides"></button>
+          </div>
+          <button class="story-next" type="button" aria-label="다음 이야기" aria-controls="story-slides"><img src="./images/point.svg" alt="" aria-hidden="true"></button>
+        </div>
+        <p class="story-status sr-only" aria-live="polite">1 / 2</p>
+      </section>
+
+      <section id="rights" class="rights section-shell reveal" aria-labelledby="rights-title">
         <p class="eyebrow">02 — 아동 권리 침해</p>
         <div class="section-copy rights-copy">
           <h2 id="rights-title">모든 아이는<br>태어나는 순간부터 권리의 주체입니다.</h2>
@@ -173,30 +193,31 @@
             <div><span></span><p>청소년기</p></div>
             <div><span></span><p>성인기</p></div>
           </div>
-        </div>
-        <p class="timeline-note">아이의 실루엣에 마우스를 올려보세요.</p>
         <div class="rights-regions" aria-label="성장 단계별 아이의 권리">
           <button class="rights-region" type="button" data-stage="0" aria-pressed="false">
-            <span class="rights-message"><strong>영유아기</strong><span>온라인 공개의 의미와 범위를 스스로 이해하거나 동의하기 어려워, 부모가 아이의 디지털 정체성과 발자국을 먼저 형성하는 시기</span></span>
+            <span class="rights-message"><span>온라인 공개의 의미와 범위를 스스로 이해하거나 동의하기 어려워, 부모가 아이의 디지털 정체성과 발자국을 먼저 형성하는 시기</span></span>
             <span class="sr-only">영유아기 권리 보기</span>
           </button>
           <button class="rights-region" type="button" data-stage="1" aria-pressed="false">
-            <span class="rights-message"><strong>아동기</strong><span>사생활에 대한 인식과 자기 의사 표현이 발달하면서, 부모의 게시 의도와 아이가 공개를 원하는 범위 사이에 차이가 생기는 시기</span></span>
+            <span class="rights-message"><span>사생활에 대한 인식과 자기 의사 표현이 발달하면서, 부모의 게시 의도와 아이가 공개를 원하는 범위 사이에 차이가 생기는 시기</span></span>
             <span class="sr-only">아동기 권리 보기</span>
           </button>
           <button class="rights-region" type="button" data-stage="2" aria-pressed="false">
-            <span class="rights-message"><strong>청소년기</strong><span>자아정체성과 또래 관계가 중요해지면서, 부모의 게시물이 자기 이미지와 사생활을 스스로 결정할 권리와 충돌하는 시기</span></span>
+            <span class="rights-message"><span>자아정체성과 또래 관계가 중요해지면서, 부모의 게시물이 자기 이미지와 사생활을 스스로 결정할 권리와 충돌하는 시기</span></span>
             <span class="sr-only">청소년기 권리 보기</span>
           </button>
           <button class="rights-region" type="button" data-stage="3" aria-pressed="false">
-            <span class="rights-message"><strong>성인기</strong><span>자신의 정체성과 사생활을 스스로 관리하게 되지만, 어린 시절 부모가 공개한 사진과 정보는 이후에도 디지털 발자국으로 남을 수 있다.</span></span>
+            <span class="rights-message"><span>자신의 정체성과 사생활을 스스로 관리하게 되지만, 어린 시절 부모가 공개한 사진과 정보는 이후에도 디지털 발자국으로 남을 수 있다.</span></span>
             <span class="sr-only">성인기 권리 보기</span>
           </button>
         </div>
+        </div>
+        <p class="timeline-note">아이의 실루엣에 마우스를 올려보세요.</p>
+
 
       </section>
 
-      <section class="spread section-shell reveal" aria-labelledby="spread-title" data-step="0">
+      <section id="spread" class="spread section-shell reveal" aria-labelledby="spread-title" data-step="0">
         <h2 class="eyebrow" id="spread-title">03 — 범죄 악용</h2>
         <div class="spread-stage">
           <div class="spread-scene">
@@ -270,11 +291,31 @@
         <h2 id="footprint-title">한 번 공유한 사진은<br>어디까지 이어질까요?</h2>
         <div class="footprint-stage">
           <div class="footprint-artwork">
-            <img class="footprint-image footprint-base" src="./images/person.png" alt="">
-            <img class="footprint-image footprint-shared" src="./images/share.png" alt="">
-            <svg class="footprint-image footprint-lines footprint-network" viewBox="0 0 1628 1085" preserveAspectRatio="none" aria-hidden="true"></svg>
-          <button class="footprint-phone" type="button" aria-label="핸드폰 화면을 눌러 사진 공유 체험하기" aria-haspopup="dialog" aria-controls="footprint-confirm"></button>
-          <p class="footprint-instruction">화면을 눌러보세요.</p>
+<svg class="footprint-lines footprint-network" aria-hidden="true" width="2159" height="1053" viewBox="0 0 2159 1053" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path class="footprint-network-line" pathLength="1" d="M1364.81 799.907C1396.83 759.409 1431.25 717.382 1480.69 699.045C1540.87 675.878 1611.33 693.315 1660.09 734.522C1720.13 783.975 1745.03 860.746 1769.17 932.206" stroke-width="3" stroke-miterlimit="10" stroke="#2D292C"/>
+<path class="footprint-network-line" pathLength="1" d="M2436.89 29.1914C2219.87 54.3868 2009.22 132.712 1828.45 255.414C1760.35 301.641 1696.6 353.913 1633.16 406.34C1570.44 458.161 1507.73 510.372 1451.91 569.57C1327.76 701.253 1199.1 858.679 1166.98 1028.73C1187.54 919.864 1145.74 809.991 1094.3 711.867C1059.53 645.551 1016.81 583.411 967.326 527.21C914.202 466.864 851.913 412.514 777.734 381.514C663.721 333.874 526.445 365.096 429.497 441.712C332.548 518.328 291.376 605.029 261.342 724.9C246.232 785.196 253.022 878.194 256.297 939.823" stroke-width="3" stroke-miterlimit="10" stroke="#ED18BB"/>
+<path class="footprint-network-line" pathLength="1" d="M-123.918 135.493C-71.9346 110.507 -29.7695 68.9175 20.1664 40.0584C54.0737 20.4633 91.1385 6.98056 128.45 -4.90477C276.963 -52.2056 435.534 -75.6186 589.479 -51.2373C629.986 -44.8228 670.091 -35.1023 708.253 -20.0837C800.058 16.041 877.315 81.3333 947.276 150.9C1044.03 247.099 1132.05 356.553 1177.02 485.367C1238.04 660.159 1214.05 853.367 1165.24 1032.1M1165.24 1032.1C1164.77 1033.83 1164.3 1035.56 1163.82 1037.29C1164.29 1035.56 1164.77 1033.83 1165.24 1032.1ZM1165.24 1032.1C1210.55 867.322 1260.88 705.025 1342.83 555.032C1390.22 468.294 1452.07 385.338 1538.9 338.129C1625.73 290.921 1741.65 287.301 1817.98 350.095C1874.56 396.643 1912.49 459.314 1935.24 528.961C1959.97 604.689 1973.51 716.69 1978.9 799.449" stroke-width="3" stroke-miterlimit="10" stroke="#681C56"/>
+<path class="footprint-network-line" pathLength="1" d="M265.836 940.514C287.507 902.089 314.699 865.138 345.183 833.244C370.401 806.858 396.211 784.124 426.578 763.881C478.981 728.947 528.701 702.4 591.655 700.636C654.61 698.879 720.963 737.014 745.095 792.173" stroke-width="4" stroke-miterlimit="10" stroke="#2D2A2D"/>
+<path class="footprint-network-line" pathLength="1" d="M626.809 869.096C641.468 853.053 656.214 836.937 673.229 823.423C690.072 810.046 708.9 799.418 727.852 789.241C766.28 768.604 805.886 749.465 848.02 738.197C890.161 726.922 935.23 723.807 977.334 735.218C994.898 739.979 1014.27 750.255 1016.68 768.289" stroke-width="3" stroke-miterlimit="10" stroke="#3D313A"/>
+<path class="footprint-network-line" pathLength="1" d="M908.996 809.874C913.492 755.541 942.157 659.836 1009.2 668.39C1075.9 676.902 1108.5 794.886 1124.66 857.051C1133 889.555 1139.45 922.96 1145.7 955.575C1149.37 974.874 1164.31 1035.5 1164.31 1035.5C1164.31 1035.5 1175.35 995.074 1180.49 980.795C1194.31 938.225 1216.62 889.068 1235.25 844.111C1241.73 828.272 1248.96 812.723 1257.33 797.964C1271.49 773.57 1297.21 753.944 1322.03 758.095C1342.24 762.974 1353.09 774.964 1365.73 796.255" stroke-width="3" stroke-miterlimit="10" stroke="#282027"/>
+<path class="footprint-network-line" pathLength="1" d="M-121.074 -84.345C10.1885 -71.7689 141.877 -57.4781 269.464 -24.1597C397.051 9.15875 521.197 62.3807 623.221 145.93C669.709 184.003 711.097 227.912 750.666 273.134C942.269 492.091 1193.9 752.501 1163.89 1032.32C1195.85 823.425 1235.73 611.623 1335.42 425.287C1376.8 347.937 1427.99 276.089 1484.42 208.927C1575.12 100.973 1680.74 3.98398 1803.68 -65.0583C1926.62 -134.101 2067.76 -174.247 2208.53 -166.266" stroke-width="2" stroke-miterlimit="10" stroke="#F45DC9"/>
+<path class="footprint-network-line" pathLength="1" d="M1164.3 1035.5C1173.56 963.649 1181.67 889.197 1201.31 819.187C1231.96 711.263 1296.86 607.866 1368.29 520.9C1433.29 441.058 1526.92 382.729 1629.77 369.246C1787.19 346.759 1933.7 435.525 2002.62 576.287C2049.63 668.847 2066.71 772.737 2084.64 874.987" stroke-width="2" stroke-miterlimit="10" stroke="#ED4FC4"/>
+<path class="footprint-network-line" pathLength="1" d="M1164.31 1035.5C1136.01 871.946 1144.86 698.44 1057.65 557.216C1015.65 489.204 956.625 433.503 895.946 381.471C831.32 326.054 762.42 272.93 682.228 244.361C609.714 218.53 531.526 214.059 454.566 212.264C258.208 207.687 56.1768 220.214 -122.863 300.982" stroke-width="8" stroke-miterlimit="10" stroke="#ED4FC4"/>
+<path class="footprint-network-line" pathLength="1" d="M602.363 -241.901C798.129 -173.84 958.384 -20.2372 1054.18 163.569C1149.99 347.369 1184.44 559.289 1174.01 766.298C1169.65 852.795 1154.22 946.743 1164.98 1032.68C1199.87 929.14 1200.38 813.809 1216.01 705.681C1234.11 580.543 1277.7 460.592 1325.23 343.434C1373.79 223.761 1427.01 105.37 1496.45 -3.52249C1565.9 -112.415 1652.27 -212 1758.61 -285.273" stroke-width="9" stroke-miterlimit="10" stroke="#F45DC9"/>
+<path class="footprint-network-line" pathLength="1" d="M1419.24 -125.65C1349.72 34.2188 1279.74 195.47 1244.09 366.12C1198.96 582.091 1203.24 815.216 1163.89 1032.32C1162.02 860.142 1162.02 695.388 1055.77 523.898C957.34 365.022 702.129 223.533 527.924 155.86C399.424 105.938 259.737 93.9847 122.159 85.3128C18.2598 78.7626 -85.9844 73.7975 -189.914 79.8666" stroke-width="4" stroke-miterlimit="10" stroke="#F45DC9"/>
+<path class="footprint-network-line" pathLength="1" d="M249.383 -136.389C333.368 -105.359 424.852 -97.6187 507.61 -63.4553C604.361 -23.5188 683.165 49.9766 754.255 126.803C869.452 251.293 971.069 389.44 1045.33 541.932C1092.68 639.18 1126.6 744.146 1145.87 851.417M1145.87 851.417C1156.81 912.362 1163.03 974.051 1164.3 1035.49C1157.48 973.034 1151.46 912.229 1145.87 851.417ZM1145.87 851.417C1140.05 788.147 1134.71 724.87 1129.42 659.718C1116.4 499.091 1106.2 337.346 1122.34 177.002C1138.48 16.6582 1182.15 -143.371 1269.64 -278.705" stroke-width="4" stroke-miterlimit="10" stroke="#F45DC9"/>
+<path class="footprint-network-line" pathLength="1" d="M2094.61 -143.673C1885.28 -55.548 1740.03 131.558 1579.18 291.915C1450.28 420.421 1316.98 554.034 1238.3 736.884C1198.47 829.456 1180.49 932.773 1165.45 1031.32C1172.88 940.988 1155.73 854.633 1122.76 770.202C959.714 352.587 712.649 -39.9928 349.309 -302.574" stroke-width="7" stroke-miterlimit="10" stroke="#F45DC9"/>
+<path class="footprint-network-line" pathLength="1" d="M1736.76 -284.546C1413.14 -25.4276 1200.1 377.358 1165.08 791.099M1165.08 791.099C1158.45 869.446 1158.2 948.186 1164.79 1026.42C1182.84 951.795 1177.2 870.257 1165.08 791.099ZM1165.08 791.099C1159.88 757.108 1153.48 723.557 1147.25 691.18C1063.45 255.395 920.052 -168.894 722.312 -566.174" stroke-width="6" stroke-miterlimit="10" stroke="#723B65"/>
+<path class="footprint-network-line" pathLength="1" d="M-84.9727 361.974C185.977 290.156 477.933 220.195 752.78 310.392C818.041 331.338 880.996 363.17 928.385 413.684C1055.34 546.822 1151.92 717.584 1160.21 903.555C1163.11 947.71 1162.79 992.193 1162.8 1036.38C1176.66 983.391 1200.91 934.456 1222.57 884.417C1265.51 785.935 1296.78 683.828 1337.57 584.458C1361.38 524.267 1383.78 463.662 1409.81 404.451C1526.86 145.133 1626.27 -146.857 1859.72 -325.482" stroke-width="3" stroke-miterlimit="10" stroke="#7A0E63"/>
+<path class="footprint-network-line" pathLength="1" d="M1405.62 -66.0327C1296.06 134.186 1250.17 362.456 1215.88 588.105C1210.68 622.303 1205.71 656.536 1200.98 690.8M1200.98 690.8C1184.76 808.234 1171.27 926.044 1160.53 1044.1C1186.36 926.753 1199.41 808.704 1200.98 690.8ZM1200.98 690.8C1203.87 472.837 1167.51 255.369 1100.05 43.7294C1058.71 -85.9423 1003.07 -216.089 903.688 -309.068" stroke-width="3" stroke-miterlimit="10" stroke="#7A0E63"/>
+<path class="footprint-network-line" pathLength="1" d="M2131.61 -118.386C1931.04 -47.574 1752.3 78.5327 1606.32 233.233C1460.34 387.94 1346.18 570.729 1256.23 763.491C1215.9 849.939 1180.04 939.328 1162.84 1033.17C1185.84 785.929 1134.84 536.029 1059.48 299.438C1021.47 180.098 975.01 63.1626 915.361 -46.9695C831.086 -202.564 721.538 -342.789 612.539 -482.188" stroke-width="5" stroke-miterlimit="10" stroke="#7A0E63"/>
+<path class="footprint-network-line" pathLength="1" d="M1948.92 779.566C1942.81 746.839 1936.6 713.743 1922.91 683.397C1909.22 653.052 1887.09 625.247 1856.81 611.413C1809.82 589.949 1751.79 607.145 1714.01 642.382C1676.23 677.618 1655.59 727.553 1642.5 777.53" stroke-width="4" stroke-miterlimit="10" stroke="#51384B"/>
+<path class="footprint-network-line" pathLength="1" d="M566.227 863.126C587.09 848.589 599.801 825.367 615.416 805.297C651.846 758.483 706.648 727.348 764.792 715.648C822.936 703.948 884.097 711.016 939.78 731.45C964.233 740.424 990.524 755.233 996.044 780.7" stroke-miterlimit="10" stroke="#3D313A"/>
+<path class="footprint-network-line" pathLength="1" d="M1598.88 809.713C1607.89 756.478 1660.54 718.62 1714.12 712.015C1767.7 705.409 1821.27 724.011 1869.62 748.022C1891.47 758.871 1913.12 771.176 1929.76 789.013" stroke-width="3" stroke-miterlimit="10" stroke="#3D313A"/>
+</svg>
+
+            <img class="footprint-image footprint-base" src="./images/digital-foreground.svg" width="2159" height="1436" alt="사진을 공유하는 사람들과 디지털 흔적을 보여주는 그림">
+          <button class="footprint-phone" type="button" aria-label="핸드폰 화면을 눌러 사진 공유 체험하기" aria-haspopup="dialog" aria-controls="footprint-confirm"><img src="./images/phone.png" width="144" height="142" alt="" aria-hidden="true" draggable="false"></button>
           </div>
           <p class="footprint-status sr-only" aria-live="polite"></p>
         </div>
@@ -315,7 +356,14 @@
       </section>
 
       <dialog class="cases-dialog" aria-labelledby="cases-title">
-        <button class="cases-close" type="button" aria-label="사례 탐색 닫기">닫기 ×</button>
+        <header class="site-header">
+          <a class="wordmark" href="#home" aria-label="Posted by, 홈으로">Posted by</a>
+          <nav aria-label="주요 메뉴">
+            <a href="#home">Home</a>
+            <a href="#about">About</a>
+            <a href="#cases" aria-current="page">Archive</a>
+          </nav>
+        </header>
       <section class="case-explorer section-shell" id="cases" aria-labelledby="cases-title" hidden>
         <div class="cases-header"><div><h2 class="eyebrow" id="cases-title" tabindex="-1">05 — 사례 탐색</h2></div></div>
         <div class="case-filters" role="group" aria-label="사례 분야 선택">
@@ -325,13 +373,16 @@
           <button type="button" data-filter="rights" aria-pressed="false">아동 권리 침해</button>
           <button type="button" data-filter="footprint" aria-pressed="false">디지털 발자국과 후유증</button>
         </div>
-        <p class="cases-note">오래된 날짜부터 · 자료에 기재된 사건일 또는 보도일 기준 · 날짜 미상은 마지막에 표시됩니다.</p>
+        <p class="cases-note">카테고리 선택 시 해당 사례가 먼저 모입니다 · 그룹 내 오래된 날짜순 · 날짜 미상은 각 그룹 마지막에 표시됩니다.</p>
         <p class="case-status" aria-live="polite">전체 32개 사례</p>
         <div class="case-field"></div>
       </section>
       </dialog>
       <dialog class="case-detail" aria-labelledby="case-detail-title" aria-describedby="case-detail-description">
         <div class="case-detail-sheet">
+          <button class="case-detail-exit" type="button" aria-label="사례 닫고 목록으로 돌아가기">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18"/></svg>
+          </button>
           <p class="case-detail-id">사례 001</p>
           <div class="case-detail-main">
             <div class="case-detail-placeholder" role="img" aria-label="사례 이미지 준비 중"></div>
@@ -345,13 +396,18 @@
             </div>
           </div>
           <div class="case-detail-summary">
-            <h3 class="case-detail-label">사례 요약</h3>
+            <h3 class="case-detail-label">사례</h3>
             <p id="case-detail-description"></p>
             <p class="case-detail-date"></p>
           </div>
           <div class="case-detail-links">
             <ul class="case-detail-sources"></ul>
           </div>
+          <nav class="case-detail-navigation" aria-label="사례 넘기기">
+            <button class="case-detail-prev" type="button" aria-label="이전 사례"><img src="./images/point.svg" alt="" aria-hidden="true"></button>
+            <span class="case-detail-position sr-only" aria-live="polite"></span>
+            <button class="case-detail-next" type="button" aria-label="다음 사례"><img src="./images/point.svg" alt="" aria-hidden="true"></button>
+          </nav>
         </div>
       </dialog>
     </main>
