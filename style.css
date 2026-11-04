@@ -9,7 +9,7 @@
   --content-width: 1200px;
   --page-gutter: clamp(1.25rem, 6.2vw, 6rem);
   --header-height: 4.2rem;
-  --section-space: calc(clamp(8.5rem, 17vw, 15rem) + 450px);
+  --section-space: calc(clamp(8.5rem, 17vw, 15rem) + 405px);
   font-family: Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -997,7 +997,7 @@ a:focus-visible {
 .rights-region:focus-visible { outline: 2px solid white; outline-offset: -3px; }
 .rights-message {
   position: absolute;
-  top: var(--message-top);
+  top: calc(var(--message-top) + 40px);
   left: 5%;
   right: 5%;
   text-align: center;
@@ -1870,6 +1870,7 @@ body.cases-open { overflow: hidden; }
 .analysis-output .analysis-label {
   font-size: clamp(0.75rem, 1.1vw, 0.9rem);
   font-weight: 700;
+  opacity: 0.8;
 }
 .analysis-output .analysis-value {
   font-size: clamp(1.1rem, 1.8vw, 1.45rem);
@@ -1965,8 +1966,15 @@ body.cases-open { overflow: hidden; }
 }
 
 /* Preserve the supplied SVG canvas and keep its network behind the figures. */
-.footprint-stage { aspect-ratio: 2159 / 1436; background: #1e191b; }
-.footprint-artwork { width: 100%; left: 0; isolation: isolate; }
+.footprint-stage { aspect-ratio: 2159 / 1036; margin-top: 0.75rem; background: #1e191b; }
+.footprint-artwork {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2159 / 1436;
+  inset: 0 0 auto;
+  transform: translateY(-27.8552%);
+  isolation: isolate;
+}
 .footprint-artwork > .footprint-network {
   position: absolute;
   left: 0;
@@ -1981,7 +1989,7 @@ body.cases-open { overflow: hidden; }
 .footprint-phone { left: 37.26%; top: 61%; width: 3.43%; height: 6.3%; z-index: 2; }
 .footprint-instruction { left: 42%; top: 61%; z-index: 2; }
 @media (max-width: 760px) {
-  .footprint-stage { aspect-ratio: 2159 / 1436; }
+  .footprint-stage { aspect-ratio: 2159 / 1036; }
   .footprint-artwork { width: 100%; left: 0; }
   .footprint-phone { min-width: 28px; min-height: 28px; }
   .footprint-instruction { left: 48%; top: 61%; max-width: 45%; }
@@ -2032,11 +2040,13 @@ body.cases-open { overflow: hidden; }
 
 /* Fit the rights illustration and hover descriptions into one viewport. */
 .rights {
+  /* Extra space between the description and silhouettes; preserves image sizes. */
+  --rights-illustration-gap: 64px;
   display: flex;
   flex-direction: column;
-  height: calc(100svh - 4rem);
-  min-height: 540px;
-  max-height: 900px;
+  height: calc(80svh - 4rem + var(--rights-illustration-gap));
+  min-height: calc(540px + var(--rights-illustration-gap));
+  max-height: calc(720px + var(--rights-illustration-gap));
   padding-block: 1rem;
 }
 .rights > .eyebrow { top: 0; flex-shrink: 0; }
@@ -2049,24 +2059,27 @@ body.cases-open { overflow: hidden; }
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  margin-top: clamp(1rem, 3svh, 2rem);
+  margin-top: calc(clamp(1rem, 2svh, 1.8rem) + var(--rights-illustration-gap));
 }
 .rights .timeline-figures { flex: 1; height: auto; min-height: 0; }
-.rights .person-baby { height: 20%; }
-.rights .person-child { height: 34%; }
-.rights .person-teen { height: 48%; }
-.rights .person-adult { height: 62%; }
+.rights .person-baby { height: 24%; }
+.rights .person-child { height: 41%; }
+.rights .person-teen { height: 58%; }
+.rights .person-adult { height: 75%; }
 .rights .figure-slot.is-active .person { scale: 1.04; }
 .rights .timeline-track { flex-shrink: 0; }
 .rights .timeline-track p { margin-top: 0.65rem; }
 .rights .timeline-note { margin-top: 1rem; font-size: 0.75rem; flex-shrink: 0; }
 .rights .rights-region { --message-top: 0%; --hover-top-extension: 8px; --hover-bottom-inset: 0px; }
 .rights .rights-region::before { --hover-fade-height: 160px; }
-.rights .rights-message { font-size: clamp(0.65rem, 1.05vw, 0.85rem); line-height: 1.4; }
+.rights .rights-message { font-size: clamp(0.8rem, 1.2vw, 1rem); line-height: 1.4; }
 @media (max-width: 760px) {
-  .rights { height: calc(100svh - 2rem); min-height: 560px; }
+  .rights {
+    height: calc(85svh - 2rem + var(--rights-illustration-gap));
+    min-height: calc(560px + var(--rights-illustration-gap));
+  }
   .rights-copy h2 { font-size: clamp(1.35rem, 4.5vw, 1.8rem); }
-  .rights .rights-message { left: 3%; right: 3%; font-size: clamp(0.6rem, 2vw, 0.75rem); }
+  .rights .rights-message { left: 3%; right: 3%; font-size: clamp(0.75rem, 2.4vw, 0.9rem); }
 }
 
 /* Restore interaction after moving hover regions inside the timeline. */
@@ -2074,10 +2087,10 @@ body.cases-open { overflow: hidden; }
 .rights .rights-region { pointer-events: auto; }
 
 /* Follow the growing silhouettes with stepped hover columns. */
-.rights .rights-region:nth-child(1) { --message-top: 51%; }
-.rights .rights-region:nth-child(2) { --message-top: 37%; }
-.rights .rights-region:nth-child(3) { --message-top: 20%; }
-.rights .rights-region:nth-child(4) { --message-top: 0%; }
+.rights .rights-region:nth-child(1) { --message-top: 11%; }
+.rights .rights-region:nth-child(2) { --message-top: -2%; }
+.rights .rights-region:nth-child(3) { --message-top: -20%; }
+.rights .rights-region:nth-child(4) { --message-top: -40%; }
 .rights .rights-region { --hover-top-extension: 24px; }
 @media (max-width: 760px) {
   .rights .rights-region:nth-child(1) { --message-top: 35%; }
@@ -2110,3 +2123,153 @@ body.cases-open { overflow: hidden; }
 
 /* Every main story block, including the carousel, uses the same outer gap. */
 #main > section.section-shell { margin-top: var(--section-space); margin-bottom: 0; }
+
+/* Case photographs arranged on the surface of a draggable 3D cylinder. */
+.case-cylinder {
+  position: relative;
+  width: 100%;
+  height: clamp(360px, 65vw, 780px);
+  perspective: 1200px;
+  overflow: visible;
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.case-cylinder.is-dragging { cursor: grabbing; touch-action: none; }
+.case-cylinder:focus-visible { outline: none; }
+.case-cylinder:focus-visible::after {
+  content: "방향키로 회전";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--accent);
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+.case-cylinder .case-field {
+  display: block;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  transform-style: preserve-3d;
+}
+.case-cylinder .case-field .case-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--cylinder-card-width, 140px);
+  aspect-ratio: 4 / 3;
+  opacity: 1;
+  backface-visibility: visible;
+  transition: opacity 200ms ease;
+  box-shadow: 0 4px 16px #0003;
+  cursor: pointer;
+}
+.case-cylinder .case-field .case-card.is-dimmed { opacity: 0.12; }
+.case-cylinder .case-card .case-thumbnail { filter: brightness(0.85); pointer-events: none; }
+.case-cylinder .case-card h3 { padding: 0.5rem; font-size: clamp(0.55rem, 0.85vw, 0.75rem); opacity: 0; background: #0005; }
+.case-cylinder .case-card:is(:hover, :focus-visible) h3 { opacity: 1; }
+.case-cylinder .case-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (pointer: coarse) { .case-cylinder { touch-action: none; } }
+
+/* Let the browser choose each card's physical front and back during rotation. */
+.case-cylinder .case-field .case-card {
+  transform-style: preserve-3d;
+  overflow: visible;
+  isolation: auto;
+  background: transparent;
+  box-shadow: none;
+  opacity: 1;
+}
+.case-cylinder .case-field .case-card.is-dimmed { opacity: 1; }
+.case-cylinder .case-card-front,
+.case-cylinder .case-card-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+  box-shadow: 0 4px 16px #0003;
+}
+.case-cylinder .case-card-front { transform: translateZ(0.1px); }
+.case-cylinder .case-card-back { transform: rotateY(180deg) translateZ(0.1px); background: #888; }
+.case-cylinder .case-card.is-dimmed .case-card-front { opacity: 0.12; }
+.case-cylinder .case-card.is-dimmed .case-card-back { background: #555; }
+.case-cylinder .case-field .case-card::before,
+.case-cylinder .case-field .case-card::after { display: none; }
+
+/* Vertical category navigation alongside the case cylinder. */
+.cases-dialog .case-explorer {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: clamp(1rem, 3vw, 3rem);
+  align-items: start;
+}
+.cases-dialog .case-explorer[hidden] { display: none; }
+.case-explorer .cases-header { grid-column: 1 / -1; }
+.case-explorer .cases-note { display: none; }
+.case-explorer .case-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.case-explorer .case-filters {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.65rem;
+  padding-top: 1rem;
+}
+.case-explorer .case-filters button { text-align: left; }
+.case-explorer .case-cylinder { grid-column: 2; grid-row: 2; }
+@media (max-width: 760px) {
+  .cases-dialog .case-explorer { grid-template-columns: minmax(0, 1fr); }
+  .case-explorer .case-filters { align-items: flex-start; }
+  .case-explorer .case-cylinder { grid-column: 1; grid-row: 3; }
+}
+
+/* Navigation returns when scrolling upward. */
+body { padding-top: var(--header-height); }
+body > .site-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: var(--page-bg);
+}
+body > .site-header::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(-1 * var(--page-gutter));
+  background: var(--page-bg);
+  z-index: -1;
+  pointer-events: none;
+}
+body > .site-header,
+.cases-dialog > .site-header {
+  transition: transform 260ms ease;
+  transform: translateY(0);
+}
+body > .site-header.is-scroll-hidden,
+.cases-dialog > .site-header.is-scroll-hidden { transform: translateY(-110%); }
+body > .site-header:focus-within,
+.cases-dialog > .site-header:focus-within { transform: translateY(0); }
+html { scroll-padding-top: calc(var(--header-height) + 1rem); }
+.cases-dialog { scroll-padding-top: calc(var(--header-height) + 1rem); }
+@media (prefers-reduced-motion: reduce) {
+  body > .site-header, .cases-dialog > .site-header { transition: none; }
+}

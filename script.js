@@ -352,52 +352,157 @@ if (caseExplorer) {
   // This array retains the original date order even after DOM reordering.
   const cards = [...caseExplorer.querySelectorAll(".case-card")];
   const field = caseExplorer.querySelector(".case-field");
-  const moves = new Map();
+  const viewport = document.createElement("div");
+  viewport.className = "case-cylinder";
+  viewport.tabIndex = 0;
+  viewport.setAttribute("role", "group");
+  viewport.setAttribute("aria-label", "3D 사례 원통. 드래그하거나 방향키로 회전하세요. 마우스 휠 또는 더하기·빼기 키로 70~140% 확대·축소할 수 있습니다.");
+  field.before(viewport);
+  viewport.append(field);
+  let yaw = 0, pitch = -0.12, velocityX = 0, velocityY = 0;
+  const MIN_CYLINDER_ZOOM = 0.7;
+  const MAX_CYLINDER_ZOOM = 1.4;
+  let cylinderZoom = 1;
+  let pointer = null, frame = 0, suppressClick = false;
+  const points = new Map();
+  cards.forEach((card) => {
+    const front = document.createElement("div");
+    front.className = "case-card-front";
+    front.append(...card.childNodes);
+    const back = document.createElement("div");
+    back.className = "case-card-back";
+    back.setAttribute("aria-hidden", "true");
+    card.append(front, back);
+  });
+  const paint = () => {
+    field.style.transform = `rotateX(${pitch}rad) rotateY(${yaw}rad) scale3d(${cylinderZoom}, ${cylinderZoom}, ${cylinderZoom})`;
+
+  };
+  const layout = () => {
+    const radius = Math.min(viewport.clientWidth * 0.35, 300);
+    viewport.style.setProperty("--cylinder-card-width", `${Math.max(52, radius * 0.35)}px`);
+    const ordered = [...field.children];
+    const columns = 8;
+    const rows = Math.ceil(ordered.length / columns);
+    const rowSpacing = Math.max(66, radius * 0.52);
+    // Reserve room for the whole cylinder at any tilt, including perspective.
+    const cardWidth = Math.max(52, radius * 0.35);
+    const halfHeight = (rows - 1) * rowSpacing / 2 + cardWidth * 0.375;
+    const bound = Math.hypot(radius + cardWidth / 2, halfHeight) * MAX_CYLINDER_ZOOM;
+    const projectedBound = bound * 1200 / Math.sqrt(1200 ** 2 - bound ** 2);
+    viewport.style.height = `${Math.ceil(projectedBound * 2 + 48)}px`;
+    // Anchor the initial view higher instead of centering in maximum zoom space.
+    const baseBound = bound / MAX_CYLINDER_ZOOM;
+    const baseProjectedBound = baseBound * 1200 / Math.sqrt(1200 ** 2 - baseBound ** 2);
+    field.style.top = `${Math.ceil(baseProjectedBound + 24 - 140)}px`;
+    ordered.forEach((card, index) => {
+      const row = Math.floor(index / columns);
+      const longitude = (index % columns) * Math.PI * 2 / columns;
+      // Every row has the same radius: vertical walls rather than a sphere.
+      const x = radius * Math.sin(longitude);
+      const y = (row - (rows - 1) / 2) * rowSpacing;
+      const z = radius * Math.cos(longitude);
+      points.set(card, { longitude });
+      card.style.transform = `translate(-50%, -50%) translate3d(${x}px, ${y}px, ${z}px) rotateY(${longitude}rad)`;
+    });
+    paint();
+  };
+  new ResizeObserver(layout).observe(viewport);
+  const zoomCylinder = (factor) => {
+    cylinderZoom = Math.min(MAX_CYLINDER_ZOOM, Math.max(MIN_CYLINDER_ZOOM, cylinderZoom * factor));
+    paint();
+  };
+  viewport.addEventListener("wheel", (event) => {
+    // Preserve the browser's own zoom gesture.
+    if (event.ctrlKey || event.metaKey) return;
+    event.preventDefault();
+    const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.clientHeight : 1;
+    const delta = Math.min(100, Math.max(-100, event.deltaY * unit));
+    zoomCylinder(Math.exp(-delta * 0.0015));
+  }, { passive: false });
+  const coast = () => {
+    yaw += velocityX;
+    pitch += velocityY;
+    velocityX *= 0.94;
+    velocityY *= 0.94;
+    paint();
+    if (Math.abs(velocityX) + Math.abs(velocityY) > 0.0002) frame = requestAnimationFrame(coast);
+  };
+  viewport.addEventListener("pointerdown", (event) => {
+    if (!event.isPrimary || event.button !== 0) return;
+    cancelAnimationFrame(frame);
+    velocityX = velocityY = 0;
+    suppressClick = false;
+    pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, distance: 0 };
+  });
+  viewport.addEventListener("pointermove", (event) => {
+    if (!pointer || pointer.id !== event.pointerId) return;
+    const dx = event.clientX - pointer.x, dy = event.clientY - pointer.y;
+    pointer.distance += Math.hypot(dx, dy);
+    if (pointer.distance > 6) {
+      suppressClick = true;
+      viewport.setPointerCapture(event.pointerId);
+      viewport.classList.add("is-dragging");
+    }
+    velocityX = dx * 0.006;
+    velocityY = -dy * 0.006;
+    yaw += velocityX;
+    pitch += velocityY;
+    pointer.x = event.clientX;
+    pointer.y = event.clientY;
+    paint();
+  });
+  const release = (event) => {
+    if (!pointer || pointer.id !== event.pointerId) return;
+    pointer = null;
+    viewport.classList.remove("is-dragging");
+    if (viewport.hasPointerCapture(event.pointerId)) viewport.releasePointerCapture(event.pointerId);
+    if (!reducedMotion.matches && event.type !== "pointercancel") frame = requestAnimationFrame(coast);
+  };
+  viewport.addEventListener("pointerup", release);
+  viewport.addEventListener("pointercancel", release);
+  viewport.addEventListener("click", (event) => {
+    if (suppressClick) { event.preventDefault(); event.stopImmediatePropagation(); suppressClick = false; }
+  }, true);
+  viewport.addEventListener("dragstart", (event) => event.preventDefault());
+  viewport.addEventListener("keydown", (event) => {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (["+", "=", "-", "0"].includes(event.key)) {
+      event.preventDefault();
+      if (event.key === "0") cylinderZoom = 1;
+      else zoomCylinder(event.key === "-" ? 1 / 1.1 : 1.1);
+      paint();
+      return;
+    }
+    const directions = { ArrowLeft: [-0.15, 0], ArrowRight: [0.15, 0], ArrowUp: [0, 0.15], ArrowDown: [0, -0.15] };
+    if (!directions[event.key]) return;
+    event.preventDefault();
+    cancelAnimationFrame(frame);
+    yaw += directions[event.key][0]; pitch += directions[event.key][1]; paint();
+  });
+  cards.forEach((card) => card.addEventListener("focus", () => {
+    if (!card.matches(":focus-visible")) return;
+    cancelAnimationFrame(frame);
+    const point = points.get(card);
+    if (point) { yaw = -point.longitude; pitch = -0.12; paint(); }
+  }));
   filters.forEach((button) => button.addEventListener("click", () => {
     const category = button.dataset.filter;
     const all = category === "all";
-    const previous = new Map(cards.map((card) => [card, card.getBoundingClientRect()]));
-    moves.forEach((animation) => animation.cancel());
-    moves.clear();
     let matches = 0;
     caseExplorer.classList.toggle("has-filter", !all);
     filters.forEach((filter) => filter.setAttribute("aria-pressed", String(filter === button)));
     cards.forEach((card) => {
-      const match = card.dataset.categories.split(/\s+/).includes(category);
-      if (all || match) matches++;
+      const match = all || card.dataset.categories.split(/\s+/).includes(category);
+      if (match) matches++;
       card.classList.toggle("is-match", !all && match);
-      card.classList.toggle("is-dimmed", !all && !match);
-      const disabled = !all && !match;
-      card.setAttribute("aria-disabled", String(disabled));
-      card.tabIndex = disabled ? -1 : 0;
+      card.classList.toggle("is-dimmed", !match);
+      card.setAttribute("aria-disabled", String(!match));
+      card.tabIndex = match ? 0 : -1;
     });
-    const isMatch = (card) => card.dataset.categories.split(/\s+/).includes(category);
-    // Stable grouping keeps chronological order within both groups.
-    const ordered = all ? cards : [...cards.filter(isMatch), ...cards.filter((card) => !isMatch(card))];
-    field.append(...ordered);
-    const destinations = new Map(cards.map((card) => [card, card.getBoundingClientRect()]));
-    if (!reducedMotion.matches) {
-      ordered.forEach((card, index) => {
-        const before = previous.get(card);
-        const after = destinations.get(card);
-        const dx = before.left - after.left;
-        const dy = before.top - after.top;
-        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
-        const animation = card.animate([
-          { translate: `${dx}px ${dy}px` },
-          { translate: "0px 0px" }
-        ], {
-          duration: 1120,
-          delay: Math.min(index * 12, 140),
-          easing: "cubic-bezier(0.45, 0, 0.2, 1)",
-          fill: "backwards"
-        });
-        moves.set(card, animation);
-        animation.onfinish = () => moves.delete(card);
-      });
-    }
-    caseExplorer.querySelector(".case-status").textContent = all ? `전체 ${cards.length}개 사례 · 날짜순` : `${button.textContent}: ${matches}개 사례 · 해당 사례 먼저 · 그룹 내 날짜순`;
+    caseExplorer.querySelector(".case-status").textContent = `${all ? "전체" : button.textContent} ${matches}개 사례 · 드래그하여 탐색`;
   }));
+  layout();
 }
 
 
@@ -723,3 +828,30 @@ if (storyCarousel) {
     viewport.scrollTo({ left: current * viewport.clientWidth, behavior: "instant" });
   });
 }
+
+// Track direction separately for the document and the archive's scroll container.
+function attachScrollNavigation(scroller, header, readPosition) {
+  if (!header) return;
+  let anchor = readPosition();
+  const update = () => {
+    const position = Math.max(0, readPosition());
+    const distance = position - anchor;
+    if (position <= header.offsetHeight) {
+      header.classList.remove("is-scroll-hidden");
+      anchor = position;
+    } else if (Math.abs(distance) >= 8) {
+      header.classList.toggle("is-scroll-hidden", distance > 0);
+      anchor = position;
+    }
+  };
+  scroller.addEventListener("scroll", update, { passive: true });
+  header.addEventListener("focusin", () => header.classList.remove("is-scroll-hidden"));
+  if (scroller instanceof HTMLDialogElement) {
+    new MutationObserver(() => {
+      anchor = readPosition();
+      header.classList.remove("is-scroll-hidden");
+    }).observe(scroller, { attributes: true, attributeFilter: ["open"] });
+  }
+}
+attachScrollNavigation(window, document.querySelector("body > .site-header"), () => window.scrollY);
+if (casesDialog) attachScrollNavigation(casesDialog, casesDialog.querySelector(".site-header"), () => casesDialog.scrollTop);
