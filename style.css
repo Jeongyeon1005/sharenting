@@ -2676,7 +2676,7 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
 /* Upright monochrome photographs with a dark pink hover wash. */
 .case-explorer .case-gallery { perspective-origin: 42% 50%; }
 .case-gallery .case-card .case-thumbnail,
-.case-gallery .case-card:is(:hover, :focus-visible) .case-thumbnail { filter: grayscale(1) brightness(.8); }
+.case-gallery .case-card:is(:hover, :focus-visible) .case-thumbnail { filter: brightness(.9); }
 .case-gallery .case-card h3,
 .case-gallery .case-card:is(:hover, :focus-visible) h3 { display: none; }
 .case-gallery .case-card-front::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(#9d326c85, #4a123a9c); mix-blend-mode: multiply; opacity: 0; transition: opacity .35s ease; }

@@ -256,6 +256,24 @@ if (caseExplorer) {
     card.append(front);
   });
   let visible = [...cards];
+  let rendered = [];
+  const wrap = (value, count) => ((value % count) + count) % count;
+  const rebuildLoop = () => {
+    field.querySelectorAll('[data-loop-copy]').forEach(card => card.remove());
+    rendered = [...visible];
+    if (!visible.length) return;
+    const copies = Math.max(1, Math.ceil(18 / visible.length));
+    for (let cycle = 1; cycle < copies; cycle++) visible.forEach(original => {
+      const copy = original.cloneNode(true);
+      copy.dataset.loopCopy = 'true';
+      copy.tabIndex = -1;
+      copy.setAttribute('aria-hidden', 'true');
+      copy.addEventListener('click', () => original.click());
+      field.append(copy);
+      rendered.push(copy);
+    });
+  };
+  rebuildLoop();
   let target = 0, current = 0, frame = 0, previous = 0;
   let pointer = null, suppressClick = false;
   const paint = now => {
@@ -265,22 +283,22 @@ if (caseExplorer) {
     current = reducedMotion.matches ? target : current + (target - current) * (1 - Math.exp(-elapsed / 150));
     if (Math.abs(target - current) < .0001) current = target;
     const spacing = innerWidth > 760 ? 155 : 100;
-    visible.forEach((card, index) => {
-      const distance = index - current;
+    rendered.forEach((card, index) => {
+      const distance = wrap(index - current + 3, rendered.length) - 3;
       const onScreen = distance > -3 && distance < 13;
       card.style.visibility = onScreen ? 'visible' : 'hidden';
       card.style.pointerEvents = onScreen ? 'auto' : 'none';
-      card.style.zIndex = String(1000 - index);
+      card.style.zIndex = String(1000 - Math.round(distance * 10));
       card.style.opacity = String(Math.max(0, Math.min(1, (distance + 3) / 1.2)));
       card.style.transform = `translate(-50%, -50%) translate3d(${distance * spacing}px, ${-distance * 36}px, ${-distance * 85}px) rotateY(-42deg) rotateX(-10deg) rotateZ(10deg)`;
     });
-    caseExplorer.querySelector('.case-status').textContent = `${Math.round(current) + 1} / ${visible.length}개 사례 · 스크롤하여 탐색`;
+    caseExplorer.querySelector('.case-status').textContent = `${visible.length ? wrap(Math.round(current), visible.length) + 1 : 0} / ${visible.length}개 사례 · 스크롤하여 탐색`;
     if (current !== target) frame = requestAnimationFrame(paint);
     else previous = 0;
   };
   const schedule = () => { if (!frame) frame = requestAnimationFrame(paint); };
   const move = amount => {
-    target = Math.max(0, Math.min(Math.max(0, visible.length - 1), target + amount));
+    if (visible.length) target += amount;
     schedule();
   };
   viewport.addEventListener('wheel', event => {
@@ -328,7 +346,11 @@ if (caseExplorer) {
     }
   });
   cards.forEach(card => card.addEventListener('focus', () => {
-    if (card.matches(':focus-visible') && visible.includes(card)) { target = visible.indexOf(card); schedule(); }
+    if (card.matches(':focus-visible') && visible.includes(card)) {
+      const index = visible.indexOf(card);
+      target = index + Math.round((current - index) / visible.length) * visible.length;
+      schedule();
+    }
   }));
   filters.forEach(button => button.addEventListener('click', () => {
     const category = button.dataset.filter;
@@ -341,6 +363,7 @@ if (caseExplorer) {
       card.tabIndex = match ? 0 : -1;
     });
     target = current = Math.floor(Math.max(0, visible.length - 1) / 2);
+    rebuildLoop();
     schedule();
   }));
   addEventListener('resize', schedule);
@@ -406,11 +429,11 @@ if (exploreButton && caseExplorer && casesDialog) {
 const caseDetail = document.querySelector(".case-detail");
 if (caseExplorer && caseDetail) {
   caseDetail.querySelector(".case-detail-exit").addEventListener("click", () => caseDetail.close());
-  const detailCards = [...caseExplorer.querySelectorAll(".case-card")];
+  const detailCards = [...caseExplorer.querySelectorAll(".case-card:not([data-loop-copy])")];
   const previousCase = caseDetail.querySelector(".case-detail-prev");
   const nextCase = caseDetail.querySelector(".case-detail-next");
   const position = caseDetail.querySelector(".case-detail-position");
-  const availableCards = () => [...caseExplorer.querySelectorAll('.case-card:not([aria-disabled="true"])')];
+  const availableCards = () => [...caseExplorer.querySelectorAll('.case-card:not([data-loop-copy]):not([aria-disabled="true"])')];
   let activeCard = null;
   const openCase = (card, index) => {
     if (card.getAttribute("aria-disabled") === "true") return;
