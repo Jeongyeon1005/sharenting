@@ -29,78 +29,17 @@ const impact = document.querySelector(".impact");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 if (impact) {
-  const paths = [...impact.querySelectorAll(".impact-lines path")];
-  const labels = [...impact.querySelectorAll(".impact-list li")];
-  const pathLengths = paths.map((path) => {
-    path.removeAttribute("pathLength");
-    const length = path.getTotalLength();
-    path.style.strokeDasharray = `${length} ${length}`;
-    return length;
-  });
-
-  const links = [...impact.querySelectorAll(".impact-list a")];
-  let readyTimer;
-  let linksReady = false;
-  const setLinksReady = (ready) => {
-    linksReady = ready;
-    impact.classList.toggle("is-navigable", ready);
-    links.forEach((link) => {
-      link.setAttribute("aria-disabled", String(!ready));
-      link.tabIndex = ready ? 0 : -1;
-    });
-  };
-  links.forEach((link) => link.addEventListener("click", (event) => {
-    if (!linksReady) event.preventDefault();
-  }));
-
-  const updateImpact = () => {
-    const animated = !reducedMotion.matches;
-    impact.classList.toggle("impact-scroll", animated);
-    const bounds = impact.getBoundingClientRect();
-    const distance = Math.max(1, impact.offsetHeight - window.innerHeight);
-    const progress = Math.max(0, Math.min(1, -bounds.top / distance));
-    // Smaller values make the lines appear with less scrolling.
-    const lineStagger = 0.12; // Scroll progress between each line's start.
-    const lineDuration = 0.08; // Scroll progress needed to draw one line.
-    let complete = true;
-    paths.forEach((path, index) => {
-      const start = index * lineStagger;
-      const lineProgress = animated ? Math.max(0, Math.min(1, (progress - start) / lineDuration)) : 1;
-      if (lineProgress < 1) complete = false;
-      const active = lineProgress >= 0.5;
-      path.style.strokeDashoffset = String(pathLengths[index] * (1 - lineProgress));
-      path.style.opacity = lineProgress > 0 ? "1" : "0";
-      path.classList.toggle("is-active", active);
-      labels[index]?.classList.toggle("is-active", lineProgress >= 1);
-    });
-    if (!complete) {
-      clearTimeout(readyTimer);
-      readyTimer = undefined;
-      setLinksReady(false);
-    } else if (!linksReady && readyTimer === undefined) {
-      // Wait for the final stroke transition before enabling every label.
-      readyTimer = setTimeout(() => {
-        setLinksReady(true);
-        readyTimer = undefined;
-      }, animated ? 180 : 0);
-    }
-  };
-
-  let impactFramePending = false;
-  const scheduleImpact = () => {
-    if (impactFramePending) return;
-    impactFramePending = true;
-    requestAnimationFrame(() => {
-      updateImpact();
-      impactFramePending = false;
-    });
-  };
-  window.addEventListener("scroll", scheduleImpact, { passive: true });
-  window.addEventListener("resize", scheduleImpact);
-  reducedMotion.addEventListener("change", scheduleImpact);
-  updateImpact();
+  const revealFinale = () => impact.classList.add("finale-visible");
+  if ("IntersectionObserver" in window && !reducedMotion.matches) {
+    const finaleObserver = new IntersectionObserver((entries) => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        revealFinale();
+        finaleObserver.disconnect();
+      }
+    }, { threshold: 0.12 });
+    finaleObserver.observe(impact);
+  } else revealFinale();
 }
-
 
 const portraitInteraction = document.querySelector(".post-photo-interaction");
 if (portraitInteraction) {
@@ -258,54 +197,6 @@ if (rights) {
 }
 
 
-const spread = document.querySelector(".spread");
-if (spread) {
-  let step = 0;
-  let playbackTimers = [];
-  // Automatic sharing sequence timings (milliseconds).
-  const galleryDuration = 4000;
-  const next = spread.querySelector(".spread-next");
-  const back = spread.querySelector(".spread-back");
-  const scrollPrompt = spread.querySelector(".spread-scroll-prompt");
-  spread.querySelector(".share-posted-notice").addEventListener("animationend", (event) => {
-    if (event.animationName === "share-save" && step === 2) scrollPrompt.hidden = false;
-  });
-  const hints = ["아이콘을 눌러 아이 사진을 공유해보세요.", "공유된 사진이 다른 사람의 갤러리에 저장됩니다.", "저장된 사진이 SNS에 다시 업로드됩니다.", "공유하기 전, 사진 속 아이의 정보를 한 번 더 확인해주세요."];
-  const stopPlayback = () => {
-    playbackTimers.forEach(clearTimeout);
-    playbackTimers = [];
-    scrollPrompt.hidden = true;
-  };
-  const renderSpread = () => {
-    spread.dataset.step = String(step);
-    spread.querySelector(".spread-routes").setAttribute("aria-hidden", "true");
-    spread.querySelector(".spread-details").setAttribute("aria-hidden", "true");
-    next.hidden = step !== 0;
-    next.querySelector("span").textContent = "공유하기";
-    spread.querySelector(".spread-progress").textContent = `${step + 1} / 3`;
-    spread.querySelector(".spread-hint").textContent = hints[step];
-    back.hidden = step === 0;
-    back.disabled = step === 0;
-    back.textContent = "처음으로";
-  };
-  const startPlayback = () => {
-    stopPlayback();
-    step = 1;
-    renderSpread();
-    playbackTimers.push(setTimeout(() => { step = 2; renderSpread(); }, galleryDuration));
-
-  };
-  next.addEventListener("click", startPlayback);
-  back.addEventListener("click", () => {
-    stopPlayback();
-    step = 0;
-    renderSpread();
-    next.focus({ preventScroll: true });
-  });
-  renderSpread();
-}
-
-
 const categoryLabels = {
   privacy: "개인정보 노출", crime: "범죄 악용",
   rights: "아동 권리 침해", footprint: "디지털 발자국과 후유증"
@@ -348,161 +239,114 @@ if (caseExplorer) {
   });
 }
 if (caseExplorer) {
-  const filters = [...caseExplorer.querySelectorAll(".case-filters button")];
-  // This array retains the original date order even after DOM reordering.
-  const cards = [...caseExplorer.querySelectorAll(".case-card")];
-  const field = caseExplorer.querySelector(".case-field");
-  const viewport = document.createElement("div");
-  viewport.className = "case-cylinder";
+  const filters = [...caseExplorer.querySelectorAll('.case-filters button')];
+  const cards = [...caseExplorer.querySelectorAll('.case-card')];
+  const field = caseExplorer.querySelector('.case-field');
+  const viewport = document.createElement('div');
+  viewport.className = 'case-cylinder case-gallery';
   viewport.tabIndex = 0;
-  viewport.setAttribute("role", "group");
-  viewport.setAttribute("aria-label", "3D 사례 원통. 드래그하거나 방향키로 회전하세요. 마우스 휠 또는 더하기·빼기 키로 70~140% 확대·축소할 수 있습니다.");
+  viewport.setAttribute('role', 'group');
+  viewport.setAttribute('aria-label', '사례 아카이브. 스크롤, 드래그 또는 방향키로 탐색하고 사례를 클릭해 상세 내용을 확인하세요.');
   field.before(viewport);
   viewport.append(field);
-  let yaw = 0, pitch = -0.12, velocityX = 0, velocityY = 0;
-  const MIN_CYLINDER_ZOOM = 0.7;
-  const MAX_CYLINDER_ZOOM = 1.4;
-  let cylinderZoom = 1;
-  let pointer = null, frame = 0, suppressClick = false;
-  const points = new Map();
-  cards.forEach((card) => {
-    const front = document.createElement("div");
-    front.className = "case-card-front";
+  cards.forEach(card => {
+    const front = document.createElement('div');
+    front.className = 'case-card-front';
     front.append(...card.childNodes);
-    const back = document.createElement("div");
-    back.className = "case-card-back";
-    back.setAttribute("aria-hidden", "true");
-    card.append(front, back);
+    card.append(front);
   });
-  const paint = () => {
-    field.style.transform = `rotateX(${pitch}rad) rotateY(${yaw}rad) scale3d(${cylinderZoom}, ${cylinderZoom}, ${cylinderZoom})`;
-
-  };
-  const layout = () => {
-    const radius = Math.min(viewport.clientWidth * 0.35, 300);
-    viewport.style.setProperty("--cylinder-card-width", `${Math.max(52, radius * 0.35)}px`);
-    const ordered = [...field.children];
-    const columns = 8;
-    const rows = Math.ceil(ordered.length / columns);
-    const rowSpacing = Math.max(66, radius * 0.52);
-    // Reserve room for the whole cylinder at any tilt, including perspective.
-    const cardWidth = Math.max(52, radius * 0.35);
-    const halfHeight = (rows - 1) * rowSpacing / 2 + cardWidth * 0.375;
-    const bound = Math.hypot(radius + cardWidth / 2, halfHeight) * MAX_CYLINDER_ZOOM;
-    const projectedBound = bound * 1200 / Math.sqrt(1200 ** 2 - bound ** 2);
-    viewport.style.height = `${Math.ceil(projectedBound * 2 + 48)}px`;
-    // Anchor the initial view higher instead of centering in maximum zoom space.
-    const baseBound = bound / MAX_CYLINDER_ZOOM;
-    const baseProjectedBound = baseBound * 1200 / Math.sqrt(1200 ** 2 - baseBound ** 2);
-    field.style.top = `${Math.ceil(baseProjectedBound + 24 - 140)}px`;
-    ordered.forEach((card, index) => {
-      const row = Math.floor(index / columns);
-      const longitude = (index % columns) * Math.PI * 2 / columns;
-      // Every row has the same radius: vertical walls rather than a sphere.
-      const x = radius * Math.sin(longitude);
-      const y = (row - (rows - 1) / 2) * rowSpacing;
-      const z = radius * Math.cos(longitude);
-      points.set(card, { longitude });
-      card.style.transform = `translate(-50%, -50%) translate3d(${x}px, ${y}px, ${z}px) rotateY(${longitude}rad)`;
+  let visible = [...cards];
+  let target = 0, current = 0, frame = 0, previous = 0;
+  let pointer = null, suppressClick = false;
+  const paint = now => {
+    frame = 0;
+    const elapsed = previous ? Math.min(64, now - previous) : 16.67;
+    previous = now;
+    current = reducedMotion.matches ? target : current + (target - current) * (1 - Math.exp(-elapsed / 150));
+    if (Math.abs(target - current) < .0001) current = target;
+    const spacing = innerWidth > 760 ? 155 : 100;
+    visible.forEach((card, index) => {
+      const distance = index - current;
+      const onScreen = distance > -3 && distance < 13;
+      card.style.visibility = onScreen ? 'visible' : 'hidden';
+      card.style.pointerEvents = onScreen ? 'auto' : 'none';
+      card.style.zIndex = String(1000 - index);
+      card.style.opacity = String(Math.max(0, Math.min(1, (distance + 3) / 1.2)));
+      card.style.transform = `translate(-50%, -50%) translate3d(${distance * spacing}px, ${-distance * 36}px, ${-distance * 85}px) rotateY(-42deg) rotateX(-10deg) rotateZ(10deg)`;
     });
-    paint();
+    caseExplorer.querySelector('.case-status').textContent = `${Math.round(current) + 1} / ${visible.length}개 사례 · 스크롤하여 탐색`;
+    if (current !== target) frame = requestAnimationFrame(paint);
+    else previous = 0;
   };
-  new ResizeObserver(layout).observe(viewport);
-  const zoomCylinder = (factor) => {
-    cylinderZoom = Math.min(MAX_CYLINDER_ZOOM, Math.max(MIN_CYLINDER_ZOOM, cylinderZoom * factor));
-    paint();
+  const schedule = () => { if (!frame) frame = requestAnimationFrame(paint); };
+  const move = amount => {
+    target = Math.max(0, Math.min(Math.max(0, visible.length - 1), target + amount));
+    schedule();
   };
-  viewport.addEventListener("wheel", (event) => {
-    // Preserve the browser's own zoom gesture.
+  viewport.addEventListener('wheel', event => {
     if (event.ctrlKey || event.metaKey) return;
     event.preventDefault();
     const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.clientHeight : 1;
-    const delta = Math.min(100, Math.max(-100, event.deltaY * unit));
-    zoomCylinder(Math.exp(-delta * 0.0015));
+    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    move(Math.max(-250, Math.min(250, delta * unit)) / 230);
   }, { passive: false });
-  const coast = () => {
-    yaw += velocityX;
-    pitch += velocityY;
-    velocityX *= 0.94;
-    velocityY *= 0.94;
-    paint();
-    if (Math.abs(velocityX) + Math.abs(velocityY) > 0.0002) frame = requestAnimationFrame(coast);
-  };
-  viewport.addEventListener("pointerdown", (event) => {
-    if (!event.isPrimary || event.button !== 0) return;
-    cancelAnimationFrame(frame);
-    velocityX = velocityY = 0;
+  viewport.addEventListener('pointerdown', event => {
+    if (!event.isPrimary || event.button !== 0 || event.target.closest('a')) return;
     suppressClick = false;
-    pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, distance: 0 };
+    pointer = { id: event.pointerId, x: event.clientX, startX: event.clientX };
   });
-  viewport.addEventListener("pointermove", (event) => {
+  viewport.addEventListener('pointermove', event => {
     if (!pointer || pointer.id !== event.pointerId) return;
-    const dx = event.clientX - pointer.x, dy = event.clientY - pointer.y;
-    pointer.distance += Math.hypot(dx, dy);
-    if (pointer.distance > 6) {
+    if (Math.abs(event.clientX - pointer.startX) > 7) {
       suppressClick = true;
       viewport.setPointerCapture(event.pointerId);
-      viewport.classList.add("is-dragging");
+      viewport.classList.add('is-dragging');
     }
-    velocityX = dx * 0.006;
-    velocityY = -dy * 0.006;
-    yaw += velocityX;
-    pitch += velocityY;
+    if (suppressClick) move((pointer.x - event.clientX) / 155);
     pointer.x = event.clientX;
-    pointer.y = event.clientY;
-    paint();
   });
-  const release = (event) => {
+  const release = event => {
     if (!pointer || pointer.id !== event.pointerId) return;
     pointer = null;
-    viewport.classList.remove("is-dragging");
+    viewport.classList.remove('is-dragging');
     if (viewport.hasPointerCapture(event.pointerId)) viewport.releasePointerCapture(event.pointerId);
-    if (!reducedMotion.matches && event.type !== "pointercancel") frame = requestAnimationFrame(coast);
   };
-  viewport.addEventListener("pointerup", release);
-  viewport.addEventListener("pointercancel", release);
-  viewport.addEventListener("click", (event) => {
+  viewport.addEventListener('pointerup', release);
+  viewport.addEventListener('pointercancel', release);
+  viewport.addEventListener('click', event => {
     if (suppressClick) { event.preventDefault(); event.stopImmediatePropagation(); suppressClick = false; }
   }, true);
-  viewport.addEventListener("dragstart", (event) => event.preventDefault());
-  viewport.addEventListener("keydown", (event) => {
+  viewport.addEventListener('dragstart', event => event.preventDefault());
+  viewport.addEventListener('keydown', event => {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
-    if (["+", "=", "-", "0"].includes(event.key)) {
+    if (['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
       event.preventDefault();
-      if (event.key === "0") cylinderZoom = 1;
-      else zoomCylinder(event.key === "-" ? 1 / 1.1 : 1.1);
-      paint();
-      return;
+      if (event.key === 'Home') target = 0;
+      else if (event.key === 'End') target = Math.max(0, visible.length - 1);
+      else move(['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1);
+      schedule();
     }
-    const directions = { ArrowLeft: [-0.15, 0], ArrowRight: [0.15, 0], ArrowUp: [0, 0.15], ArrowDown: [0, -0.15] };
-    if (!directions[event.key]) return;
-    event.preventDefault();
-    cancelAnimationFrame(frame);
-    yaw += directions[event.key][0]; pitch += directions[event.key][1]; paint();
   });
-  cards.forEach((card) => card.addEventListener("focus", () => {
-    if (!card.matches(":focus-visible")) return;
-    cancelAnimationFrame(frame);
-    const point = points.get(card);
-    if (point) { yaw = -point.longitude; pitch = -0.12; paint(); }
+  cards.forEach(card => card.addEventListener('focus', () => {
+    if (card.matches(':focus-visible') && visible.includes(card)) { target = visible.indexOf(card); schedule(); }
   }));
-  filters.forEach((button) => button.addEventListener("click", () => {
+  filters.forEach(button => button.addEventListener('click', () => {
     const category = button.dataset.filter;
-    const all = category === "all";
-    let matches = 0;
-    caseExplorer.classList.toggle("has-filter", !all);
-    filters.forEach((filter) => filter.setAttribute("aria-pressed", String(filter === button)));
-    cards.forEach((card) => {
-      const match = all || card.dataset.categories.split(/\s+/).includes(category);
-      if (match) matches++;
-      card.classList.toggle("is-match", !all && match);
-      card.classList.toggle("is-dimmed", !match);
-      card.setAttribute("aria-disabled", String(!match));
+    filters.forEach(filter => filter.setAttribute('aria-pressed', String(filter === button)));
+    visible = cards.filter(card => category === 'all' || card.dataset.categories.split(/\s+/).includes(category));
+    cards.forEach(card => {
+      const match = visible.includes(card);
+      card.hidden = !match;
+      card.setAttribute('aria-disabled', String(!match));
       card.tabIndex = match ? 0 : -1;
     });
-    caseExplorer.querySelector(".case-status").textContent = `${all ? "전체" : button.textContent} ${matches}개 사례 · 드래그하여 탐색`;
+    target = current = Math.floor(Math.max(0, visible.length - 1) / 2);
+    schedule();
   }));
-  layout();
+  addEventListener('resize', schedule);
+  reducedMotion.addEventListener('change', schedule);
+  new ResizeObserver(schedule).observe(viewport);
+  schedule();
 }
 
 
@@ -522,13 +366,13 @@ if (exploreButton && caseExplorer && casesDialog) {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         caseExplorer.classList.add("is-visible");
-        caseExplorer.querySelector("#cases-title").focus({ preventScroll: true });
+        caseExplorer.focus({ preventScroll: true });
       });
     });
   };
   exploreButton.addEventListener("click", openCases);
   archiveLink?.addEventListener("click", openCases);
-  let returnTarget = "#home";
+  let returnTarget = "#footprint";
   casesDialog.querySelectorAll(".site-header a").forEach((link) => {
     link.addEventListener("click", (event) => {
       event.preventDefault();
@@ -554,7 +398,7 @@ if (exploreButton && caseExplorer && casesDialog) {
     }
     destination?.scrollIntoView({ behavior: "instant", block: "start" });
     history.replaceState(null, "", returnTarget);
-    returnTarget = "#home";
+    returnTarget = "#footprint";
   });
 }
 
@@ -639,159 +483,9 @@ if (caseExplorer && caseDetail) {
   caseDetail.addEventListener("close", () => activeCard?.focus({ preventScroll: true }));
 }
 
-// A visual simulation: no photo is uploaded or sent to a platform.
-const footprint = document.querySelector(".footprint");
-if (footprint) {
-  const artwork = footprint.querySelector(".footprint-artwork");
-  const phone = footprint.querySelector(".footprint-phone");
-  const phoneArtwork = footprint.querySelector(".footprint-base");
-  // Preload the still version so the first tap can stop the shimmer immediately.
-  const stillArtwork = new Image();
-  stillArtwork.src = "./images/digital-foreground-still.svg";
-  const confirm = footprint.querySelector(".footprint-confirm");
-  const copies = [...footprint.querySelectorAll(".footprint-copy")];
-  const ending = footprint.querySelector(".footprint-ending");
-  const status = footprint.querySelector(".footprint-status");
-  const platforms = ["블로그", "유튜브", "인스타", "페이스북", "X"];
-  const network = footprint.querySelector(".footprint-network");
-  const lineGroups = platforms.map(() => []);
-  [...network.querySelectorAll("path")].forEach((path, index) => {
-    lineGroups[Math.min(4, Math.floor(index / 4))].push(path);
-  });
-  let timers = [];
-  let sharing = false;
-  // Slower successive popup gaps: 800ms → 650ms → 500ms → 400ms.
-  const popupTimes = [0, 800, 1450, 1950, 2350];
-  const reset = () => {
-    timers.forEach(clearTimeout);
-    timers = [];
-    sharing = false;
-    phoneArtwork.src = "./images/digital-foreground.svg";
-    footprint.querySelector(".footprint-yes").disabled = false;
-    footprint.classList.remove("is-sharing");
-    ending.hidden = true;
-    phone.disabled = false;
-    confirm.classList.remove("is-stacked");
-    confirm.classList.remove("is-dismissing");
-    copies.forEach((card) => { card.hidden = true; });
-    artwork.style.setProperty("--line-opacity", "0");
-    lineGroups.flat().forEach((path) => path.classList.remove("is-drawn"));
-    artwork.style.setProperty("--share-opacity", "0");
-    status.textContent = "";
-  };
-  phone.addEventListener("click", () => {
-    if (!sharing) {
-      phoneArtwork.src = stillArtwork.src;
-      confirm.showModal();
-      footprint.querySelector("#footprint-question").focus({ preventScroll: true });
-    }
-  });
-  footprint.querySelector(".footprint-no").addEventListener("click", () => confirm.close());
-  footprint.querySelector(".footprint-yes").addEventListener("click", () => {
-    if (sharing) return;
-    footprint.querySelector(".footprint-yes").disabled = true;
-    sharing = true;
-    phone.disabled = true;
-    footprint.classList.add("is-sharing");
-    artwork.style.setProperty("--line-opacity", "0");
-    lineGroups.flat().forEach((path) => path.classList.remove("is-drawn"));
-    const revealPlatform = (index) => {
-      if (index > 0) {
-        confirm.classList.add("is-stacked");
-        copies[index - 1].hidden = false;
-      }
-      status.textContent = `${platforms[index]} 공유 상태창`;
-    };
-    popupTimes.forEach((delay, index) => {
-      timers.push(setTimeout(() => revealPlatform(index), delay));
-    });
-    const dismissAt = popupTimes[popupTimes.length - 1] + 900;
-    const fadeDuration = reducedMotion.matches ? 0 : 180;
-    timers.push(setTimeout(() => confirm.classList.add("is-dismissing"), dismissAt));
-    timers.push(setTimeout(() => {
-      confirm.close();
-      status.textContent = "공유된 사진이 연결되고 온라인에 흔적이 남습니다.";
-      // The network starts only after every popup has disappeared.
-      lineGroups.forEach((paths, index) => {
-        timers.push(setTimeout(() => {
-          artwork.style.setProperty("--line-opacity", ["0.4", "0.6", "0.8", "0.9", "1"][index]);
-          artwork.style.setProperty("--share-opacity", ["0", "0.1", "0.35", "0.7", "1"][index]);
-          paths.forEach((path) => path.classList.add("is-drawn"));
-        }, index * 180));
-      });
-      timers.push(setTimeout(() => { ending.hidden = false; }, 2300));
-    }, dismissAt + fadeDuration));
-  });
-  footprint.querySelector(".footprint-reset").addEventListener("click", () => {
-    reset();
-    phone.focus({ preventScroll: true });
-  });
-}
-
-// Reveal the final connector when the Explore destination enters view.
-const finalExplore = document.querySelector(".footprint .explore-action");
-if (finalExplore) {
-  const button = finalExplore.querySelector(".explore-button");
-  let hasFormed = false;
-  const formButton = () => {
-    if (hasFormed) return;
-    hasFormed = true;
-    if (!reducedMotion.matches) {
-      const root = document.documentElement;
-      const oldRootOverflow = root.style.overflow;
-      const oldBodyOverflow = document.body.style.overflow;
-      const oldPadding = document.body.style.paddingRight;
-      const scrollbarWidth = window.innerWidth - root.clientWidth;
-      const padding = parseFloat(getComputedStyle(document.body).paddingRight) || 0;
-      let released = false;
-      let fallback;
-      const stopScroll = (event) => event.preventDefault();
-      const stopKeys = (event) => {
-        if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) event.preventDefault();
-        if (event.key === "Escape") release();
-      };
-      const text = button.querySelector("span");
-      const onFinished = (event) => {
-        if (event.target === text && event.propertyName === "opacity") release();
-      };
-      const release = () => {
-        if (released) return;
-        released = true;
-        clearTimeout(fallback);
-        root.style.overflow = oldRootOverflow;
-        document.body.style.overflow = oldBodyOverflow;
-        document.body.style.paddingRight = oldPadding;
-        window.removeEventListener("wheel", stopScroll);
-        window.removeEventListener("touchmove", stopScroll);
-        window.removeEventListener("keydown", stopKeys);
-        text.removeEventListener("transitionend", onFinished);
-      };
-      if (scrollbarWidth > 0) document.body.style.paddingRight = `${padding + scrollbarWidth}px`;
-      root.style.overflow = "hidden";
-      document.body.style.overflow = "hidden";
-      window.addEventListener("wheel", stopScroll, { passive: false });
-      window.addEventListener("touchmove", stopScroll, { passive: false });
-      window.addEventListener("keydown", stopKeys);
-      text.addEventListener("transitionend", onFinished);
-      // Also release if the transition is interrupted or the tab becomes inactive.
-      fallback = setTimeout(release, 2350);
-    }
-    finalExplore.classList.add("is-formed");
-  };
-  button.addEventListener("focus", formButton);
-  if ("IntersectionObserver" in window) {
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        formButton();
-        observer.disconnect();
-      }
-    }, { threshold: 1, rootMargin: "0px 0px -60px 0px" });
-    observer.observe(button);
-  } else {
-    formButton();
-  }
-}
-
+// Keep the final archive action available without interrupting scrolling.
+const finalExplore = document.querySelector(".final-explore");
+if (finalExplore) finalExplore.classList.add("is-formed");
 
 const storyCarousel = document.querySelector(".story-carousel");
 if (storyCarousel) {
@@ -829,29 +523,757 @@ if (storyCarousel) {
   });
 }
 
-// Track direction separately for the document and the archive's scroll container.
-function attachScrollNavigation(scroller, header, readPosition) {
-  if (!header) return;
-  let anchor = readPosition();
-  const update = () => {
-    const position = Math.max(0, readPosition());
-    const distance = position - anchor;
-    if (position <= header.offsetHeight) {
-      header.classList.remove("is-scroll-hidden");
-      anchor = position;
-    } else if (Math.abs(distance) >= 8) {
-      header.classList.toggle("is-scroll-hidden", distance > 0);
-      anchor = position;
+
+// Pin the opening scene until its network finishes, then follow the lower routes.
+const sharingComposition = document.querySelector('.sharing-composition');
+if (sharingComposition) {
+  const viewport = sharingComposition.querySelector('.sharing-viewport');
+  const camera = sharingComposition.querySelector('.sharing-camera');
+  const scene = sharingComposition.querySelector('.sharing-scene');
+  const scrollLines = [...sharingComposition.querySelectorAll('.sharing-scroll-line')];
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const lightDefs = document.createElementNS(svgNS, 'defs');
+  lightDefs.innerHTML = '<radialGradient id="sharing-line-light"><stop offset="0" stop-color="#fff5fe" stop-opacity="1"/><stop offset=".18" stop-color="#ffd4f5" stop-opacity=".9"/><stop offset=".45" stop-color="#ff62d4" stop-opacity=".5"/><stop offset="1" stop-color="#ff62d4" stop-opacity="0"/></radialGradient>';
+  scene.prepend(lightDefs);
+  const lineLights = scrollLines.map((line, index) => {
+    const halo = line.cloneNode(false);
+    halo.classList.remove('sharing-scroll-line');
+    halo.classList.add('sharing-line-halo');
+    halo.setAttribute('stroke', '#f961d0');
+    halo.setAttribute('stroke-width', Number(line.getAttribute('stroke-width')) + 4);
+    halo.style.opacity = '0';
+    line.before(halo);
+    let head = null;
+    if (index % 4 === 0 || index >= 24) {
+      head = document.createElementNS(svgNS, 'circle');
+      head.setAttribute('r', '8');
+      head.setAttribute('fill', 'url(#sharing-line-light)');
+      head.style.opacity = '0';
+      line.parentNode.append(head);
     }
+    return { halo, head, length: index < 24 ? line.getTotalLength() : 0 };
+  });
+
+  const people = [...sharingComposition.querySelectorAll('.sharing-person-reveal')].map(group => {
+    const image = group.querySelector('image');
+    const x = Number(image.getAttribute('x'));
+    const y = Number(image.getAttribute('y'));
+    const height = Number(image.getAttribute('height'));
+    const width = Number(image.getAttribute('width'));
+    const mirrored = image.hasAttribute('transform');
+    return { group, y, reveal: 0, phoneX: mirrored ? x + width - 52 * height / 162 : x + 52 * height / 162,
+      phoneY: y + 38 * height / 162 };
+  });
+  const comments = [...sharingComposition.querySelectorAll('.sharing-chat-reveal')].map(group => {
+    const bubble = group.querySelector('image');
+    const centerX = Number(bubble.getAttribute('x')) + Number(bubble.getAttribute('width')) / 2;
+    return { group, centerX, shiftX: 0, y: Number(group.dataset.y), order: Number(group.dataset.order), reveal: 0 };
+  });
+  const clamp = value => Math.max(0, Math.min(1, value));
+  sharingComposition.classList.add('has-scroll-lines');
+  let sharingFrame = 0;
+  let hasSharingScroll = false;
+  let smoothDistance = null;
+  let previousFrameTime = 0;
+  let viewHeight = 1;
+  let panDistance = 0;
+  let holdDistance = 1;
+  let travelDistance = 1;
+  let completionPause = 1;
+  let sceneScale = 1;
+  const measureSharing = () => {
+    const wide = innerWidth > 760;
+    scene.setAttribute('viewBox', wide ? '-180 0 1360 3150' : '0 0 1000 3150');
+    comments.forEach(comment => { comment.shiftX = wide ? (comment.centerX - 500) * .34 : 0; });
+    const headerHeight = document.querySelector('body > .site-header')?.getBoundingClientRect().height || 0;
+    viewHeight = Math.max(200, innerHeight - headerHeight);
+    sharingComposition.style.setProperty('--sharing-top', `${headerHeight}px`);
+    sharingComposition.style.setProperty('--sharing-height', `${viewHeight}px`);
+    panDistance = Math.max(0, scene.getBoundingClientRect().height - viewHeight);
+    sceneScale = scene.getBoundingClientRect().width / scene.viewBox.baseVal.width;
+    holdDistance = viewHeight * .9;
+    completionPause = viewHeight * .2;
+    travelDistance = Math.max(viewHeight * 1.3, panDistance * 1.2);
+    sharingComposition.style.height = reducedMotion.matches ? 'auto' : `${viewHeight * 1.1 + holdDistance + completionPause + travelDistance}px`;
+    if (sharingFrame) cancelAnimationFrame(sharingFrame);
+    sharingFrame = 0;
+    previousFrameTime = 0;
+    smoothDistance = null;
+    scheduleSharingLines();
   };
-  scroller.addEventListener("scroll", update, { passive: true });
-  header.addEventListener("focusin", () => header.classList.remove("is-scroll-hidden"));
-  if (scroller instanceof HTMLDialogElement) {
-    new MutationObserver(() => {
-      anchor = readPosition();
-      header.classList.remove("is-scroll-hidden");
-    }).observe(scroller, { attributes: true, attributeFilter: ["open"] });
-  }
+  const updateSharingLines = (timestamp) => {
+    sharingFrame = 0;
+    const bounds = sharingComposition.getBoundingClientRect();
+    if (bounds.bottom < 0 || bounds.top > innerHeight) { previousFrameTime = 0; return; }
+    const headerHeight = parseFloat(sharingComposition.style.getPropertyValue('--sharing-top')) || 0;
+    const targetDistance = hasSharingScroll ? Math.max(0, Math.min(holdDistance + completionPause + travelDistance, headerHeight - bounds.top)) : 0;
+    const elapsed = previousFrameTime ? Math.min(64, timestamp - previousFrameTime) : 16.67;
+    previousFrameTime = timestamp;
+    // Time-based easing stays consistent across trackpads, mouse wheels and refresh rates.
+    if (smoothDistance === null || reducedMotion.matches) smoothDistance = targetDistance;
+    else smoothDistance += (targetDistance - smoothDistance) * (1 - Math.exp(-elapsed / 140));
+    if (Math.abs(targetDistance - smoothDistance) < .05) smoothDistance = targetDistance;
+    const distance = smoothDistance;
+    const openingProgress = clamp(distance / holdDistance);
+    const followingProgress = clamp((distance - holdDistance - completionPause) / travelDistance);
+    const scale = sceneScale;
+    // Finish every person-to-person route before entering the comment scene.
+    const routesProgress = clamp(followingProgress / .58);
+    const commentsProgress = clamp((followingProgress - .66) / .34);
+    const lastPhone = people[people.length - 1];
+    const routesPanDistance = Math.min(panDistance, Math.max(0, lastPhone.phoneY * scale - viewHeight * .58));
+    // Reach the final phone early, then hold the camera while the last line finishes.
+    const cameraPan = clamp(routesProgress / .84) * routesPanDistance
+      + commentsProgress * (panDistance - routesPanDistance);
+    const commentsReady = routesProgress >= 1 && followingProgress > .66;
+    const anchors = [{ x: 539, y: 480 }];
+    let peopleSettling = false;
+    people.forEach(person => {
+      const screenY = person.y * scale - cameraPan;
+      const targetReveal = reducedMotion.matches ? 1 : clamp((viewHeight * 1.05 - screenY) / (viewHeight * .48));
+      if (reducedMotion.matches) person.reveal = 1;
+      else person.reveal += (targetReveal - person.reveal) * (1 - Math.exp(-elapsed / 280));
+      if (Math.abs(targetReveal - person.reveal) < .0005) person.reveal = targetReveal;
+      else peopleSettling = true;
+      const reveal = person.reveal;
+      // Float upward quickly at first, then settle softly; fade over a longer interval.
+      const eased = 1 - Math.pow(1 - reveal, 3);
+      const rise = (1 - eased) * 300;
+      person.group.style.opacity = String(reveal * reveal * (3 - 2 * reveal));
+      person.group.setAttribute('transform', `translate(0 ${rise})`);
+      anchors.push({ x: person.phoneX, y: person.phoneY + rise });
+    });
+    let commentsSettling = false;
+    const completion = clamp((commentsProgress - .65) / .35);
+    const completionReveal = completion * completion * (3 - 2 * completion);
+    comments.forEach(comment => {
+      const screenY = comment.y * scale - cameraPan;
+      const stagger = (comment.order % 4) * .025;
+      const target = reducedMotion.matches ? 1 : commentsReady ? Math.max(completionReveal, clamp((viewHeight * (1.02 - stagger) - screenY) / (viewHeight * .5))) : 0;
+      if (reducedMotion.matches) comment.reveal = 1;
+      else comment.reveal += (target - comment.reveal) * (1 - Math.exp(-elapsed / 220));
+      if (Math.abs(target - comment.reveal) < .003) comment.reveal = target;
+      else commentsSettling = true;
+      const progress = comment.reveal;
+      const float = 1 - Math.pow(1 - progress, 3);
+      comment.group.style.opacity = String(progress * progress * (3 - 2 * progress));
+      comment.group.setAttribute('transform', `translate(${comment.shiftX} ${(1 - float) * 500})`);
+    });
+    // Anchor each route to the actual phone, including mirrored figures and their entrance motion.
+    scrollLines.slice(24).forEach((line, index) => {
+      const from = anchors[index];
+      const to = anchors[index + 1];
+      const curveY = Math.min(from.y, to.y) - 95;
+      line.setAttribute('d', `M${from.x} ${from.y} C${from.x} ${curveY} ${to.x} ${curveY} ${to.x} ${to.y}`);
+    });
+    scrollLines.forEach((line, index) => {
+      const progress = index < 24
+        ? clamp((openingProgress - (index % 5) * .035) / .86)
+        : clamp((routesProgress - (index - 24) * .22) / .25);
+      const visibleProgress = !hasSharingScroll ? 0 : reducedMotion.matches ? 1 : progress;
+      line.style.strokeDashoffset = String(1 - visibleProgress);
+      line.style.opacity = visibleProgress > 0 ? '1' : '0';
+      const light = lineLights[index];
+      if (index >= 24) light.halo.setAttribute('d', line.getAttribute('d'));
+      light.halo.style.strokeDashoffset = String(1 - visibleProgress);
+      light.halo.style.opacity = visibleProgress > 0 ? '.2' : '0';
+      if (light.head) {
+        const moving = visibleProgress > 0 && visibleProgress < 1 && !reducedMotion.matches;
+        light.head.style.opacity = moving ? String(Math.min(1, visibleProgress * 8, (1 - visibleProgress) * 8)) : '0';
+        if (moving) {
+          const length = index < 24 ? light.length : line.getTotalLength();
+          const position = line.getPointAtLength(length * visibleProgress);
+          light.head.setAttribute('cx', position.x);
+          light.head.setAttribute('cy', position.y);
+        }
+      }
+
+    });
+    camera.style.transform = reducedMotion.matches ? 'none' : `translate3d(0, ${-cameraPan}px, 0)`;
+    if ((Math.abs(targetDistance - smoothDistance) > .05 || peopleSettling || commentsSettling) && !reducedMotion.matches) {
+      sharingFrame = requestAnimationFrame(updateSharingLines);
+    } else previousFrameTime = 0;
+  };
+  const scheduleSharingLines = () => {
+    if (!sharingFrame) sharingFrame = requestAnimationFrame(updateSharingLines);
+  };
+  addEventListener('scroll', () => {
+    hasSharingScroll = true;
+    scheduleSharingLines();
+  }, { passive: true });
+  addEventListener('resize', measureSharing);
+  reducedMotion.addEventListener('change', measureSharing);
+  measureSharing();
 }
-attachScrollNavigation(window, document.querySelector("body > .site-header"), () => window.scrollY);
-if (casesDialog) attachScrollNavigation(casesDialog, casesDialog.querySelector(".site-header"), () => casesDialog.scrollTop);
+
+// The centered final network is drawn only by the user's scroll position.
+const finaleDiagram = document.querySelector('.impact-finale');
+if (finaleDiagram) {
+  const map = finaleDiagram.querySelector('.finale-detail-map');
+  const mapRunway = document.createElement('div');
+  mapRunway.className = 'finale-map-runway';
+  map.before(mapRunway);
+  const mapStage = document.createElement('div');
+  mapStage.className = 'finale-map-stage';
+  mapRunway.append(mapStage);
+  mapStage.append(finaleDiagram.querySelector('.finale-photo'), map);
+  map.setAttribute('preserveAspectRatio', 'xMidYMin meet');
+  const primary = [...map.querySelectorAll('.map-primary')];
+  const branches = [...map.querySelectorAll('.map-linework path:not(.map-primary)')];
+  const titles = [...map.querySelectorAll('.map-category')];
+  const details = [...map.querySelectorAll('.map-detail')];
+  const threadSvg = finaleDiagram.querySelector('.finale-threads');
+  const threads = [...threadSvg.querySelectorAll('path')];
+  const button = finaleDiagram.querySelector('.explore-button');
+  const border = button.querySelector('.explore-draw-border path');
+  const label = button.querySelector('span');
+  const clamp = value => Math.max(0, Math.min(1, value));
+  const ease = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
+  finaleDiagram.classList.add('has-diagram-motion');
+  [...primary, ...branches, ...threads, border].forEach(path => {
+    path.setAttribute('pathLength', '1');
+    path.style.strokeDasharray = '1';
+  });
+  let frame = 0;
+  let smoothMapProgress = null;
+  let previousTime = 0;
+  let autoStarted = false;
+  let autoProgress = null;
+  let autoButtonProgress = 0;
+  const followThreads = () => {
+    autoStarted = true;
+    const stop = event => event.preventDefault();
+    const keys = event => {
+      if (event.key === 'Escape') { cancelled = true; release(); }
+      else if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) event.preventDefault();
+    };
+    let cancelled = false;
+    const release = () => {
+      removeEventListener('wheel', stop);
+      removeEventListener('touchmove', stop);
+      removeEventListener('keydown', keys);
+    };
+    addEventListener('wheel', stop, { passive: false });
+    addEventListener('touchmove', stop, { passive: false });
+    addEventListener('keydown', keys);
+    const path = threads[0];
+    const length = path.getTotalLength();
+    let started;
+    let previous;
+    let cameraScroll = scrollY;
+    const step = now => {
+      if (cancelled) return;
+      if (started === undefined) started = now;
+      const elapsed = now - started;
+      autoProgress = ease(elapsed / 3200);
+      autoButtonProgress = clamp((elapsed - 3400) / 900);
+      const matrix = path.getScreenCTM();
+      if (!matrix) { release(); return; }
+      const point = path.getPointAtLength(length * autoProgress);
+      const head = new DOMPoint(point.x, point.y).matrixTransform(matrix);
+      const buttonBounds = button.getBoundingClientRect();
+      const focusY = elapsed < 3200 ? head.y : buttonBounds.top + buttonBounds.height / 2;
+      const delta = previous ? Math.min(64, now - previous) : 16.67;
+      previous = now;
+      const target = Math.max(scrollY, scrollY + focusY - innerHeight * .6);
+      cameraScroll += (target - cameraScroll) * (1 - Math.exp(-delta / 180));
+      window.scrollTo({ top: cameraScroll, behavior: 'instant' });
+      schedule();
+      if (elapsed < 4600) requestAnimationFrame(step);
+      else release();
+    };
+    requestAnimationFrame(step);
+  };
+  const update = now => {
+    frame = 0;
+    const threadBounds = threadSvg.getBoundingClientRect();
+    const runwayBounds = mapRunway.getBoundingClientRect();
+    if (runwayBounds.top > innerHeight || (threadBounds.bottom < 0 && autoStarted)) { previousTime = 0; return; }
+    const stickyTop = parseFloat(getComputedStyle(mapStage).top) || 0;
+    const mapRange = Math.max(1, runwayBounds.height - mapStage.offsetHeight);
+    const targetMapProgress = reducedMotion.matches ? 1 : clamp((stickyTop - runwayBounds.top) / (mapRange * .92));
+    const elapsed = previousTime ? Math.min(64, now - previousTime) : 16.67;
+    previousTime = now;
+    if (smoothMapProgress === null || reducedMotion.matches) smoothMapProgress = targetMapProgress;
+    else smoothMapProgress += (targetMapProgress - smoothMapProgress) * (1 - Math.exp(-elapsed / 230));
+    if (Math.abs(targetMapProgress - smoothMapProgress) < .00005) smoothMapProgress = targetMapProgress;
+    const mapProgress = smoothMapProgress;
+    if (!autoStarted && !reducedMotion.matches && mapProgress >= .95 && threadBounds.top < innerHeight * .85) followThreads();
+    const threadProgress = reducedMotion.matches ? 1 : autoProgress ?? 0;
+    primary.forEach(path => { path.style.strokeDashoffset = String(1 - clamp(mapProgress / .32)); });
+    branches.forEach((path, index) => {
+      path.style.strokeDashoffset = String(1 - clamp((mapProgress - .44 - (index % 5) * .02) / .26));
+    });
+    titles.forEach(element => { element.style.opacity = String(ease((mapProgress - .33) / .10)); });
+    details.forEach(element => { element.style.opacity = String(ease((mapProgress - .79) / .15)); });
+    threads.forEach(path => { path.style.strokeDashoffset = String(1 - threadProgress); });
+    const buttonProgress = reducedMotion.matches ? 1 : autoButtonProgress;
+    border.style.strokeDashoffset = String(1 - buttonProgress);
+    label.style.opacity = String(ease((buttonProgress - .85) / .15));
+    button.style.visibility = threadProgress > 0 || reducedMotion.matches ? 'visible' : 'hidden';
+    button.disabled = buttonProgress < 1;
+    if (smoothMapProgress !== targetMapProgress) frame = requestAnimationFrame(update);
+    else previousTime = 0;
+  };
+  const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+  addEventListener('scroll', schedule, { passive: true });
+  addEventListener('resize', schedule);
+  addEventListener('load', schedule, { once: true });
+  reducedMotion.addEventListener('change', schedule);
+  schedule();
+}
+
+// Drag a selection rectangle, then move selected photos together like desktop icons.
+const photoDesktop = document.querySelector('.creative-monitor');
+if (photoDesktop) {
+  const computerSection = photoDesktop.closest('.creative-interface');
+  const computerFrame = document.createElement('div');
+  computerFrame.className = 'computer-scene-frame';
+  photoDesktop.before(computerFrame);
+  computerFrame.append(photoDesktop);
+  const audience = document.createElement('div');
+  audience.className = 'computer-audience';
+  audience.setAttribute('aria-hidden', 'true');
+  audience.innerHTML = '<span class="computer-person"></span>';
+  computerSection.append(audience);
+  const beam = document.createElement('div');
+  beam.className = 'computer-projection';
+  beam.setAttribute('aria-hidden', 'true');
+  computerSection.append(beam);
+  const projectedCases = document.createElement('div');
+  projectedCases.className = 'computer-projected-cases';
+  projectedCases.setAttribute('aria-label', '사진을 악용한 AI 합성 피해 사례');
+  projectedCases.hidden = true;
+  const projectionItems = archiveCases.filter(item => item.title.includes('AI 성착취')).slice(0, 3);
+  while (projectionItems.length < 3) projectionItems.push({ title: '딥페이크 사례 · 준비 중', summary: '사례 이미지와 내용을 추가할 예정입니다.', sources: [] });
+  projectionItems.forEach((item, index) => {
+    const card = document.createElement('article');
+    card.className = 'computer-projected-case';
+    card.tabIndex = 0;
+    card.setAttribute('aria-label', item.title);
+    const placeholder = document.createElement('div');
+    placeholder.className = 'computer-case-placeholder';
+    placeholder.textContent = `사례 0${index + 1}`;
+    const copy = document.createElement('div');
+    copy.className = 'computer-case-copy';
+    const title = document.createElement('h3');
+    title.textContent = item.title;
+    const summary = document.createElement('p');
+    summary.textContent = item.summary;
+    const source = document.createElement('a');
+    source.textContent = '출처 보기 ↗';
+    if (item.sources[0]) source.href = item.sources[0];
+    else source.hidden = true;
+    source.target = '_blank';
+    source.rel = 'noopener noreferrer';
+    copy.append(title, summary, source);
+    card.append(placeholder, copy);
+    card.addEventListener('click', event => {
+      if (!event.target.closest('a')) card.classList.toggle('is-open');
+    });
+    projectedCases.append(card);
+  });
+  computerSection.append(projectedCases);
+  let projectionComplete = false;
+  let projectionScrollOrigin = 0;
+  let projectionFrame = 0;
+  let projectionX = 0;
+  let projectionTime = 0;
+  const moveProjection = now => {
+    projectionFrame = 0;
+    const target = reducedMotion.matches ? 0 : Math.min(innerWidth * .85, Math.max(0, projectionScrollOrigin - scrollY) * .8);
+    const elapsed = projectionTime ? Math.min(64, now - projectionTime) : 16.67;
+    projectionTime = now;
+    projectionX += (target - projectionX) * (1 - Math.exp(-elapsed / 220));
+    if (Math.abs(target - projectionX) < .05) projectionX = target;
+    computerSection.style.setProperty('--projection-shift', `${projectionX}px`);
+    if (projectionX !== target) projectionFrame = requestAnimationFrame(moveProjection);
+    else projectionTime = 0;
+  };
+  const scheduleProjection = () => {
+    if (projectionComplete && !projectionFrame) projectionFrame = requestAnimationFrame(moveProjection);
+  };
+  const completeProjection = () => {
+    if (projectionComplete) return;
+    projectionComplete = true;
+    projectionScrollOrigin = scrollY;
+    scheduleProjection();
+  };
+  projectedCases.addEventListener('transitionend', event => {
+    if (event.target === projectedCases && event.propertyName === 'opacity') completeProjection();
+  });
+  addEventListener('scroll', scheduleProjection, { passive: true });
+  addEventListener('resize', scheduleProjection);
+  reducedMotion.addEventListener('change', scheduleProjection);
+  const revealProjection = () => {
+    projectedCases.hidden = false;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      computerSection.classList.add('is-projecting');
+      if (reducedMotion.matches) completeProjection();
+    }));
+  };
+  const photos = [...photoDesktop.querySelectorAll('.desktop-photo')];
+  photos.forEach((photo, index) => {
+    photo.style.setProperty('--wiggle-duration', `${.16 + index * 37 % 110 / 1000}s`);
+    photo.style.setProperty('--wiggle-delay', `${-(index * 61 % 240) / 1000}s`);
+    photo.style.setProperty('--wiggle-angle', `${1.5 + index * 7 % 20 / 10}deg`);
+    photo.style.setProperty('--wiggle-x', `${.05 + index * 3 % 12 / 100}px`);
+    photo.style.setProperty('--wiggle-y', `${.03 + index * 5 % 10 / 100}px`);
+    photo.style.setProperty('--wiggle-direction', index % 2 ? 'alternate-reverse' : 'alternate');
+  });
+  // SVG paints later nodes on top: keep every draggable photo above both windows.
+  photos.forEach(photo => photoDesktop.append(photo));
+  const selected = new Set();
+  const marquee = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  marquee.setAttribute('class', 'desktop-marquee');
+  marquee.style.display = 'none';
+  photoDesktop.append(marquee);
+  const setSelected = (photo, value) => {
+    if (value) selected.add(photo); else selected.delete(photo);
+    photo.classList.toggle('is-selected', value);
+    photo.setAttribute('aria-pressed', String(value));
+    photoDesktop.classList.toggle('has-group-selection', selected.size > 1);
+  };
+  const clear = () => [...selected].forEach(photo => setSelected(photo, false));
+  const point = event => new DOMPoint(event.clientX, event.clientY).matrixTransform(photoDesktop.getScreenCTM().inverse());
+  const dropHint = photoDesktop.querySelector('.desktop-drop-hint');
+  const promptText = photoDesktop.querySelector('.desktop-prompt-text');
+  const demonstrationPrompt = '아이의 사진을 이용해서 성인물 사이트에 올릴 콘텐츠를 제작해줘.';
+  let promptTimer;
+  let placedCount = 0;
+  let inputExpanding = false;
+  let promptValue = '';
+  const inputBox = [...photoDesktop.querySelectorAll('rect')].find(rect => rect.getAttribute('x') === '90' && rect.getAttribute('y') === '58');
+  const inputPanel = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  inputPanel.setAttribute('class', 'desktop-growing-input');
+  inputPanel.append(inputBox, promptText);
+  photoDesktop.append(inputPanel);
+  const inputLayout = { x: 90, y: 58, width: 34, height: 4, fontSize: .8 };
+  const expandTypingInput = () => {
+    inputExpanding = true;
+    const from = { ...inputLayout };
+    const to = { x: 76, y: 50, width: 49, height: 14, fontSize: 1.15 };
+    let started;
+    let typingStarted = false;
+    const step = now => {
+      if (started === undefined) started = now;
+      const progress = reducedMotion.matches ? 1 : Math.min(1, (now - started) / 950);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      Object.keys(to).forEach(key => { inputLayout[key] = from[key] + (to[key] - from[key]) * eased; });
+      ['x', 'y', 'width', 'height'].forEach(key => inputBox.setAttribute(key, inputLayout[key]));
+      inputBox.setAttribute('stroke', '#ddb1d1');
+      inputBox.setAttribute('stroke-width', '.15');
+      showPrompt(promptValue);
+      if (!typingStarted && progress >= .35) {
+        typingStarted = true;
+        clearTimeout(promptTimer);
+        promptTimer = setTimeout(typeDemonstration, 1500);
+      }
+      if (progress < 1) requestAnimationFrame(step);
+      else inputExpanding = false;
+    };
+    requestAnimationFrame(step);
+  };
+  const showPrompt = text => {
+    promptValue = text;
+    promptText.replaceChildren();
+    promptText.setAttribute('font-size', String(inputLayout.fontSize));
+    promptText.setAttribute('fill', '#555');
+    promptText.setAttribute('font-weight', '700');
+    const lines = [];
+    for (let offset = 0; offset < text.length; offset += 34) {
+      const chunk = text.slice(offset, offset + 34);
+      if (/^[.,!?。！？]/.test(chunk) && lines.length) {
+        lines[lines.length - 1] += chunk[0];
+        if (chunk.length > 1) lines.push(chunk.slice(1));
+      } else lines.push(chunk);
+    }
+    lines.forEach((textLine, index) => {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      line.setAttribute('x', String(inputLayout.x + 1.5));
+      line.setAttribute('y', String(inputLayout.y + 3 + index * 2));
+      line.textContent = textLine;
+      promptText.append(line);
+    });
+  };
+  const typeDemonstration = () => {
+    clearTimeout(promptTimer);
+    let length = 0;
+    const tick = () => {
+      showPrompt(demonstrationPrompt.slice(0, ++length));
+      if (length < demonstrationPrompt.length) promptTimer = setTimeout(tick, Math.max(16, 65 - 500 / (demonstrationPrompt.length - 1)));
+      else promptTimer = setTimeout(revealProjection, 250);
+    };
+    if (reducedMotion.matches) { showPrompt(demonstrationPrompt); revealProjection(); }
+    else tick();
+  };
+  let action = null;
+  photoDesktop.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || action || inputExpanding) return;
+    const photo = event.target.closest('.desktop-photo');
+    if (photo?.classList.contains('is-placed') || (!photo && !event.target.matches('.desktop-selection-surface'))) return;
+    event.preventDefault();
+    const start = point(event);
+    const additive = event.shiftKey || event.metaKey || event.ctrlKey;
+    if (photo) {
+      if (additive) setSelected(photo, !selected.has(photo));
+      else if (!selected.has(photo)) { clear(); setSelected(photo, true); }
+      photo.focus({ preventScroll: true });
+      action = { type: 'move', start, pointer: event.pointerId, dx: 0, dy: 0,
+        origins: [...selected].map(item => ({ item, x: Number(item.dataset.x), y: Number(item.dataset.y) })) };
+    } else {
+      if (!additive) clear();
+      action = { type: 'select', start, pointer: event.pointerId, previous: new Set(selected) };
+      marquee.style.display = 'block';
+      ['x','y','width','height'].forEach((name, i) => marquee.setAttribute(name, i < 2 ? [start.x,start.y][i] : 0));
+    }
+    photoDesktop.setPointerCapture(event.pointerId);
+  });
+  photoDesktop.addEventListener('pointermove', event => {
+    if (!action || action.pointer !== event.pointerId) return;
+    const current = point(event);
+    if (action.type === 'select') {
+      const left = Math.max(39, Math.min(action.start.x, current.x));
+      const top = Math.max(20, Math.min(action.start.y, current.y));
+      const right = Math.min(86, Math.max(action.start.x, current.x));
+      const bottom = Math.min(60, Math.max(action.start.y, current.y));
+      marquee.setAttribute('x', left); marquee.setAttribute('y', top);
+      marquee.setAttribute('width', Math.max(0,right-left)); marquee.setAttribute('height', Math.max(0,bottom-top));
+      photos.forEach(photo => {
+        const x = Number(photo.dataset.x), y = Number(photo.dataset.y);
+        setSelected(photo, !photo.classList.contains('is-placed') && (action.previous.has(photo) || (x < right && x+3.6 > left && y < bottom && y+4.5 > top)));
+      });
+    } else if (action.origins.length) {
+      const xs = action.origins.map(o => o.x), ys = action.origins.map(o => o.y);
+      action.dx = Math.max(27.5-Math.min(...xs), Math.min(126-Math.max(...xs), current.x-action.start.x));
+      action.dy = Math.max(10.5-Math.min(...ys), Math.min(65-Math.max(...ys), current.y-action.start.y));
+      photoDesktop.classList.toggle('is-moving-photos', Math.hypot(action.dx,action.dy) > .25);
+      action.origins.forEach(({item,x,y}) => item.setAttribute('transform', `translate(${x+action.dx} ${y+action.dy})`));
+    }
+  });
+  const finish = (event, cancel = false) => {
+    if (!action || event.pointerId !== action.pointer) return;
+    if (action.type === 'move') {
+      const at = !cancel && Number.isFinite(event.clientX) ? point(event) : null;
+      const dropped = at && at.x >= 90 && at.x <= 124 && at.y >= 41 && at.y <= 57 && action.origins.length > 0;
+      action.origins.forEach(({item,x,y}) => {
+        if (dropped) {
+          const slot = placedCount++;
+          item.dataset.x = 91 + (slot % 8) * 4;
+          item.dataset.y = 41.5 + Math.floor(slot / 8) * 5;
+          setSelected(item, false);
+          item.classList.add('is-placed');
+          item.setAttribute('tabindex', '-1');
+          item.setAttribute('aria-label', '편집 창에 놓인 사진');
+        } else {
+          // Keep unsuccessful drops inside the gallery.
+          const galleryDrop = !cancel && at && at.x >= 39 && at.x <= 86 && at.y >= 20 && at.y <= 60;
+          item.dataset.x = galleryDrop ? Math.max(39.5, Math.min(82, x + action.dx)) : x;
+          item.dataset.y = galleryDrop ? Math.max(20.5, Math.min(55, y + action.dy)) : y;
+        }
+        item.setAttribute('transform', `translate(${item.dataset.x} ${item.dataset.y})`);
+      });
+      if (dropped) {
+        dropHint.style.display = 'none';
+        clearTimeout(promptTimer);
+        showPrompt('');
+        expandTypingInput();
+      }
+    }
+    if (cancel && action.type === 'select') photos.forEach(photo => setSelected(photo, action.previous.has(photo)));
+    const pointer = action.pointer;
+    action = null;
+    marquee.style.display = 'none';
+    photoDesktop.classList.remove('is-moving-photos');
+    if (photoDesktop.hasPointerCapture(pointer)) photoDesktop.releasePointerCapture(pointer);
+  };
+  photoDesktop.addEventListener('pointerup', event => finish(event));
+  photoDesktop.addEventListener('pointercancel', event => finish(event, true));
+  photoDesktop.addEventListener('lostpointercapture', event => finish(event, true));
+  photoDesktop.addEventListener('keydown', event => {
+    const photo = event.target.closest('.desktop-photo');
+    if (event.key === 'Escape') { if (action) finish({pointerId:action.pointer},true); clear(); }
+    else if (photo && ['Enter',' '].includes(event.key)) { event.preventDefault(); setSelected(photo,!selected.has(photo)); }
+    else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') { event.preventDefault(); photos.filter(photo => !photo.classList.contains('is-placed')).forEach(photo => setSelected(photo,true)); }
+  });
+}
+
+// Scroll-linked, reversible horizontal movement with cached layout measurements.
+const rightsCaseEntries = [...document.querySelectorAll('.rights-case-story, #creative-interface .creative-monitor')].map((element, index) => ({
+  element, index, monitor: element.matches('.creative-monitor'), top: 0, height: 1, current: null
+}));
+if (rightsCaseEntries.length) {
+  let frame = 0;
+  let previousTime = 0;
+  let viewportHeight = innerHeight;
+  let amplitude = 160;
+  const update = now => {
+    frame = 0;
+    const elapsed = previousTime ? Math.min(64, now - previousTime) : 16.67;
+    previousTime = now;
+    const scrollTop = scrollY;
+    let settling = false;
+    // All geometry is cached: each frame only updates transform and opacity.
+    rightsCaseEntries.forEach(entry => {
+      if (entry.monitor && entry.element.closest('.is-projecting')) {
+        entry.element.style.transform = 'none';
+        entry.element.style.opacity = '1';
+        return;
+      }
+      const entranceRange = viewportHeight * (entry.monitor ? .7 : .42);
+      const target = Math.max(0, Math.min(1, (scrollTop + viewportHeight * .95 - entry.top) / entranceRange));
+      if (entry.current === null || reducedMotion.matches) entry.current = target;
+      else entry.current += (target - entry.current) * (1 - Math.exp(-elapsed / (entry.monitor ? 300 : 200)));
+      if (Math.abs(target - entry.current) < .0004) entry.current = target;
+      else settling = true;
+      const direction = entry.monitor || entry.index === 0 ? 1 : -1;
+      const eased = entry.current * entry.current * (3 - 2 * entry.current);
+      const distance = entry.monitor ? Math.min(innerWidth * .3, 420) : amplitude;
+      const x = reducedMotion.matches ? 0 : direction * distance * (1 - eased);
+      entry.element.style.transform = `translate3d(${x}px, 0, 0)`;
+      entry.element.style.opacity = reducedMotion.matches ? '1' : String(eased);
+    });
+    if (settling && !reducedMotion.matches) frame = requestAnimationFrame(update);
+    else previousTime = 0;
+  };
+  const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+  const measure = () => {
+    viewportHeight = innerHeight;
+    amplitude = Math.min(innerWidth * .13, 190);
+    rightsCaseEntries.forEach(entry => {
+      const bounds = entry.element.getBoundingClientRect();
+      entry.top = bounds.top + scrollY;
+      entry.height = bounds.height;
+      entry.element.classList.add('has-scroll-entry');
+    });
+    schedule();
+  };
+  addEventListener('scroll', schedule, { passive: true });
+  addEventListener('resize', measure);
+  addEventListener('load', measure, { once: true });
+  rightsCaseEntries.forEach(entry => entry.element.querySelector('img')?.addEventListener('load', measure));
+  reducedMotion.addEventListener('change', measure);
+  measure();
+}
+
+// Unspecified sections share the people's soft upward, fading entrance.
+const floatingSectionParts = [...document.querySelectorAll(
+  '#rights .rights-copy, #rights .timeline, ' +
+  '.crime-summary .spread-result-copy, .crime-summary .spread-data-image, ' +
+  '#archive .section-copy, #archive .social-figure'
+)];
+if (floatingSectionParts.length && 'IntersectionObserver' in window && !reducedMotion.matches) {
+  const running = new Map();
+  floatingSectionParts.forEach(element => {
+    element.classList.add('section-float-part');
+    element.style.opacity = '0';
+  });
+  const floatObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const element = entry.target;
+      floatObserver.unobserve(element);
+      const distance = innerWidth > 760 ? 180 : 90;
+      const visual = element.matches('.timeline, .creative-monitor, .spread-data-image, .social-figure');
+      element.style.willChange = 'transform, opacity';
+      const animation = element.animate([
+        { opacity: 0, transform: `translate3d(0, ${distance}px, 0)` },
+        { opacity: .7, transform: `translate3d(0, ${distance * .15}px, 0)`, offset: .48 },
+        { opacity: 1, transform: 'translate3d(0, 0, 0)' }
+      ], { duration: 1700, delay: visual ? 120 : 0, easing: 'cubic-bezier(.22,.61,.36,1)', fill: 'both' });
+      running.set(element, animation);
+      animation.finished.then(() => {
+        element.style.opacity = '1';
+        element.style.willChange = 'auto';
+        animation.cancel();
+        running.delete(element);
+      }).catch(() => {});
+    });
+  }, { threshold: .08, rootMargin: '0px 0px -20px 0px' });
+  floatingSectionParts.forEach(element => floatObserver.observe(element));
+  reducedMotion.addEventListener('change', () => {
+    if (!reducedMotion.matches) return;
+    floatObserver.disconnect();
+    running.forEach(animation => animation.cancel());
+    floatingSectionParts.forEach(element => {
+      element.style.opacity = '1';
+      element.style.transform = 'none';
+      element.style.willChange = 'auto';
+    });
+  });
+}
+
+// Each tool completes its own mosaic pass before the next tool enters.
+const photoTransform = document.querySelector('.photo-transform');
+if (photoTransform) {
+  const stage = photoTransform.querySelector('.photo-transform-stage');
+  const photo = photoTransform.querySelector('.photo-transform-image');
+  const icons = [...photoTransform.querySelectorAll('.photo-transform-icons span')];
+  const grid = photoTransform.querySelector('.photo-transform-pixels');
+  const clampProgress = value => Math.max(0, Math.min(1, value));
+  const ease = value => { const t = clampProgress(value); return t * t * (3 - 2 * t); };
+  const pixels = Array.from({ length: 300 }, (_, index) => {
+    const pixel = document.createElement('span');
+    grid.append(pixel);
+    const row = Math.floor(index / 15);
+    const column = index % 15;
+    // The wave starts at the lower left, with scattered blocks ahead of it.
+    const order = ((19 - row) / 19 * .65 + column / 14 * .2 + ((index * 73) % 97) / 97 * .15);
+    return { pixel, order, shade: 125 + (index * 37 % 65), gray: null };
+  });
+  let frame = 0;
+  let currentProgress = null;
+  let previousTime = 0;
+  const update = timestamp => {
+    frame = 0;
+    const bounds = photoTransform.getBoundingClientRect();
+    if (bounds.bottom < 0 || bounds.top > innerHeight) { previousTime = 0; return; }
+    const stageHeight = stage.offsetHeight;
+    const header = parseFloat(getComputedStyle(stage).top) || 0;
+    const targetProgress = reducedMotion.matches ? 1 : clampProgress((header - bounds.top) / Math.max(1, bounds.height - stageHeight));
+    const elapsed = previousTime ? Math.min(64, timestamp - previousTime) : 16.67;
+    previousTime = timestamp;
+    if (currentProgress === null || reducedMotion.matches) currentProgress = targetProgress;
+    else currentProgress += (targetProgress - currentProgress) * (1 - Math.exp(-elapsed / 240));
+    if (Math.abs(targetProgress - currentProgress) < .00005) currentProgress = targetProgress;
+    const progress = currentProgress;
+    const entrance = ease(progress / .16);
+    const sequence = clampProgress((progress - .16) / .68) * 4;
+    const tool = Math.min(3, Math.floor(sequence));
+    const local = sequence >= 4 ? 1 : sequence - tool;
+    // Hold each icon at the center until its entire mosaic has settled.
+    const toolPosition = Math.min(3, tool + ease((local - .78) / .22));
+    icons.forEach((icon, index) => {
+      const relative = index - toolPosition;
+      const opacity = clampProgress(1 - Math.abs(relative)) * ease(progress / .055) * (1 - ease((progress - .83) / .12));
+      icon.style.opacity = String(opacity);
+      icon.style.transform = `translate3d(calc(-50% + ${relative * Math.min(innerWidth * .42, 420)}px), 0, 0)`;
+    });
+    const zoom = ease((progress - .86) / .14);
+    photo.style.opacity = String(entrance);
+    photo.style.transform = reducedMotion.matches ? 'none' : `translate3d(0, ${(1 - entrance) * -stageHeight * .72}px, 0) scale(${.82 + entrance * .18 + zoom * .65})`;
+    const conversion = clampProgress((local - .02) / .60);
+    const settle = ease((local - .62) / .16);
+    const grayStages = [255, 224, 198, 175, 153];
+    pixels.forEach(entry => {
+      const { pixel, order, shade } = entry;
+      const reveal = ease((conversion * 1.65 - order) / .65);
+      const from = grayStages[tool];
+      const to = grayStages[tool + 1];
+      const mosaicShade = to + (shade - 157) * (1 - settle) * .65;
+      const gray = reducedMotion.matches ? 153 : Math.round(from + (mosaicShade - from) * reveal);
+      if (entry.gray !== gray) {
+        pixel.style.opacity = '1';
+        pixel.style.backgroundColor = `rgb(${gray} ${gray} ${gray})`;
+        entry.gray = gray;
+      }
+    });
+    if (currentProgress !== targetProgress && !reducedMotion.matches) frame = requestAnimationFrame(update);
+    else previousTime = 0;
+  };
+  const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+  addEventListener('scroll', schedule, { passive: true });
+  addEventListener('resize', schedule);
+  reducedMotion.addEventListener('change', schedule);
+  schedule();
+}
