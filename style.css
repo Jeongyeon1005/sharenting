@@ -8,8 +8,8 @@
   --line: rgb(255 255 255 / 30%);
   --content-width: 1200px;
   --page-gutter: clamp(1.25rem, 6.2vw, 6rem);
-  --header-height: 4.2rem;
-  --section-space: calc(clamp(8.5rem, 17vw, 15rem) + 405px);
+  --header-height: 4rem;
+  --section-space: calc(clamp(8.5rem, 17vw, 15rem) + 300px);
   font-family: Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -2509,14 +2509,14 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
   .case-explorer .case-filters button { padding: .75rem 1rem; font-size: .95rem; }
 }
 
-/* Two staggered case stories, following the reference composition. */
+/* Center both case stories on the same axis. */
 #main > .rights-case-stories {
   width: calc(100% - clamp(32px, 8vw, 160px));
   max-width: none;
 }
-.rights-case-stories .rights-case-story { width: 72%; margin: 0; }
+.rights-case-stories .rights-case-story { width: 72%; margin: 0 auto; }
 .rights-case-stories .rights-case-story img { display: block; width: 100%; height: auto; filter: brightness(.84); }
-.rights-case-stories .rights-case-story-2 { margin-top: clamp(100px, 15vw, 260px); margin-left: auto; }
+.rights-case-stories .rights-case-story-2 { margin-top: clamp(100px, 15vw, 260px); }
 @media(max-width:760px) {
   .rights-case-stories .rights-case-story { width: 100%; }
   .rights-case-stories .rights-case-story-2 { margin-top: 64px; }
@@ -2605,7 +2605,7 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
 
 /* Taller stage highlights and a stronger, softly eased silhouette enlargement. */
 .rights .rights-region { --hover-top-extension: clamp(85px, 9vh, 140px); }
-.rights .figure-slot .person { transition: filter 300ms ease, scale 650ms cubic-bezier(.22,.61,.36,1); }
+.rights .figure-slot .person { transition: filter 300ms ease, scale 350ms cubic-bezier(.22,.61,.36,1); }
 .rights .figure-slot.is-active .person { scale: 1.2; }
 @media(max-width:760px) {
   .rights .rights-region { --hover-top-extension: 65px; }
@@ -2692,3 +2692,138 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
 
 .case-explorer .case-filters { bottom: calc(max(24px, env(safe-area-inset-bottom)) + 15px); }
 @media(max-width:760px) { .case-explorer .case-filters { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 15px); } }
+
+/* Keep the case images and the following sticky scene on separate paint surfaces. */
+.rights-case-stories { position: relative; isolation: isolate; contain: paint; }
+.rights-case-stories .rights-case-story img { filter: none; opacity: .84; }
+#main > .photo-transform { isolation: isolate; background: var(--page-bg); }
+.photo-transform-stage { isolation: isolate; background: var(--page-bg); }
+
+/* Photos form one draggable group; hover or dragging makes the entire group wiggle. */
+.creative-monitor.has-group-selection .desktop-photo.is-selected .desktop-photo-art { animation: none; }
+.creative-monitor.has-group-selection:is(.is-photo-group-hovered, .is-moving-photos) .desktop-photo.is-selected .desktop-photo-art { animation: desktop-photo-wiggle var(--wiggle-duration, .2s) ease-in-out var(--wiggle-delay, 0s) infinite var(--wiggle-direction, alternate); }
+@media(prefers-reduced-motion:reduce) {
+  .creative-monitor.has-group-selection:is(.is-photo-group-hovered, .is-moving-photos) .desktop-photo.is-selected .desktop-photo-art { animation: none; }
+}
+
+/* Place the photograph on the left and its analysis on the right. */
+@media(min-width:761px) {
+  .privacy .privacy-layout { grid-template-columns: minmax(18rem, .86fr) minmax(0, 1fr); }
+  .privacy.is-analyzing .privacy-layout { grid-template-columns: minmax(18rem, 1.15fr) minmax(0, .85fr); }
+  .privacy .privacy-layout > .social-figure { grid-column: 1; grid-row: 1; }
+  .privacy .privacy-layout > .section-copy { grid-column: 2; grid-row: 1; }
+}
+
+/* Open the photo analysis composition across the desktop viewport. */
+@media(min-width:761px) {
+  #main > .privacy { width: calc(100% - clamp(40px, 6vw, 120px)); max-width: none; }
+  .privacy .privacy-layout,
+  .privacy.is-analyzing .privacy-layout { grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); gap: clamp(60px, 11vw, 210px); }
+  .privacy .privacy-layout > .social-figure {
+  max-width: 38rem;
+  justify-self: start;
+  margin-inline: 0;
+  position: relative;
+  left: 130px; /* 양수: 오른쪽, 음수: 왼쪽 */
+  top: 20px;   /* 양수: 아래, 음수: 위 */
+}
+  .privacy.is-analyzing .privacy-layout > .social-figure { max-width: 43rem; }
+  .privacy .privacy-layout > .section-copy {
+  width: 100%;
+  justify-self: end;
+  position: relative;
+  left: 40px;  /* 양수: 오른쪽, 음수: 왼쪽 */
+  top: -20px;  /* 양수: 아래, 음수: 위 */
+}
+}
+
+/* Dropped photos no longer retain selection or keyboard-focus decoration. */
+.desktop-photo.is-placed .desktop-photo-selection,
+.desktop-photo.is-placed:focus-visible .desktop-photo-selection { fill-opacity: 0; stroke-opacity: 0; }
+
+/* A single small raster surface replaces hundreds of per-frame mosaic style writes. */
+.photo-transform-pixels canvas { display: block; width: 100%; height: 100%; position: absolute; inset: 0; image-rendering: pixelated; }
+
+/* SVG children share the camera surface instead of allocating many tall layers. */
+.sharing-person-reveal,
+.sharing-chat-reveal { will-change: auto; }
+.sharing-composition .sharing-scroll-line,
+.sharing-composition .sharing-line-halo,
+.sharing-composition .sharing-connections circle { transition: none; }
+
+/* Code spreads inward from all four viewport corners during photo analysis. */
+.privacy-code-field { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .25s ease, visibility .25s; }
+.privacy-code-field.is-visible { opacity: 1; visibility: visible; }
+@media(prefers-reduced-motion:reduce) { .privacy-code-field { transition: none; } }
+
+/* The analysis resolves out of a changing code stream. */
+.privacy-analysis .is-decoding { color: #a8d9cb; }
+.privacy-analysis h3 span { display: inline-block; min-height: 1.35em; }
+
+/* Align the photo section's introduction and decoded analysis to the right. */
+.privacy .privacy-layout > .section-copy { text-align: left; }
+.privacy .privacy-analysis { text-align: right; }
+
+/* Keep the analysis anchored in its original position; align only its contents. */
+.privacy .privacy-analysis { right: auto; width: max-content; max-width: 100%; text-align: right; }
+
+/* Opening the archive must not draw the browser's blue focus band around its shell. */
+.cases-dialog:focus,
+.cases-dialog .case-explorer:focus,
+.case-detail:focus { outline: none; }
+.cases-dialog > .site-header a:focus:not(:focus-visible),
+body > .site-header a:focus:not(:focus-visible) { outline: none; box-shadow: none; }
+.cases-dialog > .site-header { -webkit-tap-highlight-color: transparent; }
+
+
+/* Opening wordmark: all assets share their original SVG coordinate system. */
+html.intro-active { overflow: hidden; }
+.intro-screen { display: none; }
+.intro-active .intro-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  background: #000;
+  opacity: 1;
+  transition: opacity 900ms ease-in-out;
+  touch-action: none;
+}
+.intro-active .intro-screen.is-leaving { opacity: 0; }
+.intro-wordmark { width: min(82vw, 1100px); overflow: visible; opacity: 0; }
+.intro-icons image { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .intro-active .intro-screen { transition-duration: 200ms; }
+}
+
+
+/* Project introduction, ready for the project's future copy. */
+.about-page .about-content {
+  min-height: calc(100svh - var(--header-height));
+  display: grid;
+  place-items: center;
+  padding: 2rem 0;
+}
+.about-page .about-logo { width: min(82vw, 1100px); height: auto; }
+.about-page .site-header nav a[aria-current="page"] { color: var(--accent); }
+
+
+/* Composite the static crowd separately from the animated SVG strokes. */
+.sharing-composition .sharing-camera { position: relative; }
+.sharing-crowd-layer {
+  position: absolute;
+  max-width: none;
+  height: auto;
+  pointer-events: none;
+  transform: translateZ(0);
+  contain: layout paint;
+}
+.sharing-composition .sharing-scene { position: relative; }
+
+
+/* Stage titles and supporting copy have distinct weights. */
+.rights .rights-message { font-weight: 400; line-height: 1.6; }
+.rights .rights-message > strong { font-weight: 700; line-height: 1.4; }
+.rights .rights-message > span { font-weight: 400; }
+.rights .rights-message > span + span { margin-top: .55em; }

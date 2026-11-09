@@ -1,3 +1,101 @@
+// Play the opening once per page load, then dissolve into the main screen.
+(async function playIntro() {
+  const screen = document.querySelector('.intro-screen');
+  if (!screen) return;
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const pageContent = [...document.body.children].filter(element => element !== screen);
+  pageContent.forEach(element => { element.inert = true; });
+  try {
+    const sources = [...screen.querySelectorAll('image')].map(element => element.getAttribute('href'));
+    await Promise.race([
+      Promise.all(sources.map(src => new Promise(resolve => {
+        const image = new Image();
+        image.onload = image.onerror = resolve;
+        image.src = src;
+      }))),
+      wait(1500)
+    ]);
+    const wordmark = screen.querySelector('.intro-wordmark');
+    const entrance = wordmark.animate([
+      { opacity: 0, transform: reducedMotion ? 'none' : 'translateY(70px)' },
+      { opacity: 1, transform: 'translateY(0)' }
+    ], { duration: reducedMotion ? 160 : 850, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+    await entrance.finished;
+    wordmark.style.opacity = '1';
+    entrance.cancel();
+    await wait(reducedMotion ? 80 : 250);
+    const icons = [...screen.querySelectorAll('.intro-icons image')];
+    for (const [index, icon] of icons.entries()) {
+      const duration = reducedMotion ? 100 : 300;
+      const previous = icons[index - 1];
+      if (previous) {
+        const exit = previous.animate([
+          { opacity: 1, transform: 'translateY(0)' },
+          { opacity: 0, transform: reducedMotion ? 'none' : 'translateY(-85px)' }
+        ], { duration, easing: 'ease-in' });
+        await exit.finished;
+        // Reset and cancel completed effects so earlier icons cannot remain visible.
+        previous.style.opacity = '0';
+        exit.cancel();
+      }
+      const enter = icon.animate([
+        { opacity: 0, transform: reducedMotion ? 'none' : 'translateY(85px)' },
+        { opacity: 1, transform: 'translateY(0)' }
+      ], { duration, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+      await enter.finished;
+      icon.style.opacity = '1';
+      enter.cancel();
+      await wait(reducedMotion ? 100 : index === icons.length - 1 ? 570 : 220);
+    }
+    screen.classList.add('is-leaving');
+    await wait(reducedMotion ? 200 : 900);
+  } finally {
+    clearTimeout(window.introSafetyTimer);
+    screen.remove();
+    document.documentElement.classList.remove('intro-active');
+    pageContent.forEach(element => { element.inert = false; });
+  }
+})();
+
+// One frame queue: collect layout reads before animation callbacks change styles.
+const motionCallbacks = new Map();
+const motionElements = new Set();
+let motionBoundsCache = new Map();
+const motionTopCache = new Map();
+addEventListener('resize', () => motionTopCache.clear());
+function motionStickyTop(element) {
+  if (!motionTopCache.has(element)) motionTopCache.set(element, parseFloat(getComputedStyle(element).top) || 0);
+  return motionTopCache.get(element);
+}
+let motionFrameId = 0;
+let motionCallbackId = 0;
+function motionFrame(callback) {
+  const id = ++motionCallbackId;
+  motionCallbacks.set(id, callback);
+  if (!motionFrameId) motionFrameId = requestAnimationFrame(flushMotionFrame);
+  return id;
+}
+function cancelMotionFrame(id) { motionCallbacks.delete(id); }
+function motionBounds(element) {
+  motionElements.add(element);
+  if (!motionBoundsCache.has(element)) motionBoundsCache.set(element, element.getBoundingClientRect());
+  return motionBoundsCache.get(element);
+}
+function flushMotionFrame(now) {
+  motionFrameId = 0;
+  motionBoundsCache = new Map();
+  motionElements.forEach(element => {
+    if (element.isConnected) motionBoundsCache.set(element, element.getBoundingClientRect());
+    else motionElements.delete(element);
+  });
+  const callbacks = [...motionCallbacks.entries()];
+  callbacks.forEach(([id]) => motionCallbacks.delete(id));
+  callbacks.forEach(([, callback]) => {
+    try { callback(now); } catch (error) { reportError(error); }
+  });
+}
+
 const images = document.querySelectorAll(".image-frame img");
 
 images.forEach((image) => {
@@ -28,6 +126,62 @@ if ("IntersectionObserver" in window) {
 const impact = document.querySelector(".impact");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
+// One light page-level inertia; nested galleries/dialogs keep their own input behavior.
+let pageScrollFrame = 0;
+let pageScrollTarget = scrollY;
+let pageScrollPosition = scrollY;
+let pageScrollLastWritten = scrollY;
+let pageScrollTime = 0;
+function stopPageScroll() {
+  if (pageScrollFrame) cancelMotionFrame(pageScrollFrame);
+  pageScrollFrame = 0;
+  pageScrollTime = 0;
+  pageScrollTarget = pageScrollPosition = pageScrollLastWritten = scrollY;
+}
+function advancePageScroll(now) {
+  pageScrollFrame = 0;
+  if (reducedMotion.matches || document.querySelector('dialog[open]')) { stopPageScroll(); return; }
+  const elapsed = pageScrollTime ? Math.min(64, now - pageScrollTime) : 16.67;
+  pageScrollTime = now;
+  const maximum = Math.max(0, document.documentElement.scrollHeight - innerHeight);
+  pageScrollTarget = Math.max(0, Math.min(maximum, pageScrollTarget));
+  pageScrollPosition += (pageScrollTarget - pageScrollPosition) * (1 - Math.exp(-elapsed / 95));
+  if (Math.abs(pageScrollTarget - pageScrollPosition) < .5) pageScrollPosition = pageScrollTarget;
+  pageScrollLastWritten = pageScrollPosition;
+  window.scrollTo({ top: pageScrollPosition, behavior: 'instant' });
+  if (pageScrollPosition !== pageScrollTarget) pageScrollFrame = motionFrame(advancePageScroll);
+  else pageScrollTime = 0;
+}
+addEventListener('wheel', event => {
+  if (event.defaultPrevented || event.ctrlKey || event.metaKey || reducedMotion.matches || document.documentElement.classList.contains('is-following-finale') || document.querySelector('dialog[open]')) return;
+  if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+  // Do not take over independently scrollable controls.
+  let element = event.target instanceof Element ? event.target : null;
+  while (element && element !== document.body && element !== document.documentElement) {
+    const overflow = getComputedStyle(element).overflowY;
+    if (/(auto|scroll)/.test(overflow) && element.scrollHeight > element.clientHeight + 1) return;
+    element = element.parentElement;
+  }
+  const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1;
+  const delta = event.deltaY * unit;
+  if (!delta) return;
+  event.preventDefault();
+  if (!pageScrollFrame) pageScrollTarget = pageScrollPosition = pageScrollLastWritten = scrollY;
+  pageScrollTarget += delta;
+  if (!pageScrollFrame) pageScrollFrame = motionFrame(advancePageScroll);
+}, { passive: false });
+addEventListener('scroll', () => {
+  // Anchors, keyboard input, scrollbar dragging and automatic scenes take precedence.
+  if (pageScrollFrame && Math.abs(scrollY - pageScrollLastWritten) > 2) stopPageScroll();
+}, { passive: true });
+addEventListener('touchstart', stopPageScroll, { passive: true });
+addEventListener('pointerdown', stopPageScroll, { passive: true });
+addEventListener('keydown', event => {
+  if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) stopPageScroll();
+});
+reducedMotion.addEventListener('change', stopPageScroll);
+
+
 if (impact) {
   const revealFinale = () => impact.classList.add("finale-visible");
   if ("IntersectionObserver" in window && !reducedMotion.matches) {
@@ -55,12 +209,28 @@ if (portraitInteraction) {
     row.replaceChildren(label, value);
     return [row, { label, value, split: row.dataset.text.indexOf(":") + 1 }];
   }));
-  const renderAnalysisRow = (row, length) => {
+  const renderAnalysisRow = (row, length, decodedText = null) => {
     const { label, value, split } = analysisRows.get(row);
-    const text = row.dataset.text.slice(0, length);
+    const text = decodedText ?? row.dataset.text.slice(0, length);
     label.textContent = text.slice(0, split);
     value.textContent = text.slice(split);
   };
+  const analysisHeading = panel.querySelector('h3');
+  const headingLines = analysisHeading.innerHTML.split(/<br\s*\/?\s*>/i).map(line => {
+    const span = document.createElement('span');
+    span.innerHTML = line;
+    return { span, text: span.textContent };
+  });
+  analysisHeading.replaceChildren();
+  headingLines.forEach(({ span }, index) => {
+    if (index) analysisHeading.append(document.createElement('br'));
+    analysisHeading.append(span);
+  });
+  const codeAlphabet = '01{}[]<>/=$#_abcdefghijklmnopqrstuvwxyz';
+  const decodeText = (text, progress) => [...text].map((letter, index) => {
+    if (/\s/.test(letter) || index < Math.floor(progress * text.length)) return letter;
+    return codeAlphabet[Math.floor(Math.random() * codeAlphabet.length)];
+  }).join('');
   const landmarks = section.querySelector(".face-landmarks");
   // Landmark coordinates match the original photo, which keeps its native ratio.
   const contours = [
@@ -89,36 +259,133 @@ if (portraitInteraction) {
   let typingTimer;
   let active = false;
   let pinned = false;
+  const codeCanvas = document.createElement('canvas');
+  codeCanvas.className = 'privacy-code-field';
+  codeCanvas.setAttribute('aria-hidden', 'true');
+  document.body.append(codeCanvas);
+  const codeContext = codeCanvas.getContext('2d');
+  let codeTimer = 0;
+  let codeStarted = 0;
+  let codeCells = [];
+  let codeWidth = 0, codeHeight = 0;
+  let codeInView = true;
+  const codeTokens = [
+    ['function', '#20d7ed'], ['return', '#24c9e5'], ['const', '#56d8e9'],
+    ['if', '#19d7ee'], ['else', '#24d9ed'], ['var', '#e4e9eb'],
+    ['addEventListener', '#f0f0e9'], ['removeChild', '#e5edf0'], ['resolve', '#10d7a0'],
+    ['"readystatechange"', '#10c88a'], ['"object"', '#30dcae'], ['"image"', '#22ce98'],
+    ['length', '#edc16a'], ['setTimeout', '#e1b86b'], ['void', '#cc66d6'],
+    ['(a,b,c)', '#a2acbd'], ['{ data: ', '#b5bdce'], ['[0] === ', '#b2bfcc'],
+    ['.each()', '#ecf2f3'], ['.then(', '#98acbc'], ['readyState', '#8a9bb0'],
+    ['});', '#8996ac'], ['return n;', '#37c5de'], ['0, 1, 2', '#20c7de']
+  ];
+  const makeCode = () => codeTokens[Math.floor(Math.random() * codeTokens.length)];
+  const sizeCode = () => {
+    codeWidth = innerWidth;
+    codeHeight = innerHeight;
+    codeCanvas.width = codeWidth;
+    codeCanvas.height = codeHeight;
+    codeCells = [];
+    for (let row = 0, y = 20; y < codeHeight + 28; row++, y += 27) {
+      for (let x = -40 + (row % 3) * 17; x < codeWidth + 60;) {
+        const token = makeCode();
+        const depth = Math.random();
+        const size = depth < .2 ? 14 : depth > .8 ? 22 : 18;
+        const distance = Math.min(Math.hypot(x, y), Math.hypot(codeWidth - x, y), Math.hypot(x, codeHeight - y), Math.hypot(codeWidth - x, codeHeight - y));
+        codeCells.push({ x, y, distance: distance / Math.hypot(codeWidth / 2, codeHeight / 2), token, size, depth, changed: 0 });
+        x += token[0].length * size * .61 + 9;
+      }
+    }
+  };
+  const drawCode = () => {
+    codeTimer = 0;
+    if (!active || !codeInView || document.hidden) return;
+    const now = performance.now();
+    const progress = reducedMotion.matches ? 1 : Math.min(1, (now - codeStarted) / 1500);
+    codeContext.clearRect(0, 0, codeWidth, codeHeight);
+
+    codeCells.forEach(cell => {
+      const reveal = Math.max(0, Math.min(1, (progress * 1.12 - cell.distance) / .12));
+      if (!reveal) return;
+      if (!reducedMotion.matches && now - cell.changed > 180 + (Math.abs(cell.x) % 7) * 40) {
+        const choices = codeTokens.filter(token => Math.abs(token[0].length - cell.token[0].length) <= 2);
+        cell.token = choices[Math.floor(Math.random() * choices.length)];
+        cell.changed = now;
+      }
+      // Keep the center quieter so the photograph and analysis stay legible.
+      const center = Math.max(0, 1 - Math.hypot((cell.x - codeWidth / 2) / (codeWidth * .6), (cell.y - codeHeight / 2) / (codeHeight * .6)));
+      const edge = Math.max(0, Math.min(1, (Math.abs(cell.x - codeWidth / 2) / codeWidth - .12) / .25));
+      const alpha = reveal * (.025 + edge * .6) * (cell.depth < .2 ? .38 : 1);
+      codeContext.font = `${cell.depth > .8 ? 600 : 400} ${cell.size}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+      codeContext.fillStyle = cell.token[1];
+      // Cheap defocused echoes add depth without live CSS or canvas blur filters.
+      if (cell.depth < .2 || cell.depth > .88) {
+        codeContext.globalAlpha = alpha * .16;
+        codeContext.fillText(cell.token[0], cell.x - 1.5, cell.y);
+        codeContext.fillText(cell.token[0], cell.x + 1.5, cell.y + 1);
+      }
+      codeContext.globalAlpha = alpha;
+      codeContext.fillText(cell.token[0], cell.x, cell.y);
+    });
+    codeContext.globalAlpha = 1;
+    if (!reducedMotion.matches) codeTimer = setTimeout(drawCode, 40);
+  };
+  const toggleCode = () => {
+    clearTimeout(codeTimer);
+    codeTimer = 0;
+    const show = active && codeInView && !document.hidden;
+    codeCanvas.classList.toggle('is-visible', show);
+    if (show) {
+      sizeCode();
+      codeStarted = performance.now();
+      drawCode();
+    }
+  };
+  addEventListener('resize', () => { if (active) sizeCode(); });
+  document.addEventListener('visibilitychange', toggleCode);
+  reducedMotion.addEventListener('change', toggleCode);
+  if ('IntersectionObserver' in window) new IntersectionObserver(entries => {
+    codeInView = entries[0].isIntersecting;
+    toggleCode();
+  }).observe(section);
   const setAnalysis = (open) => {
     if (active === open) return;
     active = open;
+    toggleCode();
     clearTimeout(typingTimer);
     section.classList.toggle("is-analyzing", open);
     portraitInteraction.classList.toggle("is-open", open);
     portraitInteraction.setAttribute("aria-pressed", String(open));
     panel.setAttribute("aria-hidden", String(!open));
     rows.forEach((row) => { renderAnalysisRow(row, 0); row.classList.remove("is-typing"); });
+    headingLines.forEach(({ span, text }) => { span.textContent = text; });
+    rows.forEach(row => row.classList.remove('is-decoding'));
     if (!open) return;
     if (reducedMotion.matches) {
       rows.forEach((row) => { renderAnalysisRow(row, row.dataset.text.length); });
       return;
     }
-    let rowIndex = 0;
-    let charIndex = 0;
-    const type = () => {
-      const row = rows[rowIndex];
-      row.classList.add("is-typing");
-      renderAnalysisRow(row, ++charIndex);
-      if (charIndex < row.dataset.text.length) {
-        typingTimer = setTimeout(type, 65);
-      } else {
-        row.classList.remove("is-typing");
-        rowIndex++;
-        charIndex = 0;
-        if (rowIndex < rows.length) typingTimer = setTimeout(type, 220);
+    const decodeStarted = performance.now();
+    const decode = () => {
+      if (!active) return;
+      const elapsed = performance.now() - decodeStarted;
+      const titleProgress = Math.max(0, Math.min(1, elapsed / 1000));
+      headingLines.forEach(({ span, text }) => { span.textContent = decodeText(text, titleProgress); });
+      rows.forEach((row, index) => {
+        const progress = Math.max(0, Math.min(1, (elapsed - 150 - index * 100) / 950));
+        row.classList.toggle('is-decoding', progress < 1);
+        renderAnalysisRow(row, row.dataset.text.length, decodeText(row.dataset.text, progress));
+      });
+      if (elapsed < 1500) typingTimer = setTimeout(decode, 50);
+      else {
+        headingLines.forEach(({ span, text }) => { span.textContent = text; });
+        rows.forEach(row => {
+          row.classList.remove('is-decoding');
+          renderAnalysisRow(row, row.dataset.text.length);
+        });
       }
     };
-    typingTimer = setTimeout(type, 650);
+    decode();
   };
   const figure = portraitInteraction.closest(".social-figure");
   figure.addEventListener("pointerenter", (event) => {
@@ -276,6 +543,7 @@ if (caseExplorer) {
   rebuildLoop();
   let target = 0, current = 0, frame = 0, previous = 0;
   let pointer = null, suppressClick = false;
+  const rearrangeAnimations = new Set();
   const paint = now => {
     frame = 0;
     const elapsed = previous ? Math.min(64, now - previous) : 16.67;
@@ -293,10 +561,10 @@ if (caseExplorer) {
       card.style.transform = `translate(-50%, -50%) translate3d(${distance * spacing}px, ${-distance * 36}px, ${-distance * 85}px) rotateY(-42deg) rotateX(-10deg) rotateZ(10deg)`;
     });
     caseExplorer.querySelector('.case-status').textContent = `${visible.length ? wrap(Math.round(current), visible.length) + 1 : 0} / ${visible.length}개 사례 · 스크롤하여 탐색`;
-    if (current !== target) frame = requestAnimationFrame(paint);
+    if (current !== target) frame = motionFrame(paint);
     else previous = 0;
   };
-  const schedule = () => { if (!frame) frame = requestAnimationFrame(paint); };
+  const schedule = () => { if (!frame) frame = motionFrame(paint); };
   const move = amount => {
     if (visible.length) target += amount;
     schedule();
@@ -353,7 +621,12 @@ if (caseExplorer) {
     }
   }));
   filters.forEach(button => button.addEventListener('click', () => {
+    if (button.getAttribute('aria-pressed') === 'true') return;
     const category = button.dataset.filter;
+    rearrangeAnimations.forEach(animation => animation.cancel());
+    rearrangeAnimations.clear();
+    if (frame) cancelMotionFrame(frame);
+    frame = 0;
     filters.forEach(filter => filter.setAttribute('aria-pressed', String(filter === button)));
     visible = cards.filter(card => category === 'all' || card.dataset.categories.split(/\s+/).includes(category));
     cards.forEach(card => {
@@ -364,7 +637,30 @@ if (caseExplorer) {
     });
     target = current = Math.floor(Math.max(0, visible.length - 1) / 2);
     rebuildLoop();
-    schedule();
+    paint(performance.now());
+    const play = (element, keyframes, options, cleanup = () => {}) => {
+      const animation = element.animate(keyframes, options);
+      rearrangeAnimations.add(animation);
+      animation.finished.catch(() => {}).finally(() => {
+        rearrangeAnimations.delete(animation);
+        cleanup();
+      });
+    };
+    if (!reducedMotion.matches) {
+      rendered.forEach((card, index) => {
+        const transform = card.style.transform;
+        const direction = index % 3;
+        const travel = Math.min(innerWidth * .28, 380);
+        const x = direction === 1 ? travel : direction === 2 ? -travel : 0;
+        const y = direction === 0 ? -200 : -25;
+        const opacity = Number(card.style.opacity);
+        play(card, [
+          { transform: `translate3d(${x}px, ${y}px, 0) ${transform} scale(.9)`, opacity: 0 },
+          { transform: `translate3d(${x * .12}px, ${y * .12}px, 0) ${transform} scale(.985)`, opacity: opacity * .65, offset: .55 },
+          { transform, opacity }
+        ], { duration: 950, delay: index * Math.min(45, 1200 / Math.max(1, rendered.length - 1)), easing: 'cubic-bezier(.22,.61,.36,1)', fill: 'backwards' });
+      });
+    }
   }));
   addEventListener('resize', schedule);
   reducedMotion.addEventListener('change', schedule);
@@ -386,8 +682,8 @@ if (exploreButton && caseExplorer && casesDialog) {
     document.body.classList.add("cases-open");
     casesDialog.showModal();
     casesDialog.scrollTop = 0;
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
+    motionFrame(() => {
+      motionFrame(() => {
         caseExplorer.classList.add("is-visible");
         caseExplorer.focus({ preventScroll: true });
       });
@@ -395,11 +691,13 @@ if (exploreButton && caseExplorer && casesDialog) {
   };
   exploreButton.addEventListener("click", openCases);
   archiveLink?.addEventListener("click", openCases);
+  if (location.hash === '#cases') openCases(new Event('click'));
   let returnTarget = "#footprint";
   casesDialog.querySelectorAll(".site-header a").forEach((link) => {
     link.addEventListener("click", (event) => {
-      event.preventDefault();
       const target = link.getAttribute("href");
+      if (!target?.startsWith('#')) return;
+      event.preventDefault();
       if (target === "#cases") {
         casesDialog.scrollTo({ top: 0, behavior: reducedMotion.matches ? "instant" : "smooth" });
         return;
@@ -553,6 +851,15 @@ if (sharingComposition) {
   const viewport = sharingComposition.querySelector('.sharing-viewport');
   const camera = sharingComposition.querySelector('.sharing-camera');
   const scene = sharingComposition.querySelector('.sharing-scene');
+  // Keep the detailed, static crowd outside the SVG that repaints its lines.
+  const crowdSource = scene.querySelector('.sharing-crowd');
+  const crowdLayer = document.createElement('img');
+  crowdLayer.className = 'sharing-crowd-layer';
+  crowdLayer.src = crowdSource.getAttribute('href');
+  crowdLayer.alt = '';
+  crowdLayer.setAttribute('aria-hidden', 'true');
+  camera.prepend(crowdLayer);
+  crowdSource.remove();
   const scrollLines = [...sharingComposition.querySelectorAll('.sharing-scroll-line')];
   const svgNS = 'http://www.w3.org/2000/svg';
   const lightDefs = document.createElementNS(svgNS, 'defs');
@@ -574,7 +881,12 @@ if (sharingComposition) {
       head.style.opacity = '0';
       line.parentNode.append(head);
     }
-    return { halo, head, length: index < 24 ? line.getTotalLength() : 0 };
+    let samples = null;
+    if (head && index < 24) {
+      const length = line.getTotalLength();
+      samples = Array.from({ length: 97 }, (_, i) => line.getPointAtLength(length * i / 96));
+    }
+    return { halo, head, samples, curve: null };
   });
 
   const people = [...sharingComposition.querySelectorAll('.sharing-person-reveal')].map(group => {
@@ -607,18 +919,23 @@ if (sharingComposition) {
   const measureSharing = () => {
     const wide = innerWidth > 760;
     scene.setAttribute('viewBox', wide ? '-180 0 1360 3150' : '0 0 1000 3150');
-    comments.forEach(comment => { comment.shiftX = wide ? (comment.centerX - 500) * .34 : 0; });
+    comments.forEach(comment => { comment.shiftX = 0; });
     const headerHeight = document.querySelector('body > .site-header')?.getBoundingClientRect().height || 0;
     viewHeight = Math.max(200, innerHeight - headerHeight);
     sharingComposition.style.setProperty('--sharing-top', `${headerHeight}px`);
     sharingComposition.style.setProperty('--sharing-height', `${viewHeight}px`);
     panDistance = Math.max(0, scene.getBoundingClientRect().height - viewHeight);
     sceneScale = scene.getBoundingClientRect().width / scene.viewBox.baseVal.width;
-    holdDistance = viewHeight * .9;
+    const canvas = scene.viewBox.baseVal;
+    crowdLayer.style.left = `${-canvas.x / canvas.width * 100}%`;
+    crowdLayer.style.width = `${1000 / canvas.width * 100}%`;
+    // The original SVG <image> used xMidYMid meet inside a taller image box.
+    crowdLayer.style.top = `${(240 + (665.1227 - 1000 * 58 / 131) / 2) * sceneScale}px`;
+    holdDistance = viewHeight * 1.5;
     completionPause = viewHeight * .2;
     travelDistance = Math.max(viewHeight * 1.3, panDistance * 1.2);
-    sharingComposition.style.height = reducedMotion.matches ? 'auto' : `${viewHeight * 1.1 + holdDistance + completionPause + travelDistance}px`;
-    if (sharingFrame) cancelAnimationFrame(sharingFrame);
+    sharingComposition.style.height = reducedMotion.matches ? 'auto' : `${viewHeight + holdDistance + completionPause + travelDistance}px`;
+    if (sharingFrame) cancelMotionFrame(sharingFrame);
     sharingFrame = 0;
     previousFrameTime = 0;
     smoothDistance = null;
@@ -626,16 +943,31 @@ if (sharingComposition) {
   };
   const updateSharingLines = (timestamp) => {
     sharingFrame = 0;
-    const bounds = sharingComposition.getBoundingClientRect();
-    if (bounds.bottom < 0 || bounds.top > innerHeight) { previousFrameTime = 0; return; }
+    const bounds = motionBounds(sharingComposition);
     const headerHeight = parseFloat(sharingComposition.style.getPropertyValue('--sharing-top')) || 0;
+    // Use matching fixed/absolute coordinates at both boundaries. Returning
+    // from fixed to sticky made Safari reposition the final comment frame.
+    const stageTravel = Math.max(0, bounds.height - viewHeight);
+    const stageOffset = Math.max(0, Math.min(stageTravel, headerHeight - bounds.top));
+    const pinned = !reducedMotion.matches && bounds.top <= headerHeight
+      && bounds.bottom >= headerHeight + viewHeight;
+    if (reducedMotion.matches) {
+      viewport.style.position = '';
+      viewport.style.top = '';
+      viewport.style.left = '';
+      viewport.style.width = '';
+    } else {
+      viewport.style.position = pinned ? 'fixed' : 'absolute';
+      viewport.style.top = `${pinned ? headerHeight : stageOffset}px`;
+      viewport.style.left = pinned ? `${bounds.left}px` : '0';
+      viewport.style.width = pinned ? `${bounds.width}px` : '100%';
+    }
+    if (bounds.bottom < 0 || bounds.top > innerHeight) { previousFrameTime = 0; return; }
     const targetDistance = hasSharingScroll ? Math.max(0, Math.min(holdDistance + completionPause + travelDistance, headerHeight - bounds.top)) : 0;
     const elapsed = previousFrameTime ? Math.min(64, timestamp - previousFrameTime) : 16.67;
     previousFrameTime = timestamp;
     // Time-based easing stays consistent across trackpads, mouse wheels and refresh rates.
-    if (smoothDistance === null || reducedMotion.matches) smoothDistance = targetDistance;
-    else smoothDistance += (targetDistance - smoothDistance) * (1 - Math.exp(-elapsed / 140));
-    if (Math.abs(targetDistance - smoothDistance) < .05) smoothDistance = targetDistance;
+    smoothDistance = targetDistance;
     const distance = smoothDistance;
     const openingProgress = clamp(distance / holdDistance);
     const followingProgress = clamp((distance - holdDistance - completionPause) / travelDistance);
@@ -646,24 +978,36 @@ if (sharingComposition) {
     const lastPhone = people[people.length - 1];
     const routesPanDistance = Math.min(panDistance, Math.max(0, lastPhone.phoneY * scale - viewHeight * .58));
     // Reach the final phone early, then hold the camera while the last line finishes.
-    const cameraPan = clamp(routesProgress / .84) * routesPanDistance
-      + commentsProgress * (panDistance - routesPanDistance);
-    const commentsReady = routesProgress >= 1 && followingProgress > .66;
+    const openingComplete = openingProgress >= 1;
+    const cameraPan = openingComplete
+      ? clamp(routesProgress / .84) * routesPanDistance
+        + commentsProgress * (panDistance - routesPanDistance)
+      : 0;
+    const commentsReady = routesProgress >= 1;
     const anchors = [{ x: 539, y: 480 }];
     let peopleSettling = false;
     people.forEach(person => {
       const screenY = person.y * scale - cameraPan;
-      const targetReveal = reducedMotion.matches ? 1 : clamp((viewHeight * 1.05 - screenY) / (viewHeight * .48));
+      const entrance = clamp(followingProgress / .08);
+      const scrollReveal = entrance * entrance * (3 - 2 * entrance);
+      const targetReveal = reducedMotion.matches ? 1 : scrollReveal * clamp((viewHeight * 1.05 - screenY) / (viewHeight * .48));
       if (reducedMotion.matches) person.reveal = 1;
-      else person.reveal += (targetReveal - person.reveal) * (1 - Math.exp(-elapsed / 280));
+      else person.reveal = targetReveal;
       if (Math.abs(targetReveal - person.reveal) < .0005) person.reveal = targetReveal;
       else peopleSettling = true;
       const reveal = person.reveal;
       // Float upward quickly at first, then settle softly; fade over a longer interval.
       const eased = 1 - Math.pow(1 - reveal, 3);
-      const rise = (1 - eased) * 300;
-      person.group.style.opacity = String(reveal * reveal * (3 - 2 * reveal));
-      person.group.setAttribute('transform', `translate(0 ${rise})`);
+      const rise = Math.round((1 - eased) * 30000) / 100;
+      const opacity = String(reveal * reveal * (3 - 2 * reveal));
+      if (person.lastOpacity !== opacity) {
+        person.group.style.opacity = opacity;
+        person.lastOpacity = opacity;
+      }
+      if (person.lastRise !== rise) {
+        person.group.setAttribute('transform', `translate(0 ${rise})`);
+        person.lastRise = rise;
+      }
       anchors.push({ x: person.phoneX, y: person.phoneY + rise });
     });
     let commentsSettling = false;
@@ -674,51 +1018,95 @@ if (sharingComposition) {
       const stagger = (comment.order % 4) * .025;
       const target = reducedMotion.matches ? 1 : commentsReady ? Math.max(completionReveal, clamp((viewHeight * (1.02 - stagger) - screenY) / (viewHeight * .5))) : 0;
       if (reducedMotion.matches) comment.reveal = 1;
-      else comment.reveal += (target - comment.reveal) * (1 - Math.exp(-elapsed / 220));
+      else comment.reveal = target;
       if (Math.abs(target - comment.reveal) < .003) comment.reveal = target;
       else commentsSettling = true;
       const progress = comment.reveal;
+      if (comment.lastProgress === progress) return;
+      comment.lastProgress = progress;
       const float = 1 - Math.pow(1 - progress, 3);
       comment.group.style.opacity = String(progress * progress * (3 - 2 * progress));
-      comment.group.setAttribute('transform', `translate(${comment.shiftX} ${(1 - float) * 500})`);
+      comment.group.setAttribute('transform', `translate(${comment.shiftX} ${(1 - float) * 90})`);
     });
     // Anchor each route to the actual phone, including mirrored figures and their entrance motion.
     scrollLines.slice(24).forEach((line, index) => {
       const from = anchors[index];
       const to = anchors[index + 1];
       const curveY = Math.min(from.y, to.y) - 95;
-      line.setAttribute('d', `M${from.x} ${from.y} C${from.x} ${curveY} ${to.x} ${curveY} ${to.x} ${to.y}`);
+      const light = lineLights[index + 24];
+      const d = `M${from.x} ${from.y} C${from.x} ${curveY} ${to.x} ${curveY} ${to.x} ${to.y}`;
+      if (light.d !== d) {
+        line.setAttribute('d', d);
+        light.halo.setAttribute('d', d);
+        light.d = d;
+        // Sample equal parameter steps, then use cumulative length to locate the head.
+        const curve = [from, { x: from.x, y: curveY }, { x: to.x, y: curveY }, to];
+        let total = 0;
+        light.arcSamples = Array.from({ length: 65 }, (_, i) => {
+          const t = i / 64, u = 1 - t;
+          const [a, b, c, d] = curve;
+          return { x: u*u*u*a.x + 3*u*u*t*b.x + 3*u*t*t*c.x + t*t*t*d.x,
+            y: u*u*u*a.y + 3*u*u*t*b.y + 3*u*t*t*c.y + t*t*t*d.y, length: 0 };
+        });
+        light.arcSamples.forEach((point, i, samples) => {
+          if (i) total += Math.hypot(point.x - samples[i-1].x, point.y - samples[i-1].y);
+          point.length = total;
+        });
+        light.arcLength = total;
+      }
     });
     scrollLines.forEach((line, index) => {
       const progress = index < 24
         ? clamp((openingProgress - (index % 5) * .035) / .86)
         : clamp((routesProgress - (index - 24) * .22) / .25);
       const visibleProgress = !hasSharingScroll ? 0 : reducedMotion.matches ? 1 : progress;
-      line.style.strokeDashoffset = String(1 - visibleProgress);
-      line.style.opacity = visibleProgress > 0 ? '1' : '0';
       const light = lineLights[index];
-      if (index >= 24) light.halo.setAttribute('d', line.getAttribute('d'));
-      light.halo.style.strokeDashoffset = String(1 - visibleProgress);
-      light.halo.style.opacity = visibleProgress > 0 ? '.2' : '0';
+      const offset = (1 - visibleProgress).toFixed(4);
+      if (light.offset !== offset) {
+        line.style.strokeDashoffset = offset;
+        light.halo.style.strokeDashoffset = offset;
+        line.style.opacity = visibleProgress > 0 ? '1' : '0';
+        light.halo.style.opacity = visibleProgress > 0 ? '.2' : '0';
+        light.offset = offset;
+      }
       if (light.head) {
         const moving = visibleProgress > 0 && visibleProgress < 1 && !reducedMotion.matches;
         light.head.style.opacity = moving ? String(Math.min(1, visibleProgress * 8, (1 - visibleProgress) * 8)) : '0';
         if (moving) {
-          const length = index < 24 ? light.length : line.getTotalLength();
-          const position = line.getPointAtLength(length * visibleProgress);
+          let position;
+          if (light.samples) {
+            const sample = visibleProgress * 96;
+            const i = Math.min(95, Math.floor(sample));
+            const fraction = sample - i;
+            const a = light.samples[i], b = light.samples[i + 1];
+            position = { x: a.x + (b.x - a.x) * fraction, y: a.y + (b.y - a.y) * fraction };
+          } else {
+            const length = light.arcLength * visibleProgress;
+            const samples = light.arcSamples;
+            let low = 0, high = samples.length - 1;
+            while (high - low > 1) {
+              const middle = (low + high) >> 1;
+              if (samples[middle].length < length) low = middle;
+              else high = middle;
+            }
+            const a = samples[low], b = samples[high];
+            const fraction = (length - a.length) / Math.max(.0001, b.length - a.length);
+            position = { x: a.x + (b.x - a.x) * fraction, y: a.y + (b.y - a.y) * fraction };
+          }
           light.head.setAttribute('cx', position.x);
           light.head.setAttribute('cy', position.y);
         }
       }
 
     });
-    camera.style.transform = reducedMotion.matches ? 'none' : `translate3d(0, ${-cameraPan}px, 0)`;
+    const cameraTransform = reducedMotion.matches ? 'none' : `translate3d(0, ${-cameraPan}px, 0)`;
+    if (camera.style.transform !== cameraTransform) camera.style.transform = cameraTransform;
     if ((Math.abs(targetDistance - smoothDistance) > .05 || peopleSettling || commentsSettling) && !reducedMotion.matches) {
-      sharingFrame = requestAnimationFrame(updateSharingLines);
+      sharingFrame = motionFrame(updateSharingLines);
     } else previousFrameTime = 0;
   };
   const scheduleSharingLines = () => {
-    if (!sharingFrame) sharingFrame = requestAnimationFrame(updateSharingLines);
+    if (!sharingFrame) sharingFrame = motionFrame(updateSharingLines);
   };
   addEventListener('scroll', () => {
     hasSharingScroll = true;
@@ -747,6 +1135,8 @@ if (finaleDiagram) {
   const details = [...map.querySelectorAll('.map-detail')];
   const threadSvg = finaleDiagram.querySelector('.finale-threads');
   const threads = [...threadSvg.querySelectorAll('path')];
+  const followLength = threads[0].getTotalLength();
+  const followSamples = Array.from({ length: 129 }, (_, i) => threads[0].getPointAtLength(followLength * i / 128));
   const button = finaleDiagram.querySelector('.explore-button');
   const border = button.querySelector('.explore-draw-border path');
   const label = button.querySelector('span');
@@ -763,8 +1153,11 @@ if (finaleDiagram) {
   let autoStarted = false;
   let autoProgress = null;
   let autoButtonProgress = 0;
+  let buttonFlashed = false;
   const followThreads = () => {
+    stopPageScroll();
     autoStarted = true;
+    document.documentElement.classList.add('is-following-finale');
     const stop = event => event.preventDefault();
     const keys = event => {
       if (event.key === 'Escape') { cancelled = true; release(); }
@@ -772,6 +1165,7 @@ if (finaleDiagram) {
     };
     let cancelled = false;
     const release = () => {
+      document.documentElement.classList.remove('is-following-finale');
       removeEventListener('wheel', stop);
       removeEventListener('touchmove', stop);
       removeEventListener('keydown', keys);
@@ -779,8 +1173,6 @@ if (finaleDiagram) {
     addEventListener('wheel', stop, { passive: false });
     addEventListener('touchmove', stop, { passive: false });
     addEventListener('keydown', keys);
-    const path = threads[0];
-    const length = path.getTotalLength();
     let started;
     let previous;
     let cameraScroll = scrollY;
@@ -788,38 +1180,39 @@ if (finaleDiagram) {
       if (cancelled) return;
       if (started === undefined) started = now;
       const elapsed = now - started;
-      autoProgress = ease(elapsed / 3200);
-      autoButtonProgress = clamp((elapsed - 3400) / 900);
-      const matrix = path.getScreenCTM();
-      if (!matrix) { release(); return; }
-      const point = path.getPointAtLength(length * autoProgress);
-      const head = new DOMPoint(point.x, point.y).matrixTransform(matrix);
-      const buttonBounds = button.getBoundingClientRect();
-      const focusY = elapsed < 3200 ? head.y : buttonBounds.top + buttonBounds.height / 2;
+      autoProgress = ease(elapsed / 3000);
+      autoButtonProgress = clamp((elapsed - 3000) / 600);
+      const sample = autoProgress * 128;
+      const index = Math.min(127, Math.floor(sample));
+      const fraction = sample - index;
+      const a = followSamples[index], b = followSamples[index + 1];
+      const threadBounds = motionBounds(threadSvg);
+      const viewBox = threadSvg.viewBox.baseVal;
+      const head = { y: threadBounds.top + (a.y + (b.y - a.y) * fraction - viewBox.y) / viewBox.height * threadBounds.height };
+      const buttonBounds = motionBounds(button);
+      const focusY = elapsed < 3000 ? head.y : buttonBounds.top + buttonBounds.height / 2;
       const delta = previous ? Math.min(64, now - previous) : 16.67;
       previous = now;
       const target = Math.max(scrollY, scrollY + focusY - innerHeight * .6);
       cameraScroll += (target - cameraScroll) * (1 - Math.exp(-delta / 180));
       window.scrollTo({ top: cameraScroll, behavior: 'instant' });
       schedule();
-      if (elapsed < 4600) requestAnimationFrame(step);
+      if (elapsed < 3900) motionFrame(step);
       else release();
     };
-    requestAnimationFrame(step);
+    motionFrame(step);
   };
   const update = now => {
     frame = 0;
-    const threadBounds = threadSvg.getBoundingClientRect();
-    const runwayBounds = mapRunway.getBoundingClientRect();
+    const threadBounds = motionBounds(threadSvg);
+    const runwayBounds = motionBounds(mapRunway);
     if (runwayBounds.top > innerHeight || (threadBounds.bottom < 0 && autoStarted)) { previousTime = 0; return; }
-    const stickyTop = parseFloat(getComputedStyle(mapStage).top) || 0;
-    const mapRange = Math.max(1, runwayBounds.height - mapStage.offsetHeight);
+    const stickyTop = motionStickyTop(mapStage);
+    const mapRange = Math.max(1, runwayBounds.height - motionBounds(mapStage).height);
     const targetMapProgress = reducedMotion.matches ? 1 : clamp((stickyTop - runwayBounds.top) / (mapRange * .92));
     const elapsed = previousTime ? Math.min(64, now - previousTime) : 16.67;
     previousTime = now;
-    if (smoothMapProgress === null || reducedMotion.matches) smoothMapProgress = targetMapProgress;
-    else smoothMapProgress += (targetMapProgress - smoothMapProgress) * (1 - Math.exp(-elapsed / 230));
-    if (Math.abs(targetMapProgress - smoothMapProgress) < .00005) smoothMapProgress = targetMapProgress;
+    smoothMapProgress = targetMapProgress;
     const mapProgress = smoothMapProgress;
     if (!autoStarted && !reducedMotion.matches && mapProgress >= .95 && threadBounds.top < innerHeight * .85) followThreads();
     const threadProgress = reducedMotion.matches ? 1 : autoProgress ?? 0;
@@ -835,10 +1228,24 @@ if (finaleDiagram) {
     label.style.opacity = String(ease((buttonProgress - .85) / .15));
     button.style.visibility = threadProgress > 0 || reducedMotion.matches ? 'visible' : 'hidden';
     button.disabled = buttonProgress < 1;
-    if (smoothMapProgress !== targetMapProgress) frame = requestAnimationFrame(update);
+    if (buttonProgress === 1 && !buttonFlashed && !reducedMotion.matches) {
+      buttonFlashed = true;
+      const pink = getComputedStyle(button).getPropertyValue('--accent').trim() || '#ef65c0';
+      button.animate([
+        { backgroundColor: 'transparent', color: '#eee' },
+        { backgroundColor: pink, color: '#1d191b', offset: .2 },
+        { backgroundColor: pink, color: '#1d191b', offset: .55 },
+        { backgroundColor: 'transparent', color: '#eee' }
+      ], { duration: 1100, easing: 'ease-in-out' });
+      border.animate([
+        { stroke: '#aaa4a7' }, { stroke: pink, offset: .2 },
+        { stroke: pink, offset: .55 }, { stroke: '#aaa4a7' }
+      ], { duration: 1100, easing: 'ease-in-out' });
+    }
+    if (smoothMapProgress !== targetMapProgress) frame = motionFrame(update);
     else previousTime = 0;
   };
-  const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+  const schedule = () => { if (!frame) frame = motionFrame(update); };
   addEventListener('scroll', schedule, { passive: true });
   addEventListener('resize', schedule);
   addEventListener('load', schedule, { once: true });
@@ -907,14 +1314,14 @@ if (photoDesktop) {
     const target = reducedMotion.matches ? 0 : Math.min(innerWidth * .85, Math.max(0, projectionScrollOrigin - scrollY) * .8);
     const elapsed = projectionTime ? Math.min(64, now - projectionTime) : 16.67;
     projectionTime = now;
-    projectionX += (target - projectionX) * (1 - Math.exp(-elapsed / 220));
+    projectionX = target;
     if (Math.abs(target - projectionX) < .05) projectionX = target;
     computerSection.style.setProperty('--projection-shift', `${projectionX}px`);
-    if (projectionX !== target) projectionFrame = requestAnimationFrame(moveProjection);
+    if (projectionX !== target) projectionFrame = motionFrame(moveProjection);
     else projectionTime = 0;
   };
   const scheduleProjection = () => {
-    if (projectionComplete && !projectionFrame) projectionFrame = requestAnimationFrame(moveProjection);
+    if (projectionComplete && !projectionFrame) projectionFrame = motionFrame(moveProjection);
   };
   const completeProjection = () => {
     if (projectionComplete) return;
@@ -930,7 +1337,7 @@ if (photoDesktop) {
   reducedMotion.addEventListener('change', scheduleProjection);
   const revealProjection = () => {
     projectedCases.hidden = false;
-    requestAnimationFrame(() => requestAnimationFrame(() => {
+    motionFrame(() => motionFrame(() => {
       computerSection.classList.add('is-projecting');
       if (reducedMotion.matches) completeProjection();
     }));
@@ -958,6 +1365,12 @@ if (photoDesktop) {
     photoDesktop.classList.toggle('has-group-selection', selected.size > 1);
   };
   const clear = () => [...selected].forEach(photo => setSelected(photo, false));
+  const selectPhotoGroup = () => photos.forEach(photo => setSelected(photo, !photo.classList.contains('is-placed')));
+  selectPhotoGroup();
+  photoDesktop.addEventListener('pointerover', event => {
+    photoDesktop.classList.toggle('is-photo-group-hovered', Boolean(event.target.closest('.desktop-photo:not(.is-placed)')));
+  });
+  photoDesktop.addEventListener('pointerleave', () => photoDesktop.classList.remove('is-photo-group-hovered'));
   const point = event => new DOMPoint(event.clientX, event.clientY).matrixTransform(photoDesktop.getScreenCTM().inverse());
   const dropHint = photoDesktop.querySelector('.desktop-drop-hint');
   const promptText = photoDesktop.querySelector('.desktop-prompt-text');
@@ -992,10 +1405,10 @@ if (photoDesktop) {
         clearTimeout(promptTimer);
         promptTimer = setTimeout(typeDemonstration, 1500);
       }
-      if (progress < 1) requestAnimationFrame(step);
+      if (progress < 1) motionFrame(step);
       else inputExpanding = false;
     };
-    requestAnimationFrame(step);
+    motionFrame(step);
   };
   const showPrompt = text => {
     promptValue = text;
@@ -1034,13 +1447,12 @@ if (photoDesktop) {
   photoDesktop.addEventListener('pointerdown', event => {
     if (event.button !== 0 || action || inputExpanding) return;
     const photo = event.target.closest('.desktop-photo');
-    if (photo?.classList.contains('is-placed') || (!photo && !event.target.matches('.desktop-selection-surface'))) return;
+    if (!photo || photo.classList.contains('is-placed')) return;
     event.preventDefault();
     const start = point(event);
     const additive = event.shiftKey || event.metaKey || event.ctrlKey;
     if (photo) {
-      if (additive) setSelected(photo, !selected.has(photo));
-      else if (!selected.has(photo)) { clear(); setSelected(photo, true); }
+      selectPhotoGroup();
       photo.focus({ preventScroll: true });
       action = { type: 'move', start, pointer: event.pointerId, dx: 0, dy: 0,
         origins: [...selected].map(item => ({ item, x: Number(item.dataset.x), y: Number(item.dataset.y) })) };
@@ -1091,12 +1503,18 @@ if (photoDesktop) {
         } else {
           // Keep unsuccessful drops inside the gallery.
           const galleryDrop = !cancel && at && at.x >= 39 && at.x <= 86 && at.y >= 20 && at.y <= 60;
-          item.dataset.x = galleryDrop ? Math.max(39.5, Math.min(82, x + action.dx)) : x;
-          item.dataset.y = galleryDrop ? Math.max(20.5, Math.min(55, y + action.dy)) : y;
+          const origins = action.origins;
+          const groupDx = Math.max(39.5 - Math.min(...origins.map(o => o.x)), Math.min(82 - Math.max(...origins.map(o => o.x)), action.dx));
+          const groupDy = Math.max(20.5 - Math.min(...origins.map(o => o.y)), Math.min(55 - Math.max(...origins.map(o => o.y)), action.dy));
+          item.dataset.x = galleryDrop ? x + groupDx : x;
+          item.dataset.y = galleryDrop ? y + groupDy : y;
         }
         item.setAttribute('transform', `translate(${item.dataset.x} ${item.dataset.y})`);
       });
       if (dropped) {
+        clear();
+        photoDesktop.classList.remove('is-photo-group-hovered');
+        if (document.activeElement?.closest('.desktop-photo')) document.activeElement.blur();
         dropHint.style.display = 'none';
         clearTimeout(promptTimer);
         showPrompt('');
@@ -1145,21 +1563,22 @@ if (rightsCaseEntries.length) {
       }
       const entranceRange = viewportHeight * (entry.monitor ? .7 : .42);
       const target = Math.max(0, Math.min(1, (scrollTop + viewportHeight * .95 - entry.top) / entranceRange));
-      if (entry.current === null || reducedMotion.matches) entry.current = target;
-      else entry.current += (target - entry.current) * (1 - Math.exp(-elapsed / (entry.monitor ? 300 : 200)));
+      const offscreen = entry.top + entry.height < scrollTop || entry.top > scrollTop + viewportHeight;
+      entry.current = target;
       if (Math.abs(target - entry.current) < .0004) entry.current = target;
       else settling = true;
       const direction = entry.monitor || entry.index === 0 ? 1 : -1;
       const eased = entry.current * entry.current * (3 - 2 * entry.current);
       const distance = entry.monitor ? Math.min(innerWidth * .3, 420) : amplitude;
       const x = reducedMotion.matches ? 0 : direction * distance * (1 - eased);
-      entry.element.style.transform = `translate3d(${x}px, 0, 0)`;
+      entry.element.style.transform = Math.abs(x) < .01 ? 'none' : `translate3d(${x}px, 0, 0)`;
+      entry.element.style.willChange = !offscreen && entry.current !== target ? 'transform, opacity' : 'auto';
       entry.element.style.opacity = reducedMotion.matches ? '1' : String(eased);
     });
-    if (settling && !reducedMotion.matches) frame = requestAnimationFrame(update);
+    if (settling && !reducedMotion.matches) frame = motionFrame(update);
     else previousTime = 0;
   };
-  const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+  const schedule = () => { if (!frame) frame = motionFrame(update); };
   const measure = () => {
     viewportHeight = innerHeight;
     amplitude = Math.min(innerWidth * .13, 190);
@@ -1233,32 +1652,35 @@ if (photoTransform) {
   const photo = photoTransform.querySelector('.photo-transform-image');
   const icons = [...photoTransform.querySelectorAll('.photo-transform-icons span')];
   const grid = photoTransform.querySelector('.photo-transform-pixels');
+  const mosaic = document.createElement('canvas');
+  mosaic.width = 15;
+  mosaic.height = 20;
+  mosaic.setAttribute('aria-hidden', 'true');
+  grid.replaceChildren(mosaic);
+  const mosaicContext = mosaic.getContext('2d');
+  const mosaicImage = mosaicContext.createImageData(15, 20);
   const clampProgress = value => Math.max(0, Math.min(1, value));
   const ease = value => { const t = clampProgress(value); return t * t * (3 - 2 * t); };
   const pixels = Array.from({ length: 300 }, (_, index) => {
-    const pixel = document.createElement('span');
-    grid.append(pixel);
     const row = Math.floor(index / 15);
     const column = index % 15;
     // The wave starts at the lower left, with scattered blocks ahead of it.
     const order = ((19 - row) / 19 * .65 + column / 14 * .2 + ((index * 73) % 97) / 97 * .15);
-    return { pixel, order, shade: 125 + (index * 37 % 65), gray: null };
+    return { order, shade: 125 + (index * 37 % 65), gray: null };
   });
   let frame = 0;
   let currentProgress = null;
   let previousTime = 0;
   const update = timestamp => {
     frame = 0;
-    const bounds = photoTransform.getBoundingClientRect();
+    const bounds = motionBounds(photoTransform);
     if (bounds.bottom < 0 || bounds.top > innerHeight) { previousTime = 0; return; }
-    const stageHeight = stage.offsetHeight;
-    const header = parseFloat(getComputedStyle(stage).top) || 0;
+    const stageHeight = motionBounds(stage).height;
+    const header = motionStickyTop(stage);
     const targetProgress = reducedMotion.matches ? 1 : clampProgress((header - bounds.top) / Math.max(1, bounds.height - stageHeight));
     const elapsed = previousTime ? Math.min(64, timestamp - previousTime) : 16.67;
     previousTime = timestamp;
-    if (currentProgress === null || reducedMotion.matches) currentProgress = targetProgress;
-    else currentProgress += (targetProgress - currentProgress) * (1 - Math.exp(-elapsed / 240));
-    if (Math.abs(targetProgress - currentProgress) < .00005) currentProgress = targetProgress;
+    currentProgress = targetProgress;
     const progress = currentProgress;
     const entrance = ease(progress / .16);
     const sequence = clampProgress((progress - .16) / .68) * 4;
@@ -1278,23 +1700,27 @@ if (photoTransform) {
     const conversion = clampProgress((local - .02) / .60);
     const settle = ease((local - .62) / .16);
     const grayStages = [255, 224, 198, 175, 153];
-    pixels.forEach(entry => {
-      const { pixel, order, shade } = entry;
+    let mosaicChanged = false;
+    pixels.forEach((entry, index) => {
+      const { order, shade } = entry;
       const reveal = ease((conversion * 1.65 - order) / .65);
       const from = grayStages[tool];
       const to = grayStages[tool + 1];
       const mosaicShade = to + (shade - 157) * (1 - settle) * .65;
       const gray = reducedMotion.matches ? 153 : Math.round(from + (mosaicShade - from) * reveal);
       if (entry.gray !== gray) {
-        pixel.style.opacity = '1';
-        pixel.style.backgroundColor = `rgb(${gray} ${gray} ${gray})`;
+        const offset = index * 4;
+        mosaicImage.data[offset] = mosaicImage.data[offset + 1] = mosaicImage.data[offset + 2] = gray;
+        mosaicImage.data[offset + 3] = 255;
         entry.gray = gray;
+        mosaicChanged = true;
       }
     });
-    if (currentProgress !== targetProgress && !reducedMotion.matches) frame = requestAnimationFrame(update);
+    if (mosaicChanged) mosaicContext.putImageData(mosaicImage, 0, 0);
+    if (currentProgress !== targetProgress && !reducedMotion.matches) frame = motionFrame(update);
     else previousTime = 0;
   };
-  const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+  const schedule = () => { if (!frame) frame = motionFrame(update); };
   addEventListener('scroll', schedule, { passive: true });
   addEventListener('resize', schedule);
   reducedMotion.addEventListener('change', schedule);
