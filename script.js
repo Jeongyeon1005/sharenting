@@ -1,4 +1,4 @@
-// Play the opening once per page load, then dissolve into the main screen.
+// Play the opening, then settle the same wordmark above the scroll prompt.
 (async function playIntro() {
   const screen = document.querySelector('.intro-screen');
   if (!screen) return;
@@ -48,12 +48,42 @@
       enter.cancel();
       await wait(reducedMotion ? 100 : index === icons.length - 1 ? 570 : 220);
     }
-    screen.classList.add('is-leaving');
-    await wait(reducedMotion ? 200 : 900);
+    // Reveal the background as one continuous shrink begins.
+    screen.classList.add('is-revealing');
+    if (reducedMotion) await wait(80);
+    const destination = document.querySelector('.hero-wordmark');
+    if (destination && !reducedMotion) {
+      const from = wordmark.getBoundingClientRect();
+      const to = destination.getBoundingClientRect();
+      // An HTML frame uses viewport pixels consistently, without SVG transform offsets.
+      const frame = document.createElement('div');
+      Object.assign(frame.style, {
+        position: 'fixed',
+        left: `${from.left}px`,
+        top: `${from.top}px`,
+        width: `${from.width}px`,
+        height: `${from.height}px`
+      });
+      screen.append(frame);
+      frame.append(wordmark);
+      Object.assign(wordmark.style, {
+        display: 'block', width: '100%', height: '100%', transform: 'none'
+      });
+      const settle = frame.animate([
+        { left: `${from.left}px`, top: `${from.top}px`, width: `${from.width}px`, height: `${from.height}px` },
+        { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px` }
+      ], { duration: 800, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'forwards' });
+      screen.classList.add('is-settling');
+      document.documentElement.classList.add('intro-settling');
+      await settle.finished;
+    } else {
+      screen.classList.add('is-leaving');
+      await wait(200);
+    }
   } finally {
     clearTimeout(window.introSafetyTimer);
     screen.remove();
-    document.documentElement.classList.remove('intro-active');
+    document.documentElement.classList.remove('intro-active', 'intro-settling');
     pageContent.forEach(element => { element.inert = false; });
   }
 })();
@@ -94,6 +124,42 @@ function flushMotionFrame(now) {
   callbacks.forEach(([, callback]) => {
     try { callback(now); } catch (error) { reportError(error); }
   });
+}
+
+// Fullscreen changes can settle over several frames, especially in Safari.
+let storyViewportFrame = 0;
+function refreshStoryViewport() {
+  cancelAnimationFrame(storyViewportFrame);
+  storyViewportFrame = requestAnimationFrame(() => {
+    storyViewportFrame = requestAnimationFrame(() => {
+      document.documentElement.style.setProperty('--story-viewport-height', `${innerHeight}px`);
+      motionTopCache.clear();
+      motionBoundsCache.clear();
+      stopPageScroll();
+      dispatchEvent(new Event('storyviewportchange'));
+    });
+  });
+}
+document.documentElement.style.setProperty('--story-viewport-height', `${innerHeight}px`);
+addEventListener('resize', refreshStoryViewport);
+document.addEventListener('fullscreenchange', refreshStoryViewport);
+document.addEventListener('webkitfullscreenchange', refreshStoryViewport);
+window.visualViewport?.addEventListener('resize', refreshStoryViewport);
+
+// Explicit pinning avoids Safari's fullscreen sticky-layer repositioning.
+function pinStoryStage(stage, bounds, top) {
+  const height = motionBounds(stage).height;
+  if (reducedMotion.matches) {
+    ['position', 'top', 'left', 'width'].forEach(property => { stage.style[property] = ''; });
+    return { height, top };
+  }
+  const offset = Math.max(0, Math.min(Math.max(0, bounds.height - height), top - bounds.top));
+  const pinned = bounds.top <= top && bounds.bottom >= top + height;
+  stage.style.position = pinned ? 'fixed' : 'absolute';
+  stage.style.top = `${pinned ? top : offset}px`;
+  stage.style.left = pinned ? `${bounds.left}px` : '0';
+  stage.style.width = `${bounds.width}px`;
+  return { height, top };
 }
 
 const images = document.querySelectorAll(".image-frame img");
@@ -145,7 +211,7 @@ function advancePageScroll(now) {
   pageScrollTime = now;
   const maximum = Math.max(0, document.documentElement.scrollHeight - innerHeight);
   pageScrollTarget = Math.max(0, Math.min(maximum, pageScrollTarget));
-  pageScrollPosition += (pageScrollTarget - pageScrollPosition) * (1 - Math.exp(-elapsed / 95));
+  pageScrollPosition += (pageScrollTarget - pageScrollPosition) * (1 - Math.exp(-elapsed / 120));
   if (Math.abs(pageScrollTarget - pageScrollPosition) < .5) pageScrollPosition = pageScrollTarget;
   pageScrollLastWritten = pageScrollPosition;
   window.scrollTo({ top: pageScrollPosition, behavior: 'instant' });
@@ -163,7 +229,7 @@ addEventListener('wheel', event => {
     element = element.parentElement;
   }
   const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1;
-  const delta = event.deltaY * unit;
+  const delta = event.deltaY * unit * .75;
   if (!delta) return;
   event.preventDefault();
   if (!pageScrollFrame) pageScrollTarget = pageScrollPosition = pageScrollLastWritten = scrollY;
@@ -212,8 +278,8 @@ if (portraitInteraction) {
   const renderAnalysisRow = (row, length, decodedText = null) => {
     const { label, value, split } = analysisRows.get(row);
     const text = decodedText ?? row.dataset.text.slice(0, length);
-    label.textContent = text.slice(0, split);
-    value.textContent = text.slice(split);
+    label.textContent = text.slice(0, Math.max(0, split - 1));
+    value.textContent = text.slice(split).trimStart();
   };
   const analysisHeading = panel.querySelector('h3');
   const headingLines = analysisHeading.innerHTML.split(/<br\s*\/?\s*>/i).map(line => {
@@ -510,7 +576,7 @@ if (caseExplorer) {
   const cards = [...caseExplorer.querySelectorAll('.case-card')];
   const field = caseExplorer.querySelector('.case-field');
   const viewport = document.createElement('div');
-  viewport.className = 'case-cylinder case-gallery';
+  viewport.className = 'case-cylinder case-gallery is-ring';
   viewport.tabIndex = 0;
   viewport.setAttribute('role', 'group');
   viewport.setAttribute('aria-label', '사례 아카이브. 스크롤, 드래그 또는 방향키로 탐색하고 사례를 클릭해 상세 내용을 확인하세요.');
@@ -523,13 +589,14 @@ if (caseExplorer) {
     card.append(front);
   });
   let visible = [...cards];
+  let ringMode = true;
   let rendered = [];
   const wrap = (value, count) => ((value % count) + count) % count;
   const rebuildLoop = () => {
     field.querySelectorAll('[data-loop-copy]').forEach(card => card.remove());
     rendered = [...visible];
     if (!visible.length) return;
-    const copies = Math.max(1, Math.ceil(18 / visible.length));
+    const copies = ringMode ? 1 : Math.max(1, Math.ceil(18 / visible.length));
     for (let cycle = 1; cycle < copies; cycle++) visible.forEach(original => {
       const copy = original.cloneNode(true);
       copy.dataset.loopCopy = 'true';
@@ -551,7 +618,19 @@ if (caseExplorer) {
     current = reducedMotion.matches ? target : current + (target - current) * (1 - Math.exp(-elapsed / 150));
     if (Math.abs(target - current) < .0001) current = target;
     const spacing = innerWidth > 760 ? 155 : 100;
+    const radius = Math.min(viewport.clientWidth * .34, 490);
     rendered.forEach((card, index) => {
+      if (ringMode) {
+        const angle = (index - current) * Math.PI * 2 / rendered.length;
+        const x = Math.sin(angle) * radius;
+        const z = Math.cos(angle) * radius;
+        card.style.visibility = 'visible';
+        card.style.pointerEvents = 'auto';
+        card.style.zIndex = String(1000 + Math.round(z));
+        card.style.opacity = '1';
+        card.style.transform = `translate(-50%, -50%) translate3d(${x}px, 0, ${z}px) rotateY(${angle * 180 / Math.PI + 90}deg)`;
+        return;
+      }
       const distance = wrap(index - current + 3, rendered.length) - 3;
       const onScreen = distance > -3 && distance < 13;
       card.style.visibility = onScreen ? 'visible' : 'hidden';
@@ -623,6 +702,8 @@ if (caseExplorer) {
   filters.forEach(button => button.addEventListener('click', () => {
     if (button.getAttribute('aria-pressed') === 'true') return;
     const category = button.dataset.filter;
+    ringMode = category === 'all';
+    viewport.classList.toggle('is-ring', ringMode);
     rearrangeAnimations.forEach(animation => animation.cancel());
     rearrangeAnimations.clear();
     if (frame) cancelMotionFrame(frame);
@@ -862,6 +943,32 @@ if (sharingComposition) {
   crowdSource.remove();
   const scrollLines = [...sharingComposition.querySelectorAll('.sharing-scroll-line')];
   const svgNS = 'http://www.w3.org/2000/svg';
+  // Extra upward routes keep the original phone connections intact.
+  const burstGroup = document.createElementNS(svgNS, 'g');
+  burstGroup.setAttribute('class', 'sharing-upward-lines');
+  scene.querySelector('.sharing-connections').prepend(burstGroup);
+  const upwardSources = [{ x: 539, y: 480 }, ...scrollLines.slice(0, 24).map(line => {
+    const point = line.getPointAtLength(line.getTotalLength());
+    return { x: point.x, y: point.y };
+  })];
+  const upwardLines = Array.from({ length: 48 }, (_, index) => {
+    const source = upwardSources[index % 3 === 0 ? 0 : 1 + (index * 7) % 24];
+    const endX = -160 + (index * 173 % 1320);
+    const endY = -140 + (index * 47 % 270);
+    const bendX = source.x + (endX - source.x) * .28 + ((index % 5) - 2) * 70;
+    const line = document.createElementNS(svgNS, 'path');
+    line.setAttribute('d', `M${source.x} ${source.y} C${source.x} ${source.y - 120} ${bendX} ${endY + 40} ${endX} ${endY}`);
+    line.setAttribute('fill', 'none');
+    line.setAttribute('stroke', ['#ff39c8', '#ef65c0', '#fa21c4', '#ba4ba4'][index % 4]);
+    line.setAttribute('stroke-width', String(.65 + (index % 4) * .35));
+    line.setAttribute('pathLength', '1');
+    line.style.strokeDasharray = '1';
+    line.style.strokeDashoffset = '1';
+    line.style.opacity = '0';
+    burstGroup.append(line);
+    return { line, start: .06 + (index * 11 % 25) / 100,
+      duration: .30 + (index * 13 % 35) / 100, opacity: .32 + (index % 5) * .13 };
+  });
   const lightDefs = document.createElementNS(svgNS, 'defs');
   lightDefs.innerHTML = '<radialGradient id="sharing-line-light"><stop offset="0" stop-color="#fff5fe" stop-opacity="1"/><stop offset=".18" stop-color="#ffd4f5" stop-opacity=".9"/><stop offset=".45" stop-color="#ff62d4" stop-opacity=".5"/><stop offset="1" stop-color="#ff62d4" stop-opacity="0"/></radialGradient>';
   scene.prepend(lightDefs);
@@ -902,7 +1009,7 @@ if (sharingComposition) {
   const comments = [...sharingComposition.querySelectorAll('.sharing-chat-reveal')].map(group => {
     const bubble = group.querySelector('image');
     const centerX = Number(bubble.getAttribute('x')) + Number(bubble.getAttribute('width')) / 2;
-    return { group, centerX, shiftX: 0, y: Number(group.dataset.y), order: Number(group.dataset.order), reveal: 0 };
+    return { group, centerX, width: Number(bubble.getAttribute('width')), shiftX: 0, y: Number(group.dataset.y), order: Number(group.dataset.order), reveal: 0 };
   });
   const clamp = value => Math.max(0, Math.min(1, value));
   sharingComposition.classList.add('has-scroll-lines');
@@ -918,8 +1025,16 @@ if (sharingComposition) {
   let sceneScale = 1;
   const measureSharing = () => {
     const wide = innerWidth > 760;
-    scene.setAttribute('viewBox', wide ? '-180 0 1360 3150' : '0 0 1000 3150');
-    comments.forEach(comment => { comment.shiftX = 0; });
+    scene.setAttribute('viewBox', wide ? '-180 0 1360 4200' : '0 0 1000 4200');
+    const commentCanvas = scene.viewBox.baseVal;
+    comments.forEach(comment => {
+      const halfWidth = comment.width / 2;
+      const spreadCenter = 500 + (comment.centerX - 500) * (wide ? 1.65 : 1.2);
+      const center = Math.max(commentCanvas.x + halfWidth + 24,
+        Math.min(commentCanvas.x + commentCanvas.width - halfWidth - 24, spreadCenter));
+      comment.shiftX = center - comment.centerX;
+      comment.lastProgress = null;
+    });
     const headerHeight = document.querySelector('body > .site-header')?.getBoundingClientRect().height || 0;
     viewHeight = Math.max(200, innerHeight - headerHeight);
     sharingComposition.style.setProperty('--sharing-top', `${headerHeight}px`);
@@ -933,7 +1048,7 @@ if (sharingComposition) {
     crowdLayer.style.top = `${(240 + (665.1227 - 1000 * 58 / 131) / 2) * sceneScale}px`;
     holdDistance = viewHeight * 1.5;
     completionPause = viewHeight * .2;
-    travelDistance = Math.max(viewHeight * 1.3, panDistance * 1.2);
+    travelDistance = Math.max(viewHeight * 1.8, panDistance * 1.5);
     sharingComposition.style.height = reducedMotion.matches ? 'auto' : `${viewHeight + holdDistance + completionPause + travelDistance}px`;
     if (sharingFrame) cancelMotionFrame(sharingFrame);
     sharingFrame = 0;
@@ -973,8 +1088,8 @@ if (sharingComposition) {
     const followingProgress = clamp((distance - holdDistance - completionPause) / travelDistance);
     const scale = sceneScale;
     // Finish every person-to-person route before entering the comment scene.
-    const routesProgress = clamp(followingProgress / .58);
-    const commentsProgress = clamp((followingProgress - .66) / .34);
+    const routesProgress = clamp(followingProgress / .42);
+    const commentsProgress = clamp((followingProgress - .50) / .50);
     const lastPhone = people[people.length - 1];
     const routesPanDistance = Math.min(panDistance, Math.max(0, lastPhone.phoneY * scale - viewHeight * .58));
     // Reach the final phone early, then hold the camera while the last line finishes.
@@ -983,7 +1098,10 @@ if (sharingComposition) {
       ? clamp(routesProgress / .84) * routesPanDistance
         + commentsProgress * (panDistance - routesPanDistance)
       : 0;
-    const commentsReady = routesProgress >= 1;
+    // Use the same progress calculation as the final phone-to-phone line.
+    const finalRouteIndex = Math.max(0, scrollLines.length - 25);
+    const finalRouteProgress = clamp((routesProgress - finalRouteIndex * .22) / .25);
+    const commentsReady = hasSharingScroll && finalRouteProgress >= 1 && commentsProgress > 0;
     const anchors = [{ x: 539, y: 480 }];
     let peopleSettling = false;
     people.forEach(person => {
@@ -1016,7 +1134,12 @@ if (sharingComposition) {
     comments.forEach(comment => {
       const screenY = comment.y * scale - cameraPan;
       const stagger = (comment.order % 4) * .025;
-      const target = reducedMotion.matches ? 1 : commentsReady ? Math.max(completionReveal, clamp((viewHeight * (1.02 - stagger) - screenY) / (viewHeight * .5))) : 0;
+      const revealStart = .04 + comment.order / Math.max(1, comments.length - 1) * .5;
+      const timelineReveal = clamp((commentsProgress - revealStart) / .4);
+      const viewportReveal = Math.max(completionReveal,
+        clamp((viewHeight * (1.02 - stagger) - screenY) / (viewHeight * .5)));
+      const target = reducedMotion.matches ? 1
+        : commentsReady ? Math.min(timelineReveal, viewportReveal) : 0;
       if (reducedMotion.matches) comment.reveal = 1;
       else comment.reveal = target;
       if (Math.abs(target - comment.reveal) < .003) comment.reveal = target;
@@ -1055,9 +1178,15 @@ if (sharingComposition) {
         light.arcLength = total;
       }
     });
+    upwardLines.forEach(({ line, start, duration, opacity }) => {
+      const progress = reducedMotion.matches ? 1
+        : hasSharingScroll ? clamp((openingProgress - start) / duration) : 0;
+      line.style.strokeDashoffset = String(1 - progress);
+      line.style.opacity = progress > 0 ? String(opacity) : '0';
+    });
     scrollLines.forEach((line, index) => {
       const progress = index < 24
-        ? clamp((openingProgress - (index % 5) * .035) / .86)
+        ? clamp((openingProgress - (index * 7 % 23) / 100) / (.36 + (index * 13 % 37) / 100))
         : clamp((routesProgress - (index - 24) * .22) / .25);
       const visibleProgress = !hasSharingScroll ? 0 : reducedMotion.matches ? 1 : progress;
       const light = lineLights[index];
@@ -1135,8 +1264,28 @@ if (finaleDiagram) {
   const details = [...map.querySelectorAll('.map-detail')];
   const threadSvg = finaleDiagram.querySelector('.finale-threads');
   const threads = [...threadSvg.querySelectorAll('path')];
-  const followLength = threads[0].getTotalLength();
-  const followSamples = Array.from({ length: 129 }, (_, i) => threads[0].getPointAtLength(followLength * i / 128));
+  let followSamples = [];
+  const alignThreads = () => {
+    const mapBounds = map.getBoundingClientRect();
+    if (!mapBounds.width || !mapBounds.height) return;
+    const scale = Math.min(mapBounds.width / 1240, mapBounds.height / 480);
+    // Remove the empty space beneath the diagram's SVG artwork.
+    threadSvg.style.marginTop = `${-(mapBounds.height - 470 * scale)}px`;
+    const bounds = threadSvg.getBoundingClientRect();
+    const labels = [[240, 345], [455, 410], [755, 445], [1085, 330]];
+    const insetX = (mapBounds.width - 1240 * scale) / 2;
+    labels.forEach(([x, y], index) => {
+      const startX = (mapBounds.left - bounds.left + insetX + x * scale) / bounds.width * 1240;
+      const startY = (y + 16 - 470) * scale / bounds.height * 1040;
+      threads[index].setAttribute('d', `M${startX} ${startY} C${startX} ${startY + 420} 620 440 620 650 L620 1040`);
+    });
+    const length = threads[0].getTotalLength();
+    followSamples = Array.from({ length: 129 }, (_, i) => threads[0].getPointAtLength(length * i / 128));
+  };
+  alignThreads();
+  addEventListener('resize', alignThreads);
+  addEventListener('load', alignThreads, { once: true });
+  document.fonts.ready.then(alignThreads);
   const button = finaleDiagram.querySelector('.explore-button');
   const border = button.querySelector('.explore-draw-border path');
   const label = button.querySelector('span');
@@ -1154,6 +1303,7 @@ if (finaleDiagram) {
   let autoProgress = null;
   let autoButtonProgress = 0;
   let buttonFlashed = false;
+  let cancelThreadFollow = null;
   const followThreads = () => {
     stopPageScroll();
     autoStarted = true;
@@ -1169,6 +1319,14 @@ if (finaleDiagram) {
       removeEventListener('wheel', stop);
       removeEventListener('touchmove', stop);
       removeEventListener('keydown', keys);
+    };
+    cancelThreadFollow = () => {
+      cancelled = true;
+      release();
+      // A viewport change must not restart playback or pull the reader back down.
+      autoProgress = 1;
+      autoButtonProgress = 1;
+      cancelThreadFollow = null;
     };
     addEventListener('wheel', stop, { passive: false });
     addEventListener('touchmove', stop, { passive: false });
@@ -1198,7 +1356,7 @@ if (finaleDiagram) {
       window.scrollTo({ top: cameraScroll, behavior: 'instant' });
       schedule();
       if (elapsed < 3900) motionFrame(step);
-      else release();
+      else { release(); cancelThreadFollow = null; }
     };
     motionFrame(step);
   };
@@ -1206,16 +1364,24 @@ if (finaleDiagram) {
     frame = 0;
     const threadBounds = motionBounds(threadSvg);
     const runwayBounds = motionBounds(mapRunway);
-    if (runwayBounds.top > innerHeight || (threadBounds.bottom < 0 && autoStarted)) { previousTime = 0; return; }
-    const stickyTop = motionStickyTop(mapStage);
-    const mapRange = Math.max(1, runwayBounds.height - motionBounds(mapStage).height);
+    const stickyTop = (document.querySelector('body > .site-header')?.getBoundingClientRect().height || 64) + 16;
+    const stageGeometry = pinStoryStage(mapStage, runwayBounds, stickyTop);
+    if (runwayBounds.top > innerHeight) { previousTime = 0; return; }
+    const mapRange = Math.max(1, runwayBounds.height - stageGeometry.height);
     const targetMapProgress = reducedMotion.matches ? 1 : clamp((stickyTop - runwayBounds.top) / (mapRange * .92));
     const elapsed = previousTime ? Math.min(64, now - previousTime) : 16.67;
     previousTime = now;
     smoothMapProgress = targetMapProgress;
     const mapProgress = smoothMapProgress;
-    if (!autoStarted && !reducedMotion.matches && mapProgress >= .95 && threadBounds.top < innerHeight * .85) followThreads();
-    const threadProgress = reducedMotion.matches ? 1 : autoProgress ?? 0;
+    const endingBounds = motionBounds(button);
+    if (!autoStarted && !reducedMotion.matches && mapProgress >= .95
+      && threadBounds.top < innerHeight * .85 && endingBounds.top > innerHeight * .95) followThreads();
+    // Scrolling directly to the ending must reveal its label even if playback is skipped.
+    const manualEndingProgress = clamp((innerHeight * .95 - endingBounds.top) / (innerHeight * .25));
+    // Use one ordered sequence: the connector reaches the button before its outline starts.
+    // Camera-follow scrolling must not advance the manual reveal ahead of playback.
+    const threadProgress = reducedMotion.matches ? 1
+      : autoProgress !== null ? autoProgress : clamp(manualEndingProgress / .8);
     primary.forEach(path => { path.style.strokeDashoffset = String(1 - clamp(mapProgress / .32)); });
     branches.forEach((path, index) => {
       path.style.strokeDashoffset = String(1 - clamp((mapProgress - .44 - (index % 5) * .02) / .26));
@@ -1223,7 +1389,8 @@ if (finaleDiagram) {
     titles.forEach(element => { element.style.opacity = String(ease((mapProgress - .33) / .10)); });
     details.forEach(element => { element.style.opacity = String(ease((mapProgress - .79) / .15)); });
     threads.forEach(path => { path.style.strokeDashoffset = String(1 - threadProgress); });
-    const buttonProgress = reducedMotion.matches ? 1 : autoButtonProgress;
+    const buttonProgress = reducedMotion.matches ? 1 : threadProgress < 1 ? 0
+      : autoProgress !== null ? autoButtonProgress : clamp((manualEndingProgress - .8) / .2);
     border.style.strokeDashoffset = String(1 - buttonProgress);
     label.style.opacity = String(ease((buttonProgress - .85) / .15));
     button.style.visibility = threadProgress > 0 || reducedMotion.matches ? 'visible' : 'hidden';
@@ -1249,6 +1416,14 @@ if (finaleDiagram) {
   addEventListener('scroll', schedule, { passive: true });
   addEventListener('resize', schedule);
   addEventListener('load', schedule, { once: true });
+  addEventListener('storyviewportchange', () => {
+    cancelThreadFollow?.();
+    alignThreads();
+    schedule();
+  });
+  const finaleResizeObserver = new ResizeObserver(() => { alignThreads(); schedule(); });
+  finaleResizeObserver.observe(map);
+  finaleResizeObserver.observe(threadSvg);
   reducedMotion.addEventListener('change', schedule);
   schedule();
 }
@@ -1314,9 +1489,13 @@ if (photoDesktop) {
     const target = reducedMotion.matches ? 0 : Math.min(innerWidth * .85, Math.max(0, projectionScrollOrigin - scrollY) * .8);
     const elapsed = projectionTime ? Math.min(64, now - projectionTime) : 16.67;
     projectionTime = now;
-    projectionX = target;
+    projectionX = reducedMotion.matches ? target
+      : projectionX + (target - projectionX) * (1 - Math.exp(-elapsed / 85));
     if (Math.abs(target - projectionX) < .05) projectionX = target;
-    computerSection.style.setProperty('--projection-shift', `${projectionX}px`);
+    const shift = `${projectionX.toFixed(3)}px`;
+    if (computerSection.style.getPropertyValue('--projection-shift') !== shift) {
+      computerSection.style.setProperty('--projection-shift', shift);
+    }
     if (projectionX !== target) projectionFrame = motionFrame(moveProjection);
     else projectionTime = 0;
   };
@@ -1539,9 +1718,9 @@ if (photoDesktop) {
   });
 }
 
-// Scroll-linked, reversible horizontal movement with cached layout measurements.
+// Scroll-linked entrances: cases and the computer rise from below.
 const rightsCaseEntries = [...document.querySelectorAll('.rights-case-story, #creative-interface .creative-monitor')].map((element, index) => ({
-  element, index, monitor: element.matches('.creative-monitor'), top: 0, height: 1, current: null
+  element, index, monitor: element.matches('.creative-monitor'), top: 0, height: 1, current: null, offsetY: 0
 }));
 if (rightsCaseEntries.length) {
   let frame = 0;
@@ -1558,22 +1737,31 @@ if (rightsCaseEntries.length) {
     rightsCaseEntries.forEach(entry => {
       if (entry.monitor && entry.element.closest('.is-projecting')) {
         entry.element.style.transform = 'none';
+        entry.offsetY = 0;
         entry.element.style.opacity = '1';
+        entry.element.style.willChange = 'auto';
+        entry.current = 1;
         return;
       }
       const entranceRange = viewportHeight * (entry.monitor ? .7 : .42);
       const target = Math.max(0, Math.min(1, (scrollTop + viewportHeight * .95 - entry.top) / entranceRange));
       const offscreen = entry.top + entry.height < scrollTop || entry.top > scrollTop + viewportHeight;
-      entry.current = target;
+      if (entry.current === null || !entry.monitor || offscreen || reducedMotion.matches) entry.current = target;
+      else entry.current += (target - entry.current) * (1 - Math.exp(-elapsed / 75));
       if (Math.abs(target - entry.current) < .0004) entry.current = target;
       else settling = true;
-      const direction = entry.monitor || entry.index === 0 ? 1 : -1;
       const eased = entry.current * entry.current * (3 - 2 * entry.current);
-      const distance = entry.monitor ? Math.min(innerWidth * .3, 420) : amplitude;
-      const x = reducedMotion.matches ? 0 : direction * distance * (1 - eased);
-      entry.element.style.transform = Math.abs(x) < .01 ? 'none' : `translate3d(${x}px, 0, 0)`;
-      entry.element.style.willChange = !offscreen && entry.current !== target ? 'transform, opacity' : 'auto';
-      entry.element.style.opacity = reducedMotion.matches ? '1' : String(eased);
+      const distance = entry.monitor ? Math.min(viewportHeight * .28, 260) : amplitude;
+      const offset = reducedMotion.matches ? 0 : distance * (1 - eased);
+      const x = 0;
+      const y = offset;
+      entry.offsetY = y;
+      const transform = Math.abs(offset) < .01 && (!entry.monitor || offscreen)
+        ? 'none' : `translate3d(${x.toFixed(3)}px, ${y.toFixed(3)}px, 0)`;
+      if (entry.element.style.transform !== transform) entry.element.style.transform = transform;
+      entry.element.style.willChange = entry.monitor && !offscreen ? 'transform, opacity' : 'auto';
+      const opacity = reducedMotion.matches ? '1' : String(eased);
+      if (entry.element.style.opacity !== opacity) entry.element.style.opacity = opacity;
     });
     if (settling && !reducedMotion.matches) frame = motionFrame(update);
     else previousTime = 0;
@@ -1584,7 +1772,7 @@ if (rightsCaseEntries.length) {
     amplitude = Math.min(innerWidth * .13, 190);
     rightsCaseEntries.forEach(entry => {
       const bounds = entry.element.getBoundingClientRect();
-      entry.top = bounds.top + scrollY;
+      entry.top = bounds.top + scrollY - entry.offsetY;
       entry.height = bounds.height;
       entry.element.classList.add('has-scroll-entry');
     });
@@ -1592,8 +1780,12 @@ if (rightsCaseEntries.length) {
   };
   addEventListener('scroll', schedule, { passive: true });
   addEventListener('resize', measure);
+  addEventListener('storyviewportchange', measure);
   addEventListener('load', measure, { once: true });
-  rightsCaseEntries.forEach(entry => entry.element.querySelector('img')?.addEventListener('load', measure));
+  rightsCaseEntries.forEach(entry => {
+    entry.element.querySelector('img')?.addEventListener('load', measure);
+    entry.element.querySelector('video')?.addEventListener('loadedmetadata', measure);
+  });
   reducedMotion.addEventListener('change', measure);
   measure();
 }
@@ -1674,15 +1866,17 @@ if (photoTransform) {
   const update = timestamp => {
     frame = 0;
     const bounds = motionBounds(photoTransform);
+    const header = document.querySelector('body > .site-header')?.getBoundingClientRect().height || 64;
+    const stageHeight = pinStoryStage(stage, bounds, header).height;
     if (bounds.bottom < 0 || bounds.top > innerHeight) { previousTime = 0; return; }
-    const stageHeight = motionBounds(stage).height;
-    const header = motionStickyTop(stage);
     const targetProgress = reducedMotion.matches ? 1 : clampProgress((header - bounds.top) / Math.max(1, bounds.height - stageHeight));
     const elapsed = previousTime ? Math.min(64, timestamp - previousTime) : 16.67;
     previousTime = timestamp;
     currentProgress = targetProgress;
     const progress = currentProgress;
-    const entrance = ease(progress / .16);
+    // Show the photograph as the section enters, before the pinned conversion begins.
+    const entrance = reducedMotion.matches ? 1
+      : ease((innerHeight - bounds.top) / (innerHeight * .65));
     const sequence = clampProgress((progress - .16) / .68) * 4;
     const tool = Math.min(3, Math.floor(sequence));
     const local = sequence >= 4 ? 1 : sequence - tool;
@@ -1690,13 +1884,13 @@ if (photoTransform) {
     const toolPosition = Math.min(3, tool + ease((local - .78) / .22));
     icons.forEach((icon, index) => {
       const relative = index - toolPosition;
-      const opacity = clampProgress(1 - Math.abs(relative)) * ease(progress / .055) * (1 - ease((progress - .83) / .12));
+      const opacity = clampProgress(1 - Math.abs(relative)) * entrance * (1 - ease((progress - .83) / .12));
       icon.style.opacity = String(opacity);
       icon.style.transform = `translate3d(calc(-50% + ${relative * Math.min(innerWidth * .42, 420)}px), 0, 0)`;
     });
     const zoom = ease((progress - .86) / .14);
     photo.style.opacity = String(entrance);
-    photo.style.transform = reducedMotion.matches ? 'none' : `translate3d(0, ${(1 - entrance) * -stageHeight * .72}px, 0) scale(${.82 + entrance * .18 + zoom * .65})`;
+    photo.style.transform = reducedMotion.matches ? 'none' : `translate3d(0, ${(1 - entrance) * stageHeight * .2}px, 0) scale(${.82 + entrance * .18 + zoom * .65})`;
     const conversion = clampProgress((local - .02) / .60);
     const settle = ease((local - .62) / .16);
     const grayStages = [255, 224, 198, 175, 153];
@@ -1723,6 +1917,7 @@ if (photoTransform) {
   const schedule = () => { if (!frame) frame = motionFrame(update); };
   addEventListener('scroll', schedule, { passive: true });
   addEventListener('resize', schedule);
+  addEventListener('storyviewportchange', schedule);
   reducedMotion.addEventListener('change', schedule);
   schedule();
 }
