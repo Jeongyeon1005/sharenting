@@ -48,7 +48,6 @@
     <main id="main">
       <section class="hero" id="home" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="hero-eyebrow">POSTED BY</p>
           <h1 id="hero-title">아이의 사진은<br>어디까지 기록될까요?</h1>
         </div>
         <div class="scroll-note">
@@ -161,7 +160,7 @@
             <symbol id="creative-photo-light" viewBox="0 0 4 5"><rect width="4" height="5" rx=".35" fill="#dedcde"/><circle cx="2.8" cy="1.4" r=".4" fill="white"/><path d="M.5 4 1.6 2.3 2.4 3.2 2.9 2.6 3.5 4Z" fill="#f9f8f9"/></symbol>
           </defs>
           <rect x="25" y="8" width="107.37" height="64.51" rx="1.55" fill="#767676"/>
-          <rect x="27.2" y="9.8" width="103.07" height="60.9" fill="#f73dc2"/>
+          <rect x="27.2" y="9.8" width="103.07" height="60.9" fill="var(--accent)"/>
           <rect x="76" y="72.51" width="3.78" height="11.51" fill="#767676"/>
           <rect x="40" y="84" width="77" height="3" fill="#4d4d4d"/>
           <rect x="28" y="13" width="4" height="56" rx="1.12" fill="#dd82c5"/>
@@ -175,7 +174,7 @@
           <text class="desktop-drop-hint" x="107" y="49.5" text-anchor="middle" font-size="1.2" fill="#707070" font-family="sans-serif">사진을 끌어당겨주세요</text>
           <rect x="90" y="58" width="34" height="4" rx=".52" stroke="#ededed" stroke-width=".2" fill="white"/>
           <text class="desktop-prompt-text" x="91" y="60.5" font-size=".9" fill="#aaa" font-family="sans-serif">원하시는 행동을 입력해주세요</text>
-          <circle cx="122.2" cy="60" r="1" fill="#e477bc"/><path d="M122.2 60.6V59.4m-.45.45.45-.45.45.45" stroke="white" stroke-width=".18" fill="none"/>
+          <circle cx="122.2" cy="60" r="1" fill="var(--accent)"/><path d="M122.2 60.6V59.4m-.45.45.45-.45.45.45" stroke="white" stroke-width=".18" fill="none"/>
         </svg>
       </section>
 
@@ -273,13 +272,17 @@
           <button type="button" data-filter="rights" aria-pressed="false">아동 권리 침해</button>
           <button type="button" data-filter="footprint" aria-pressed="false">디지털 발자국과 후유증</button>
         </div>
-        <p class="cases-note">마우스를 누른 채 원하는 방향으로 드래그하세요. 사례 카드를 클릭하면 자세한 내용을 볼 수 있습니다.</p>
+        <p class="cases-note">카테고리를 선택하면 해당 사례가 있는 위치로 이동합니다. 드래그로 원을 돌리고, 카드를 클릭해 사례를 확인하세요.</p>
         <p class="case-status" aria-live="polite">전체 32개 사례</p>
         <div class="case-field"></div>
       </section>
       </dialog>
       <dialog class="case-detail" aria-labelledby="case-detail-title" aria-describedby="case-detail-description">
         <div class="case-detail-sheet">
+          <button class="case-detail-cover" type="button" aria-label="사례 설명 보기">
+            <img class="case-detail-cover-image" alt="">
+            <span class="case-detail-cover-title"></span>
+          </button>
           <button class="case-detail-exit" type="button" aria-label="사례 닫고 목록으로 돌아가기">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18"/></svg>
           </button>
@@ -289,7 +292,6 @@
             <div class="case-detail-heading">
               <h2 id="case-detail-title"></h2>
               <dl class="case-detail-meta">
-                <div><dt>키워드</dt><dd class="case-detail-categories"></dd></div>
                 <div><dt>국가</dt><dd class="case-detail-country"></dd></div>
                 <div><dt>아이 나이</dt><dd class="case-detail-age"></dd></div>
               </dl>
@@ -298,6 +300,7 @@
           <div class="case-detail-summary">
             <h3 class="case-detail-label">사례</h3>
             <p id="case-detail-description"></p>
+            <div class="case-detail-categories" aria-label="사례 분류"></div>
             <p class="case-detail-date"></p>
           </div>
           <div class="case-detail-links">

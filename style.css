@@ -1752,7 +1752,7 @@ body.cases-open { overflow: hidden; }
   background: #f7f7f7;
   pointer-events: none;
 }
-.case-detail-id { font-family: "SM RGra Std", Helvetica, sans-serif; font-weight: 400; }
+.case-detail-id { font-family: inherit; font-weight: 400; }
 
 .case-detail-placeholder { overflow: hidden; }
 .case-detail-placeholder > img { display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -2752,7 +2752,7 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
 .sharing-composition .sharing-connections circle { transition: none; }
 
 /* Code spreads inward from all four viewport corners during photo analysis. */
-.privacy-code-field { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .25s ease, visibility .25s; }
+.privacy-code-field { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; opacity: 0; visibility: hidden; filter: grayscale(1); transition: opacity .25s ease, visibility .25s; }
 .privacy-code-field.is-visible { opacity: 1; visibility: visible; }
 @media(prefers-reduced-motion:reduce) { .privacy-code-field { transition: none; } }
 
@@ -2840,12 +2840,17 @@ html.intro-active { overflow: hidden; }
 /* The opening logo settles immediately above the invitation to scroll. */
 .hero-wordmark {
   display: block;
+  filter: grayscale(1);
   width: min(38vw, 360px);
   height: auto;
   margin: 0 auto clamp(10px, 2svh, 20px);
   overflow: visible;
 }
 .intro-active .hero-wordmark { visibility: hidden; }
+.intro-wordmark { filter: grayscale(0); transition: filter 800ms cubic-bezier(.22, 1, .36, 1); }
+.intro-screen.is-revealing .intro-wordmark { filter: grayscale(1); }
+.privacy-analysis,
+.face-analysis { filter: grayscale(1); }
 .intro-active .intro-screen::before {
   content: '';
   position: absolute;
@@ -2980,3 +2985,79 @@ html.intro-active { overflow: hidden; }
   .crime-summary .spread-result-copy > p { font-size: .9rem; }
   .crime-summary .spread-data-image { width: 100%; max-width: 28rem; }
 }
+
+/* Two-stage case card: photographic cover, then a white reading face. */
+.case-detail { width: min(768px, 94vw); padding: 0; max-height: 90dvh; }
+.case-detail-sheet { min-height: 562px; padding: 30px 40px 24px; border-radius: 0; background: #fff; }
+.case-detail-sheet::before, .case-detail-sheet::after { display: none; }
+.case-detail-cover { display: none; }
+.case-detail-id { position: static; transform: none; width: auto; height: auto; justify-content: flex-start; padding: 0; margin: 0 0 36px -18px; color: #222; font-size: 18px; }
+.case-detail-main { display: block; }
+.case-detail-placeholder, .case-detail-label { display: none; }
+.case-detail-heading h2 { margin: 0 0 30px; font-size: clamp(26px, 5.5vw, 44px); line-height: 1.45; letter-spacing: -.045em; color: #080808; }
+.case-detail-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.case-detail-meta > div { display: block; }
+.case-detail-meta dt { display: none; }
+.case-detail-meta > div:first-child { position: absolute; left: 40px; right: 40px; bottom: 120px; }
+.case-detail-meta > div:nth-child(2) dd::after { content: ' |'; }
+.case-detail-meta dd { font-size: 16px; }
+.case-detail-categories { display: flex; flex-wrap: wrap; gap: 10px; }
+.case-detail-categories span { border: 1px solid #999; border-radius: 999px; padding: 5px 16px; font-size: 12px; color: #888; }
+.case-detail-summary { margin-top: 24px; padding-bottom: 110px; }
+#case-detail-description { font-size: 19px; line-height: 1.9; }
+.case-detail-date { position: absolute; bottom: 24px; left: 22px; margin: 0; color: #444; font-size: 16px; }
+.case-detail-links { padding-top: 0; }
+.case-detail-navigation { position: static; display: flex; justify-content: space-between; margin-top: 16px; }
+.case-detail-navigation button { position: static; transform: none; height: 28px; }
+.case-detail.is-cover .case-detail-sheet { padding: 0; min-height: 0; }
+.case-detail.is-cover .case-detail-sheet > :not(.case-detail-cover):not(.case-detail-exit) { display: none; }
+.case-detail.is-cover .case-detail-cover { display: block; position: relative; width: 100%; min-height: min(562px, 78dvh); aspect-ratio: 768 / 562; padding: 0; border: 0; background: #303030; color: #eee; text-align: left; cursor: pointer; }
+.case-detail-cover-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: saturate(.15) brightness(.45); }
+.case-detail-cover-image[hidden] { display: none; }
+.case-detail-cover-title { position: absolute; top: 14%; left: 5%; right: 7%; font-size: clamp(26px, 5.5vw, 44px); font-weight: 750; line-height: 1.45; letter-spacing: -.045em; word-break: keep-all; }
+.case-detail-cover:focus-visible { outline: 2px solid #fff; outline-offset: -5px; }
+.case-detail.is-cover .case-detail-exit { color: #eee; }
+@media(max-width: 600px) {
+  .case-detail-sheet { padding: 28px 24px 20px; min-height: 72dvh; }
+  .case-detail-meta > div:first-child { left: 24px; right: 24px; bottom: 140px; }
+  .case-detail-summary { padding-bottom: 140px; }
+  #case-detail-description { font-size: 16px; }
+  .case-detail-date { font-size: 13px; bottom: 72px; left: 24px; }
+  .case-detail-id { margin-left: 0; }
+}
+/* Keep tags in the reading flow even for longer case summaries. */
+.case-detail-meta > div:first-child { position: static; }
+.case-detail-meta > div:nth-child(2) dd::after { content: none; }
+.case-detail-meta > div:first-child dd::after { content: ' |'; }
+.case-detail-summary { padding-bottom: 72px; }
+.case-detail-summary .case-detail-categories { margin-top: 28px; }
+@media(max-width:600px) { .case-detail-summary { padding-bottom: 96px; } }
+
+/* Lift the selected card and keep navigation centered beside either face. */
+.case-detail { width: min(864px, 98vw); padding: 0 48px; }
+.case-detail[open] { animation: case-card-rise 550ms cubic-bezier(.22, 1, .36, 1) both; }
+@keyframes case-card-rise {
+  from { opacity: 0; transform: translateY(100px) scale(.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.case-detail-sheet { cursor: pointer; }
+.case-detail-sheet:focus { outline: none; }
+.case-detail-sheet:focus-visible { outline: 2px solid #aaa; outline-offset: -4px; }
+.case-detail > .case-detail-navigation { position: absolute; inset: 0; display: block; margin: 0; pointer-events: none; }
+.case-detail > .case-detail-navigation button { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 48px; pointer-events: auto; }
+.case-detail > .case-detail-navigation .case-detail-prev { left: 0; }
+.case-detail > .case-detail-navigation .case-detail-next { right: 0; }
+.case-detail-navigation button img { filter: brightness(0) invert(1); opacity: .8; }
+@media(max-width:600px) {
+  .case-detail { padding-inline: 32px; }
+  .case-detail > .case-detail-navigation button { width: 30px; }
+  .case-detail-navigation button img { width: 24px; height: 24px; }
+}
+@media(prefers-reduced-motion:reduce) { .case-detail[open] { animation: none; } }
+
+/* Tighten only the large gaps between story sections; preserve the opening sequence. */
+#main > section.section-shell:not(.sharing-composition) {
+  margin-top: max(0px, calc(var(--section-space) - 100px));
+}
+/* This transition already had a 100px reduction. */
+#main > #rights { margin-top: max(0px, calc(var(--section-space) - 200px)); }

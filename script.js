@@ -589,28 +589,35 @@ if (caseExplorer) {
     card.append(front);
   });
   let visible = [...cards];
-  let ringMode = true;
-  let rendered = [];
+  const ringMode = true;
+  let selectedCategory = 'all';
+  const categoryOrder = filters.map(button => button.dataset.filter).filter(category => category !== 'all');
+  const rendered = [];
+  const categoryPositions = new Map();
+  const usedCards = new Set();
   const wrap = (value, count) => ((value % count) + count) % count;
-  const rebuildLoop = () => {
-    field.querySelectorAll('[data-loop-copy]').forEach(card => card.remove());
-    rendered = [...visible];
-    if (!visible.length) return;
-    const copies = ringMode ? 1 : Math.max(1, Math.ceil(18 / visible.length));
-    for (let cycle = 1; cycle < copies; cycle++) visible.forEach(original => {
-      const copy = original.cloneNode(true);
-      copy.dataset.loopCopy = 'true';
-      copy.tabIndex = -1;
-      copy.setAttribute('aria-hidden', 'true');
-      copy.addEventListener('click', () => original.click());
-      field.append(copy);
-      rendered.push(copy);
+  // A multi-category case appears in each relevant section of the same ring.
+  categoryOrder.forEach(category => {
+    const positions = [];
+    cards.filter(card => card.dataset.categories.split(/\s+/).includes(category)).forEach(original => {
+      let card = original;
+      if (usedCards.has(original)) {
+        card = original.cloneNode(true);
+        card.dataset.loopCopy = 'true';
+        card.tabIndex = -1;
+        card.setAttribute('aria-hidden', 'true');
+        card.addEventListener('click', () => original.click());
+        field.append(card);
+      }
+      usedCards.add(original);
+      card.dataset.ringCategory = category;
+      positions.push(rendered.length);
+      rendered.push(card);
     });
-  };
-  rebuildLoop();
+    categoryPositions.set(category, positions);
+  });
   let target = 0, current = 0, frame = 0, previous = 0;
   let pointer = null, suppressClick = false;
-  const rearrangeAnimations = new Set();
   const paint = now => {
     frame = 0;
     const elapsed = previous ? Math.min(64, now - previous) : 16.67;
@@ -625,9 +632,9 @@ if (caseExplorer) {
         const x = Math.sin(angle) * radius;
         const z = Math.cos(angle) * radius;
         card.style.visibility = 'visible';
-        card.style.pointerEvents = 'auto';
+        card.style.pointerEvents = selectedCategory === 'all' || card.dataset.ringCategory === selectedCategory ? 'auto' : 'none';
         card.style.zIndex = String(1000 + Math.round(z));
-        card.style.opacity = '1';
+        card.style.opacity = selectedCategory === 'all' || card.dataset.ringCategory === selectedCategory ? '1' : '.2';
         card.style.transform = `translate(-50%, -50%) translate3d(${x}px, 0, ${z}px) rotateY(${angle * 180 / Math.PI + 90}deg)`;
         return;
       }
@@ -639,7 +646,7 @@ if (caseExplorer) {
       card.style.opacity = String(Math.max(0, Math.min(1, (distance + 3) / 1.2)));
       card.style.transform = `translate(-50%, -50%) translate3d(${distance * spacing}px, ${-distance * 36}px, ${-distance * 85}px) rotateY(-42deg) rotateX(-10deg) rotateZ(10deg)`;
     });
-    caseExplorer.querySelector('.case-status').textContent = `${visible.length ? wrap(Math.round(current), visible.length) + 1 : 0} / ${visible.length}개 사례 · 스크롤하여 탐색`;
+    caseExplorer.querySelector('.case-status').textContent = `${selectedCategory === 'all' ? '모든 사례' : categoryLabels[selectedCategory]} · ${visible.length}개 사례 · 드래그하여 탐색`;
     if (current !== target) frame = motionFrame(paint);
     else previous = 0;
   };
@@ -687,61 +694,32 @@ if (caseExplorer) {
     if (['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
       event.preventDefault();
       if (event.key === 'Home') target = 0;
-      else if (event.key === 'End') target = Math.max(0, visible.length - 1);
+      else if (event.key === 'End') target = Math.max(0, rendered.length - 1);
       else move(['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1);
       schedule();
     }
   });
   cards.forEach(card => card.addEventListener('focus', () => {
     if (card.matches(':focus-visible') && visible.includes(card)) {
-      const index = visible.indexOf(card);
-      target = index + Math.round((current - index) / visible.length) * visible.length;
+      const index = rendered.indexOf(card);
+      target = index + Math.round((current - index) / rendered.length) * rendered.length;
       schedule();
     }
   }));
   filters.forEach(button => button.addEventListener('click', () => {
     if (button.getAttribute('aria-pressed') === 'true') return;
-    const category = button.dataset.filter;
-    ringMode = category === 'all';
-    viewport.classList.toggle('is-ring', ringMode);
-    rearrangeAnimations.forEach(animation => animation.cancel());
-    rearrangeAnimations.clear();
-    if (frame) cancelMotionFrame(frame);
-    frame = 0;
+    selectedCategory = button.dataset.filter;
     filters.forEach(filter => filter.setAttribute('aria-pressed', String(filter === button)));
-    visible = cards.filter(card => category === 'all' || card.dataset.categories.split(/\s+/).includes(category));
+    visible = cards.filter(card => selectedCategory === 'all' || card.dataset.categories.split(/\s+/).includes(selectedCategory));
     cards.forEach(card => {
       const match = visible.includes(card);
-      card.hidden = !match;
       card.setAttribute('aria-disabled', String(!match));
       card.tabIndex = match ? 0 : -1;
     });
-    target = current = Math.floor(Math.max(0, visible.length - 1) / 2);
-    rebuildLoop();
-    paint(performance.now());
-    const play = (element, keyframes, options, cleanup = () => {}) => {
-      const animation = element.animate(keyframes, options);
-      rearrangeAnimations.add(animation);
-      animation.finished.catch(() => {}).finally(() => {
-        rearrangeAnimations.delete(animation);
-        cleanup();
-      });
-    };
-    if (!reducedMotion.matches) {
-      rendered.forEach((card, index) => {
-        const transform = card.style.transform;
-        const direction = index % 3;
-        const travel = Math.min(innerWidth * .28, 380);
-        const x = direction === 1 ? travel : direction === 2 ? -travel : 0;
-        const y = direction === 0 ? -200 : -25;
-        const opacity = Number(card.style.opacity);
-        play(card, [
-          { transform: `translate3d(${x}px, ${y}px, 0) ${transform} scale(.9)`, opacity: 0 },
-          { transform: `translate3d(${x * .12}px, ${y * .12}px, 0) ${transform} scale(.985)`, opacity: opacity * .65, offset: .55 },
-          { transform, opacity }
-        ], { duration: 950, delay: index * Math.min(45, 1200 / Math.max(1, rendered.length - 1)), easing: 'cubic-bezier(.22,.61,.36,1)', fill: 'backwards' });
-      });
-    }
+    const positions = categoryPositions.get(selectedCategory);
+    const destination = positions?.length ? (positions[0] + positions[positions.length - 1]) / 2 : 0;
+    target = destination + Math.round((current - destination) / rendered.length) * rendered.length;
+    schedule();
   }));
   addEventListener('resize', schedule);
   reducedMotion.addEventListener('change', schedule);
@@ -807,6 +785,30 @@ if (exploreButton && caseExplorer && casesDialog) {
 
 const caseDetail = document.querySelector(".case-detail");
 if (caseExplorer && caseDetail) {
+  const cover = caseDetail.querySelector('.case-detail-cover');
+  const sheet = caseDetail.querySelector('.case-detail-sheet');
+  const navigation = caseDetail.querySelector('.case-detail-navigation');
+  caseDetail.append(navigation);
+  sheet.tabIndex = 0;
+  sheet.setAttribute('aria-label', '사례 카드. 클릭하거나 Enter 키를 누르면 사진과 설명을 전환합니다.');
+  const returnToCover = () => {
+    caseDetail.classList.add('is-cover');
+    caseDetail.scrollTop = 0;
+    cover.focus({ preventScroll: true });
+  };
+  sheet.addEventListener('click', event => {
+    if (caseDetail.classList.contains('is-cover') || event.target.closest('button, a') || window.getSelection()?.toString()) return;
+    returnToCover();
+  });
+  sheet.addEventListener('keydown', event => {
+    if (event.target !== sheet || !['Enter', ' '].includes(event.key)) return;
+    event.preventDefault();
+    if (!caseDetail.classList.contains('is-cover')) returnToCover();
+  });
+  cover.addEventListener('click', () => {
+    caseDetail.classList.remove('is-cover');
+    sheet.focus({ preventScroll: true });
+  });
   caseDetail.querySelector(".case-detail-exit").addEventListener("click", () => caseDetail.close());
   const detailCards = [...caseExplorer.querySelectorAll(".case-card:not([data-loop-copy])")];
   const previousCase = caseDetail.querySelector(".case-detail-prev");
@@ -818,6 +820,12 @@ if (caseExplorer && caseDetail) {
     if (card.getAttribute("aria-disabled") === "true") return;
     activeCard = card;
     const item = sortedCases[index];
+    caseDetail.classList.add('is-cover');
+    cover.querySelector('.case-detail-cover-title').textContent = item.title;
+    const coverImage = cover.querySelector('img');
+    if (item.image) coverImage.src = item.image;
+    else coverImage.removeAttribute('src');
+    coverImage.hidden = !item.image;
     caseDetail.querySelector(".case-detail-id").textContent = `Case. ${String(index + 1).padStart(3, "0")}`;
     caseDetail.querySelector("#case-detail-title").textContent = item.title;
     const imageArea = caseDetail.querySelector(".case-detail-placeholder");
@@ -830,7 +838,11 @@ if (caseExplorer && caseDetail) {
       imageArea.append(image);
     }
     caseDetail.querySelector("#case-detail-description").textContent = item.summary;
-    caseDetail.querySelector(".case-detail-categories").textContent = item.categories.map((category) => `#${categoryLabels[category]}`).join("  ");
+    caseDetail.querySelector('.case-detail-categories').replaceChildren(...item.categories.map(category => {
+      const tag = document.createElement('span');
+      tag.textContent = `#${categoryLabels[category]}`;
+      return tag;
+    }));
     caseDetail.querySelector(".case-detail-country").textContent = item.country;
     caseDetail.querySelector(".case-detail-date").textContent = `사건일 / 보도일: ${formatCaseDate(item.date)}`;
     caseDetail.querySelector(".case-detail-age").textContent = item.age;
@@ -853,6 +865,7 @@ if (caseExplorer && caseDetail) {
     const selected = caseExplorer.querySelector('.case-filters button[aria-pressed="true"]');
     position.textContent = `${selected?.textContent || "모든 사례"} · ${current + 1} / ${available.length}`;
     if (!caseDetail.open) caseDetail.showModal();
+    cover.focus({ preventScroll: true });
     caseDetail.scrollTop = 0;
   };
   const moveCase = (direction) => {
