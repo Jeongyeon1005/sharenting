@@ -264,6 +264,44 @@ if (impact) {
 const portraitInteraction = document.querySelector(".post-photo-interaction");
 if (portraitInteraction) {
   const section = portraitInteraction.closest(".privacy");
+  const hoverHand = document.createElement('img');
+  hoverHand.className = 'privacy-hover-hand';
+  hoverHand.src = './images/hand-pink.svg';
+  hoverHand.alt = '';
+  hoverHand.setAttribute('aria-hidden', 'true');
+  portraitInteraction.append(hoverHand);
+  let hoverHandTimer = 0;
+  let portraitInView = false;
+  const dismissHoverHand = () => {
+    clearTimeout(hoverHandTimer);
+    hoverHand.classList.remove('is-in-view');
+  };
+  const scheduleHoverHand = () => {
+    dismissHoverHand();
+    if (!portraitInView || document.hidden) return;
+    hoverHandTimer = setTimeout(() => {
+      if (portraitInView && !document.hidden && !section.classList.contains('is-analyzing')
+        && !portraitInteraction.matches(':hover, :focus-within')) {
+        hoverHand.classList.add('is-in-view');
+      }
+    }, 2000);
+  };
+  portraitInteraction.addEventListener('pointerenter', dismissHoverHand);
+  portraitInteraction.addEventListener('pointerdown', dismissHoverHand);
+  portraitInteraction.addEventListener('focus', dismissHoverHand);
+  portraitInteraction.addEventListener('pointerleave', scheduleHoverHand);
+  portraitInteraction.addEventListener('blur', scheduleHoverHand);
+  document.addEventListener('visibilitychange', scheduleHoverHand);
+  if ('IntersectionObserver' in window) {
+    const handObserver = new IntersectionObserver(entries => {
+      portraitInView = entries[0].isIntersecting;
+      scheduleHoverHand();
+    }, { threshold: .25 });
+    handObserver.observe(portraitInteraction);
+  } else {
+    portraitInView = true;
+    scheduleHoverHand();
+  }
   const panel = section.querySelector(".privacy-analysis");
   const rows = [...panel.querySelectorAll("[data-text]")];
   // Keep label and value styling throughout the typing animation.
@@ -420,6 +458,8 @@ if (portraitInteraction) {
     toggleCode();
     clearTimeout(typingTimer);
     section.classList.toggle("is-analyzing", open);
+    if (open) dismissHoverHand();
+    else scheduleHoverHand();
     portraitInteraction.classList.toggle("is-open", open);
     portraitInteraction.setAttribute("aria-pressed", String(open));
     panel.setAttribute("aria-hidden", String(!open));
@@ -589,7 +629,7 @@ if (caseExplorer) {
     card.append(front);
   });
   let visible = [...cards];
-  const ringMode = true;
+  let layout = 0, layoutTarget = 0, waitingForCategory = false;
   let selectedCategory = 'all';
   const categoryOrder = filters.map(button => button.dataset.filter).filter(category => category !== 'all');
   const rendered = [];
@@ -618,41 +658,65 @@ if (caseExplorer) {
   });
   let target = 0, current = 0, frame = 0, previous = 0;
   let pointer = null, suppressClick = false;
+  let viewportWidth = 1, windowWidth = innerWidth, paintedRing = true, lastStatus = '';
+  const styleCache = new WeakMap();
+  const writeCardStyle = (card, property, value) => {
+    let cache = styleCache.get(card);
+    if (!cache) { cache = {}; styleCache.set(card, cache); }
+    if (cache[property] !== value) { card.style[property] = value; cache[property] = value; }
+  };
+  const measureGallery = () => { viewportWidth = viewport.clientWidth; windowWidth = innerWidth; schedule(); };
+  const statusElement = caseExplorer.querySelector('.case-status');
   const paint = now => {
     frame = 0;
     const elapsed = previous ? Math.min(64, now - previous) : 16.67;
     previous = now;
     current = reducedMotion.matches ? target : current + (target - current) * (1 - Math.exp(-elapsed / 150));
-    if (Math.abs(target - current) < .0001) current = target;
-    const spacing = innerWidth > 760 ? 155 : 100;
-    const radius = Math.min(viewport.clientWidth * .34, 490);
+    if (Math.abs(target - current) < .01) current = target;
+    if (waitingForCategory && Math.abs(target - current) < .35) {
+      waitingForCategory = false; layoutTarget = 1;
+    }
+    layout = reducedMotion.matches ? layoutTarget : layout + (layoutTarget - layout) * (1 - Math.exp(-elapsed / 190));
+    if (Math.abs(layoutTarget - layout) < .005) layout = layoutTarget;
+    const showRing = layout < .5;
+    if (paintedRing !== showRing) { viewport.classList.toggle('is-ring', showRing); paintedRing = showRing; }
+    const blend = layout * layout * (3 - 2 * layout);
+    const spacing = windowWidth > 760 ? 155 : 100;
+    const radius = Math.min(viewportWidth * .34, 490);
+    const baseWidth = windowWidth > 760 ? Math.max(78, Math.min(145, windowWidth * .1)) : Math.max(54, Math.min(90, windowWidth * .12));
+    const fullWidth = windowWidth > 760 ? Math.max(230, Math.min(370, windowWidth * .24)) : 210;
+    const cardScale = 1 + (fullWidth / baseWidth - 1) * blend;
     rendered.forEach((card, index) => {
-      if (ringMode) {
-        const angle = (index - current) * Math.PI * 2 / rendered.length;
-        const x = Math.sin(angle) * radius;
-        const z = Math.cos(angle) * radius;
-        card.style.visibility = 'visible';
-        card.style.pointerEvents = selectedCategory === 'all' || card.dataset.ringCategory === selectedCategory ? 'auto' : 'none';
-        card.style.zIndex = String(1000 + Math.round(z));
-        card.style.opacity = selectedCategory === 'all' || card.dataset.ringCategory === selectedCategory ? '1' : '.2';
-        card.style.transform = `translate(-50%, -50%) translate3d(${x}px, 0, ${z}px) rotateY(${angle * 180 / Math.PI + 90}deg)`;
-        return;
-      }
-      const distance = wrap(index - current + 3, rendered.length) - 3;
-      const onScreen = distance > -3 && distance < 13;
-      card.style.visibility = onScreen ? 'visible' : 'hidden';
-      card.style.pointerEvents = onScreen ? 'auto' : 'none';
-      card.style.zIndex = String(1000 - Math.round(distance * 10));
-      card.style.opacity = String(Math.max(0, Math.min(1, (distance + 3) / 1.2)));
-      card.style.transform = `translate(-50%, -50%) translate3d(${distance * spacing}px, ${-distance * 36}px, ${-distance * 85}px) rotateY(-42deg) rotateX(-10deg) rotateZ(10deg)`;
+      const distance = wrap(index - current + rendered.length / 2, rendered.length) - rendered.length / 2;
+      const angle = distance * Math.PI * 2 / rendered.length;
+      const ringX = Math.sin(angle) * radius, ringZ = Math.cos(angle) * radius;
+      const x = ringX * (1 - blend) + distance * spacing * blend;
+      const y = -distance * 36 * blend;
+      const z = ringZ * (1 - blend) - distance * 85 * blend;
+      const match = selectedCategory === 'all' || card.dataset.ringCategory === selectedCategory;
+      const onScreen = distance > -4 && distance < 14;
+      const opacity = match ? 1 : 1 - blend;
+      const hidden = blend > .995 && (!match || !onScreen);
+      writeCardStyle(card, 'visibility', hidden ? 'hidden' : 'visible');
+      writeCardStyle(card, 'pointerEvents', match && (layout < .5 || onScreen) ? 'auto' : 'none');
+      if (hidden) return;
+      writeCardStyle(card, 'zIndex', String(Math.round((1000 + ringZ) * (1 - blend) + (1000 - distance * 10) * blend)));
+      writeCardStyle(card, 'opacity', String(opacity));
+      writeCardStyle(card, 'transform', `translate(-50%, -50%) translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, ${z.toFixed(2)}px) rotateY(${((angle * 180 / Math.PI + 90) * (1 - blend) - 42 * blend).toFixed(2)}deg) rotateX(${(-10 * blend).toFixed(2)}deg) rotateZ(${(10 * blend).toFixed(2)}deg) scale(${cardScale.toFixed(4)})`);
     });
-    caseExplorer.querySelector('.case-status').textContent = `${selectedCategory === 'all' ? '모든 사례' : categoryLabels[selectedCategory]} · ${visible.length}개 사례 · 드래그하여 탐색`;
-    if (current !== target) frame = motionFrame(paint);
+    const status = `${selectedCategory === 'all' ? '모든 사례' : categoryLabels[selectedCategory]} · ${visible.length}개 사례 · 드래그하여 탐색`;
+    if (status !== lastStatus) { statusElement.textContent = status; lastStatus = status; }
+    if (current !== target || layout !== layoutTarget || waitingForCategory) frame = motionFrame(paint);
     else previous = 0;
   };
   const schedule = () => { if (!frame) frame = motionFrame(paint); };
   const move = amount => {
     if (visible.length) target += amount;
+    if (selectedCategory !== 'all' && !waitingForCategory) {
+      const positions = categoryPositions.get(selectedCategory);
+      const start = positions[0] + Math.round((current - positions[0]) / rendered.length) * rendered.length;
+      target = Math.max(start, Math.min(start + positions.length - 1, target));
+    }
     schedule();
   };
   viewport.addEventListener('wheel', event => {
@@ -693,21 +757,22 @@ if (caseExplorer) {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
       event.preventDefault();
-      if (event.key === 'Home') target = 0;
-      else if (event.key === 'End') target = Math.max(0, rendered.length - 1);
+      if (event.key === 'Home') target = selectedCategory === 'all' ? 0 : categoryPositions.get(selectedCategory)[0];
+      else if (event.key === 'End') target = selectedCategory === 'all' ? rendered.length - 1 : categoryPositions.get(selectedCategory).at(-1);
       else move(['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1);
       schedule();
     }
   });
   cards.forEach(card => card.addEventListener('focus', () => {
     if (card.matches(':focus-visible') && visible.includes(card)) {
-      const index = rendered.indexOf(card);
+      const index = selectedCategory === 'all' ? rendered.indexOf(card) : rendered.findIndex(candidate => candidate.dataset.ringCategory === selectedCategory && candidate.getAttribute('aria-label') === card.getAttribute('aria-label'));
       target = index + Math.round((current - index) / rendered.length) * rendered.length;
       schedule();
     }
   }));
   filters.forEach(button => button.addEventListener('click', () => {
     if (button.getAttribute('aria-pressed') === 'true') return;
+    const previousCategory = selectedCategory;
     selectedCategory = button.dataset.filter;
     filters.forEach(filter => filter.setAttribute('aria-pressed', String(filter === button)));
     visible = cards.filter(card => selectedCategory === 'all' || card.dataset.categories.split(/\s+/).includes(selectedCategory));
@@ -717,14 +782,17 @@ if (caseExplorer) {
       card.tabIndex = match ? 0 : -1;
     });
     const positions = categoryPositions.get(selectedCategory);
-    const destination = positions?.length ? (positions[0] + positions[positions.length - 1]) / 2 : 0;
+    const destination = positions?.length ? positions[0] + Math.min(2, positions.length - 1) : 0;
+    const directCategorySwitch = previousCategory !== 'all' && selectedCategory !== 'all';
+    layoutTarget = directCategorySwitch ? 1 : 0;
+    waitingForCategory = !directCategorySwitch && selectedCategory !== 'all';
     target = destination + Math.round((current - destination) / rendered.length) * rendered.length;
     schedule();
   }));
-  addEventListener('resize', schedule);
+  addEventListener('resize', measureGallery);
   reducedMotion.addEventListener('change', schedule);
-  new ResizeObserver(schedule).observe(viewport);
-  schedule();
+  new ResizeObserver(measureGallery).observe(viewport);
+  measureGallery();
 }
 
 
@@ -791,11 +859,41 @@ if (caseExplorer && caseDetail) {
   caseDetail.append(navigation);
   sheet.tabIndex = 0;
   sheet.setAttribute('aria-label', '사례 카드. 클릭하거나 Enter 키를 누르면 사진과 설명을 전환합니다.');
-  const returnToCover = () => {
-    caseDetail.classList.add('is-cover');
-    caseDetail.scrollTop = 0;
-    cover.focus({ preventScroll: true });
+  let flipAnimation = null, flipping = false, flipVersion = 0;
+  const cancelFlip = () => {
+    flipVersion++; flipping = false;
+    flipAnimation?.cancel(); flipAnimation = null;
   };
+  const flipCard = async showCover => {
+    if (flipping || caseDetail.classList.contains('is-cover') === showCover) return;
+    const version = ++flipVersion;
+    flipping = true;
+    const applyFace = () => {
+      caseDetail.classList.toggle('is-cover', showCover);
+      caseDetail.scrollTop = 0;
+      (showCover ? cover : sheet).focus({ preventScroll: true });
+    };
+    if (reducedMotion.matches) { applyFace(); flipping = false; return; }
+    const direction = showCover ? -1 : 1;
+    try {
+      flipAnimation = sheet.animate([
+        { transform: 'perspective(1400px) rotateY(0deg)', opacity: 1 },
+        { transform: `perspective(1400px) rotateY(${direction * 90}deg)`, opacity: .7 }
+      ], { duration: 240, easing: 'ease-in', fill: 'forwards' });
+      await flipAnimation.finished;
+      if (version !== flipVersion || !caseDetail.open) return;
+      applyFace();
+      flipAnimation.cancel();
+      flipAnimation = sheet.animate([
+        { transform: `perspective(1400px) rotateY(${-direction * 90}deg)`, opacity: .7 },
+        { transform: 'perspective(1400px) rotateY(0deg)', opacity: 1 }
+      ], { duration: 300, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'forwards' });
+      await flipAnimation.finished;
+      if (version === flipVersion) { flipAnimation.cancel(); flipAnimation = null; }
+    } catch { /* Closing or selecting another card cancels the current flip. */ }
+    finally { if (version === flipVersion) flipping = false; }
+  };
+  const returnToCover = () => flipCard(true);
   sheet.addEventListener('click', event => {
     if (caseDetail.classList.contains('is-cover') || event.target.closest('button, a') || window.getSelection()?.toString()) return;
     returnToCover();
@@ -805,10 +903,7 @@ if (caseExplorer && caseDetail) {
     event.preventDefault();
     if (!caseDetail.classList.contains('is-cover')) returnToCover();
   });
-  cover.addEventListener('click', () => {
-    caseDetail.classList.remove('is-cover');
-    sheet.focus({ preventScroll: true });
-  });
+  cover.addEventListener('click', () => flipCard(false));
   caseDetail.querySelector(".case-detail-exit").addEventListener("click", () => caseDetail.close());
   const detailCards = [...caseExplorer.querySelectorAll(".case-card:not([data-loop-copy])")];
   const previousCase = caseDetail.querySelector(".case-detail-prev");
@@ -818,16 +913,17 @@ if (caseExplorer && caseDetail) {
   let activeCard = null;
   const openCase = (card, index) => {
     if (card.getAttribute("aria-disabled") === "true") return;
+    cancelFlip();
     activeCard = card;
     const item = sortedCases[index];
     caseDetail.classList.add('is-cover');
     cover.querySelector('.case-detail-cover-title').textContent = item.title;
+    caseDetail.querySelector('#case-detail-title').textContent = item.title;
     const coverImage = cover.querySelector('img');
     if (item.image) coverImage.src = item.image;
     else coverImage.removeAttribute('src');
     coverImage.hidden = !item.image;
     caseDetail.querySelector(".case-detail-id").textContent = `Case. ${String(index + 1).padStart(3, "0")}`;
-    caseDetail.querySelector("#case-detail-title").textContent = item.title;
     const imageArea = caseDetail.querySelector(".case-detail-placeholder");
     imageArea.replaceChildren();
     imageArea.setAttribute("aria-label", item.image ? item.title : "사례 이미지 준비 중");
@@ -895,7 +991,7 @@ if (caseExplorer && caseDetail) {
     const bounds = caseDetail.getBoundingClientRect();
     if (event.target === caseDetail && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)) caseDetail.close();
   });
-  caseDetail.addEventListener("close", () => activeCard?.focus({ preventScroll: true }));
+  caseDetail.addEventListener("close", () => { cancelFlip(); activeCard?.focus({ preventScroll: true }); });
 }
 
 // Keep the final archive action available without interrupting scrolling.
@@ -985,6 +1081,7 @@ if (sharingComposition) {
   const lightDefs = document.createElementNS(svgNS, 'defs');
   lightDefs.innerHTML = '<radialGradient id="sharing-line-light"><stop offset="0" stop-color="#fff5fe" stop-opacity="1"/><stop offset=".18" stop-color="#ffd4f5" stop-opacity=".9"/><stop offset=".45" stop-color="#ff62d4" stop-opacity=".5"/><stop offset="1" stop-color="#ff62d4" stop-opacity="0"/></radialGradient>';
   scene.prepend(lightDefs);
+  let extraOpeningLines = [];
   const lineLights = scrollLines.map((line, index) => {
     const halo = line.cloneNode(false);
     halo.classList.remove('sharing-scroll-line');
@@ -1016,14 +1113,28 @@ if (sharingComposition) {
     const height = Number(image.getAttribute('height'));
     const width = Number(image.getAttribute('width'));
     const mirrored = image.hasAttribute('transform');
-    return { group, y, reveal: 0, phoneX: mirrored ? x + width - 52 * height / 162 : x + 52 * height / 162,
-      phoneY: y + 38 * height / 162 };
+    const phoneX = mirrored ? x + width - 52 * height / 162 : x + 52 * height / 162;
+    const phoneY = y + 38 * height / 162;
+    const photo = document.createElementNS(svgNS, 'rect');
+    photo.setAttribute('fill', '#d0d0d0');
+    photo.setAttribute('x', String(phoneX - 23));
+    photo.setAttribute('y', String(phoneY - 88));
+    photo.setAttribute('width', '46');
+    photo.setAttribute('height', '64');
+    photo.setAttribute('class', 'sharing-received-photo');
+    group.append(photo);
+    return { group, photo, y, reveal: 0, phoneX, phoneY };
   });
-  const comments = [...sharingComposition.querySelectorAll('.sharing-chat-reveal')].map(group => {
+  let comments = [];
+  const collectComments = () => {
+  const previous = new Map(comments.map(comment => [comment.group, comment]));
+  comments = [...sharingComposition.querySelectorAll('.sharing-chat-reveal')].filter(group => group.dataset.commentDeleted !== 'true').map((group, index) => {
     const bubble = group.querySelector('image');
     const centerX = Number(bubble.getAttribute('x')) + Number(bubble.getAttribute('width')) / 2;
-    return { group, centerX, width: Number(bubble.getAttribute('width')), shiftX: 0, y: Number(group.dataset.y), order: Number(group.dataset.order), reveal: 0 };
+    return { ...(previous.get(group) || {}), group, centerX, width: Number(bubble.getAttribute('width')), shiftX: 0, y: Number(group.dataset.y), order: index, reveal: previous.get(group)?.reveal || 0 };
   });
+  };
+  collectComments();
   const clamp = value => Math.max(0, Math.min(1, value));
   sharingComposition.classList.add('has-scroll-lines');
   let sharingFrame = 0;
@@ -1034,6 +1145,7 @@ if (sharingComposition) {
   let panDistance = 0;
   let holdDistance = 1;
   let travelDistance = 1;
+  const commentScrollFactor = 1.7;
   let completionPause = 1;
   let sceneScale = 1;
   const measureSharing = () => {
@@ -1062,7 +1174,8 @@ if (sharingComposition) {
     holdDistance = viewHeight * 1.5;
     completionPause = viewHeight * .2;
     travelDistance = Math.max(viewHeight * 1.8, panDistance * 1.5);
-    sharingComposition.style.height = reducedMotion.matches ? 'auto' : `${viewHeight + holdDistance + completionPause + travelDistance}px`;
+    const extendedTravel = travelDistance * .5 * (1 + commentScrollFactor);
+    sharingComposition.style.height = reducedMotion.matches ? 'auto' : `${viewHeight + holdDistance + completionPause + extendedTravel}px`;
     if (sharingFrame) cancelMotionFrame(sharingFrame);
     sharingFrame = 0;
     previousFrameTime = 0;
@@ -1091,18 +1204,27 @@ if (sharingComposition) {
       viewport.style.width = pinned ? `${bounds.width}px` : '100%';
     }
     if (bounds.bottom < 0 || bounds.top > innerHeight) { previousFrameTime = 0; return; }
-    const targetDistance = hasSharingScroll ? Math.max(0, Math.min(holdDistance + completionPause + travelDistance, headerHeight - bounds.top)) : 0;
+    const extendedTravel = travelDistance * .5 * (1 + commentScrollFactor);
+    const targetDistance = hasSharingScroll ? Math.max(0, Math.min(holdDistance + completionPause + extendedTravel, headerHeight - bounds.top)) : 0;
     const elapsed = previousFrameTime ? Math.min(64, timestamp - previousFrameTime) : 16.67;
     previousFrameTime = timestamp;
     // Time-based easing stays consistent across trackpads, mouse wheels and refresh rates.
     smoothDistance = targetDistance;
     const distance = smoothDistance;
     const openingProgress = clamp(distance / holdDistance);
-    const followingProgress = clamp((distance - holdDistance - completionPause) / travelDistance);
+    const followingDistance = Math.max(0, distance - holdDistance - completionPause);
+    // Keep the phone connections unchanged; slow only the comment portion.
+    const followingProgress = clamp(followingDistance <= travelDistance * .5
+      ? followingDistance / travelDistance
+      : .5 + (followingDistance - travelDistance * .5) / (travelDistance * commentScrollFactor));
     const scale = sceneScale;
     // Finish every person-to-person route before entering the comment scene.
     const routesProgress = clamp(followingProgress / .42);
     const commentsProgress = clamp((followingProgress - .50) / .50);
+    people.forEach((person, index) => {
+      const arrival = clamp((routesProgress - index * .22) / .25);
+      person.photo.classList.toggle('is-received', hasSharingScroll && (reducedMotion.matches || arrival >= 1));
+    });
     const lastPhone = people[people.length - 1];
     const routesPanDistance = Math.min(panDistance, Math.max(0, lastPhone.phoneY * scale - viewHeight * .58));
     // Reach the final phone early, then hold the camera while the last line finishes.
@@ -1145,7 +1267,7 @@ if (sharingComposition) {
     const completion = clamp((commentsProgress - .65) / .35);
     const completionReveal = completion * completion * (3 - 2 * completion);
     comments.forEach(comment => {
-      const screenY = comment.y * scale - cameraPan;
+      const screenY = (comment.y + Number(comment.group.dataset.commentOffsetY || 0)) * scale - cameraPan;
       const stagger = (comment.order % 4) * .025;
       const revealStart = .04 + comment.order / Math.max(1, comments.length - 1) * .5;
       const timelineReveal = clamp((commentsProgress - revealStart) / .4);
@@ -1191,6 +1313,12 @@ if (sharingComposition) {
         light.arcLength = total;
       }
     });
+    extraOpeningLines.forEach(line => {
+      const progress = reducedMotion.matches ? 1 : hasSharingScroll ? clamp((openingProgress - .12) / .55) : 0;
+      line.style.strokeDasharray = '1';
+      line.style.strokeDashoffset = String(1 - progress);
+      line.style.opacity = progress > 0 ? '.75' : '0';
+    });
     upwardLines.forEach(({ line, start, duration, opacity }) => {
       const progress = reducedMotion.matches ? 1
         : hasSharingScroll ? clamp((openingProgress - start) / duration) : 0;
@@ -1208,7 +1336,7 @@ if (sharingComposition) {
         line.style.strokeDashoffset = offset;
         light.halo.style.strokeDashoffset = offset;
         line.style.opacity = visibleProgress > 0 ? '1' : '0';
-        light.halo.style.opacity = visibleProgress > 0 ? '.2' : '0';
+        light.halo.style.opacity = visibleProgress > 0 ? String(Math.min(1, .2 * Number(line.dataset.glow ?? 1))) : '0';
         light.offset = offset;
       }
       if (light.head) {
@@ -1255,6 +1383,39 @@ if (sharingComposition) {
     scheduleSharingLines();
   }, { passive: true });
   addEventListener('resize', measureSharing);
+  addEventListener('commentlayoutchange', () => { collectComments(); measureSharing(); });
+  addEventListener('openinglineschange', () => {
+    extraOpeningLines = [...scene.querySelectorAll('.sharing-extra-opening-line')];
+    scrollLines.slice(0, 24).forEach((line, index) => {
+      const light = lineLights[index];
+      const deleted = line.dataset.lineDeleted === 'true';
+      light.halo.style.display = deleted ? 'none' : '';
+      if (light.head) light.head.style.display = deleted ? 'none' : '';
+      light.halo.setAttribute('d', line.getAttribute('d'));
+      const color = line.getAttribute('stroke');
+      light.halo.setAttribute('stroke', color);
+      if (light.head) {
+        const id = `opening-head-color-${index}`;
+        let gradient = lightDefs.querySelector(`#${id}`);
+        if (!gradient) {
+          gradient = lightDefs.querySelector('#sharing-line-light').cloneNode(true);
+          gradient.id = id; lightDefs.append(gradient);
+        }
+        gradient.querySelectorAll('stop').forEach(stop => stop.setAttribute('stop-color', color));
+        light.head.setAttribute('fill', `url(#${id})`);
+      }
+      const glow = Number(line.dataset.glow ?? 1);
+      light.halo.setAttribute('stroke-width', Number(line.getAttribute('stroke-width')) + 4 * glow);
+      light.halo.style.filter = glow ? `blur(${glow}px)` : 'none';
+      light.offset = null;
+      if (light.head) {
+        light.head.setAttribute('r', 8 * glow);
+        const length = line.getTotalLength();
+        light.samples = Array.from({ length: 97 }, (_, i) => line.getPointAtLength(length * i / 96));
+      }
+    });
+    scheduleSharingLines();
+  });
   reducedMotion.addEventListener('change', measureSharing);
   measureSharing();
 }
@@ -1285,7 +1446,7 @@ if (finaleDiagram) {
     // Remove the empty space beneath the diagram's SVG artwork.
     threadSvg.style.marginTop = `${-(mapBounds.height - 470 * scale)}px`;
     const bounds = threadSvg.getBoundingClientRect();
-    const labels = [[240, 345], [455, 410], [755, 445], [1085, 330]];
+    const labels = [4, 9, 14, 18].map(index => [Number(details[index].getAttribute('x')), Number(details[index].getAttribute('y'))]);
     const insetX = (mapBounds.width - 1240 * scale) / 2;
     labels.forEach(([x, y], index) => {
       const startX = (mapBounds.left - bounds.left + insetX + x * scale) / bounds.width * 1240;
@@ -1297,6 +1458,7 @@ if (finaleDiagram) {
   };
   alignThreads();
   addEventListener('resize', alignThreads);
+  addEventListener('maplayoutchange', alignThreads);
   addEventListener('load', alignThreads, { once: true });
   document.fonts.ready.then(alignThreads);
   const button = finaleDiagram.querySelector('.explore-button');
@@ -1315,18 +1477,19 @@ if (finaleDiagram) {
   let autoStarted = false;
   let autoProgress = null;
   let autoButtonProgress = 0;
+  let completedStage = false;
   let buttonFlashed = false;
   let cancelThreadFollow = null;
   const followThreads = () => {
     stopPageScroll();
     autoStarted = true;
     document.documentElement.classList.add('is-following-finale');
+    let cancelled = false, started, previous, cameraScroll = scrollY;
     const stop = event => event.preventDefault();
     const keys = event => {
-      if (event.key === 'Escape') { cancelled = true; release(); }
+      if (event.key === 'Escape') cancelThreadFollow?.();
       else if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) event.preventDefault();
     };
-    let cancelled = false;
     const release = () => {
       document.documentElement.classList.remove('is-following-finale');
       removeEventListener('wheel', stop);
@@ -1336,40 +1499,33 @@ if (finaleDiagram) {
     cancelThreadFollow = () => {
       cancelled = true;
       release();
-      // A viewport change must not restart playback or pull the reader back down.
-      autoProgress = 1;
-      autoButtonProgress = 1;
+      autoProgress = autoButtonProgress = 1;
+      completedStage = true;
       cancelThreadFollow = null;
     };
     addEventListener('wheel', stop, { passive: false });
     addEventListener('touchmove', stop, { passive: false });
     addEventListener('keydown', keys);
-    let started;
-    let previous;
-    let cameraScroll = scrollY;
     const step = now => {
       if (cancelled) return;
       if (started === undefined) started = now;
       const elapsed = now - started;
-      autoProgress = ease(elapsed / 3000);
-      autoButtonProgress = clamp((elapsed - 3000) / 600);
-      const sample = autoProgress * 128;
-      const index = Math.min(127, Math.floor(sample));
-      const fraction = sample - index;
+      autoProgress = ease(elapsed / 2500);
+      autoButtonProgress = clamp((elapsed - 2500) / 600);
+      const sample = autoProgress * 128, index = Math.min(127, Math.floor(sample)), fraction = sample - index;
       const a = followSamples[index], b = followSamples[index + 1];
-      const threadBounds = motionBounds(threadSvg);
-      const viewBox = threadSvg.viewBox.baseVal;
-      const head = { y: threadBounds.top + (a.y + (b.y - a.y) * fraction - viewBox.y) / viewBox.height * threadBounds.height };
+      const bounds = motionBounds(threadSvg), viewBox = threadSvg.viewBox.baseVal;
+      const headY = bounds.top + (a.y + (b.y - a.y) * fraction - viewBox.y) / viewBox.height * bounds.height;
       const buttonBounds = motionBounds(button);
-      const focusY = elapsed < 3000 ? head.y : buttonBounds.top + buttonBounds.height / 2;
+      const focusY = elapsed < 2500 ? headY : buttonBounds.top + buttonBounds.height / 2;
       const delta = previous ? Math.min(64, now - previous) : 16.67;
       previous = now;
       const target = Math.max(scrollY, scrollY + focusY - innerHeight * .6);
       cameraScroll += (target - cameraScroll) * (1 - Math.exp(-delta / 180));
       window.scrollTo({ top: cameraScroll, behavior: 'instant' });
       schedule();
-      if (elapsed < 3900) motionFrame(step);
-      else { release(); cancelThreadFollow = null; }
+      if (elapsed < 3400) motionFrame(step);
+      else { completedStage = true; release(); cancelThreadFollow = null; schedule(); }
     };
     motionFrame(step);
   };
@@ -1378,7 +1534,17 @@ if (finaleDiagram) {
     const threadBounds = motionBounds(threadSvg);
     const runwayBounds = motionBounds(mapRunway);
     const stickyTop = (document.querySelector('body > .site-header')?.getBoundingClientRect().height || 64) + 16;
-    const stageGeometry = pinStoryStage(mapStage, runwayBounds, stickyTop);
+    // Once the finale finishes, keep its diagram in normal document flow.
+    // Re-pinning on upward scrolling made the Explore connections slide downward.
+    const stageGeometry = completedStage && !reducedMotion.matches
+      ? { height: motionBounds(mapStage).height }
+      : pinStoryStage(mapStage, runwayBounds, stickyTop);
+    if (completedStage && !reducedMotion.matches) {
+      mapStage.style.position = 'absolute';
+      mapStage.style.top = `${Math.max(0, runwayBounds.height - stageGeometry.height)}px`;
+      mapStage.style.left = '0';
+      mapStage.style.width = `${runwayBounds.width}px`;
+    }
     if (runwayBounds.top > innerHeight) { previousTime = 0; return; }
     const mapRange = Math.max(1, runwayBounds.height - stageGeometry.height);
     const targetMapProgress = reducedMotion.matches ? 1 : clamp((stickyTop - runwayBounds.top) / (mapRange * .92));
@@ -1389,10 +1555,7 @@ if (finaleDiagram) {
     const endingBounds = motionBounds(button);
     if (!autoStarted && !reducedMotion.matches && mapProgress >= .95
       && threadBounds.top < innerHeight * .85 && endingBounds.top > innerHeight * .95) followThreads();
-    // Scrolling directly to the ending must reveal its label even if playback is skipped.
     const manualEndingProgress = clamp((innerHeight * .95 - endingBounds.top) / (innerHeight * .25));
-    // Use one ordered sequence: the connector reaches the button before its outline starts.
-    // Camera-follow scrolling must not advance the manual reveal ahead of playback.
     const threadProgress = reducedMotion.matches ? 1
       : autoProgress !== null ? autoProgress : clamp(manualEndingProgress / .8);
     primary.forEach(path => { path.style.strokeDashoffset = String(1 - clamp(mapProgress / .32)); });
@@ -1422,8 +1585,7 @@ if (finaleDiagram) {
         { stroke: pink, offset: .55 }, { stroke: '#aaa4a7' }
       ], { duration: 1100, easing: 'ease-in-out' });
     }
-    if (smoothMapProgress !== targetMapProgress) frame = motionFrame(update);
-    else previousTime = 0;
+    previousTime = 0;
   };
   const schedule = () => { if (!frame) frame = motionFrame(update); };
   addEventListener('scroll', schedule, { passive: true });
@@ -1449,11 +1611,6 @@ if (photoDesktop) {
   computerFrame.className = 'computer-scene-frame';
   photoDesktop.before(computerFrame);
   computerFrame.append(photoDesktop);
-  const audience = document.createElement('div');
-  audience.className = 'computer-audience';
-  audience.setAttribute('aria-hidden', 'true');
-  audience.innerHTML = '<span class="computer-person"></span>';
-  computerSection.append(audience);
   const beam = document.createElement('div');
   beam.className = 'computer-projection';
   beam.setAttribute('aria-hidden', 'true');
@@ -1534,6 +1691,118 @@ if (photoDesktop) {
       if (reducedMotion.matches) completeProjection();
     }));
   };
+  const hand = photoDesktop.querySelector('.desktop-hand');
+  const generateButton = photoDesktop.querySelector('.desktop-generate');
+  let generating = false;
+  const readyToGenerate = () => {
+    generateButton.setAttribute('aria-disabled', 'false');
+    hand.style.display = '';
+    hand.classList.remove('is-drag-guide');
+    hand.classList.add('is-generate-guide');
+    hand.setAttribute('x', '80');
+    hand.setAttribute('y', '62');
+  };
+  const resultArea = photoDesktop.querySelector('.desktop-results');
+  const processTemplate = photoDesktop.querySelector('.desktop-process-entry');
+  const processArea = photoDesktop.querySelector('.desktop-process');
+  processTemplate.remove();
+  const codeLines = [
+    'const source =', '  uploadedPhotos;', '', 'analyze(source);', 'extractFeatures();', '',
+    'const output =', '  compose({', '    reference: source,', '    background: newScene', '  });', '',
+    'render(output);', 'saveToHistory();'
+  ];
+  const createResult = seed => {
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.setAttribute('class', 'desktop-generated-panel');
+    group.setAttribute('transform', 'translate(91.6 37)');
+    resultArea.append(group);
+    const pixels = Array.from({ length: 150 }, (_, index) => {
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', String(index % 10 * 2.84));
+      rect.setAttribute('y', String(Math.floor(index / 10) * (26.6 / 15)));
+      rect.setAttribute('width', '2.86');
+      rect.setAttribute('height', String(26.6 / 15 + .02));
+      rect.setAttribute('fill', '#121516');
+      group.append(rect);
+      // Spread outward from the lower-left corner, with a slightly uneven edge.
+      const column = index % 10;
+      const row = Math.floor(index / 10);
+      const distance = Math.hypot(column / 9, (14 - row) / 14) / Math.SQRT2;
+      const variation = (index * 37 + seed * 19) % 53 / 53;
+      return { rect, order: distance * .94 + variation * .06, shade: 158 + (index * 31 + seed * 17) % 70 };
+    });
+    return { group, pixels };
+  };
+  const generate = () => {
+    if (generating || generateButton.getAttribute('aria-disabled') === 'true') return;
+    generating = true;
+    generateButton.setAttribute('aria-disabled', 'true');
+    hand.style.display = 'none';
+    hand.classList.remove('is-generate-guide');
+    expandTypingInput(false);
+    photoDesktop.classList.add('is-generating');
+    const status = photoDesktop.querySelector('.desktop-process-status');
+    const progressBar = photoDesktop.querySelector('.desktop-process-progress');
+    let previousResult = null;
+    let previousLog = null;
+    const nextResult = number => {
+      const result = createResult(number);
+      const log = processTemplate.cloneNode(true);
+      processArea.append(log);
+      const processCode = log.querySelector('.desktop-process-code');
+      const started = performance.now();
+      const draw = now => {
+        const progress = reducedMotion.matches ? 1 : Math.min(1, (now - started) / 2200);
+        status.textContent = `이미지 ${number + 1} / 3 · ${Math.round(progress * 100)}%`;
+        progressBar.setAttribute('width', String(6.8 * (number + progress) / 3));
+        processCode.replaceChildren();
+        codeLines.slice(0, Math.ceil(progress * codeLines.length)).forEach((text, index) => {
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+          line.setAttribute('x', '121');
+          line.setAttribute('y', String(23 + index * .85));
+          line.textContent = text;
+          processCode.append(line);
+        });
+        result.pixels.forEach(({ rect, order, shade }) => {
+          const reveal = Math.max(0, Math.min(1, (progress * 1.5 - order) * 3));
+          const gray = Math.round(20 + (shade - 20) * reveal);
+          rect.setAttribute('fill', `rgb(${gray},${gray},${gray})`);
+        });
+        if (progress < 1) { motionFrame(draw); return; }
+        if (number === 2) {
+          status.textContent = '3개 이미지 생성 완료';
+          photoDesktop.classList.add('is-generated');
+          setTimeout(revealProjection, reducedMotion.matches ? 0 : 1000);
+          return;
+        }
+        // Move only the finished image into history; the next image forms in place.
+        const slideStarted = performance.now();
+        const slide = time => {
+          const t = reducedMotion.matches ? 1 : Math.min(1, (time - slideStarted) / 750);
+          const eased = 1 - Math.pow(1 - t, 3);
+          result.group.setAttribute('transform', `translate(91.6 ${37 - eased * 18}) scale(1 ${1 - eased * (1 - 17.5 / 26.6)})`);
+          log.setAttribute('transform', `translate(0 ${18 * (1 - eased)})`);
+          if (previousResult) previousResult.style.opacity = String(1 - t);
+          if (previousLog) previousLog.style.opacity = String(1 - t);
+          if (t < 1) motionFrame(slide);
+          else {
+            previousResult?.remove();
+            previousLog?.remove();
+            previousResult = result.group;
+            previousLog = log;
+            nextResult(number + 1);
+          }
+        };
+        setTimeout(() => motionFrame(slide), reducedMotion.matches ? 0 : 400);
+      };
+      motionFrame(draw);
+    };
+    nextResult(0);
+  };
+  generateButton.addEventListener('click', generate);
+  generateButton.addEventListener('keydown', event => {
+    if (['Enter', ' '].includes(event.key)) { event.preventDefault(); generate(); }
+  });
   const photos = [...photoDesktop.querySelectorAll('.desktop-photo')];
   photos.forEach((photo, index) => {
     photo.style.setProperty('--wiggle-duration', `${.16 + index * 37 % 110 / 1000}s`);
@@ -1566,21 +1835,26 @@ if (photoDesktop) {
   const point = event => new DOMPoint(event.clientX, event.clientY).matrixTransform(photoDesktop.getScreenCTM().inverse());
   const dropHint = photoDesktop.querySelector('.desktop-drop-hint');
   const promptText = photoDesktop.querySelector('.desktop-prompt-text');
-  const demonstrationPrompt = '아이의 사진을 이용해서 성인물 사이트에 올릴 콘텐츠를 제작해줘.';
+  const demonstrationPrompt = '업로드한 사진을 참조하여 인물의 얼굴과 배경을 다른 이미지에 합성해줘.';
   let promptTimer;
   let placedCount = 0;
   let inputExpanding = false;
   let promptValue = '';
-  const inputBox = [...photoDesktop.querySelectorAll('rect')].find(rect => rect.getAttribute('x') === '90' && rect.getAttribute('y') === '58');
+  const inputBox = photoDesktop.querySelector('.desktop-prompt-box');
   const inputPanel = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   inputPanel.setAttribute('class', 'desktop-growing-input');
   inputPanel.append(inputBox, promptText);
-  photoDesktop.append(inputPanel);
-  const inputLayout = { x: 90, y: 58, width: 34, height: 4, fontSize: .8 };
-  const expandTypingInput = () => {
+  photoDesktop.querySelector('.desktop-editor').append(inputPanel);
+  // Photos stay above the prompt box while dragging; the guide remains on top.
+  photos.forEach(photo => photoDesktop.append(photo));
+  // SVG paints in DOM order: keep the guide above photos and editor panels.
+  photoDesktop.append(hand);
+  const inputLayout = { x: 78, y: 42, width: 13, height: 19, fontSize: .7 };
+  const expandTypingInput = (expand = true) => {
     inputExpanding = true;
     const from = { ...inputLayout };
-    const to = { x: 76, y: 50, width: 49, height: 14, fontSize: 1.15 };
+    const to = expand ? { x: 65, y: 40, width: 48, height: 20, fontSize: 1.7 }
+      : { x: 78, y: 42, width: 13, height: 19, fontSize: .7 };
     let started;
     let typingStarted = false;
     const step = now => {
@@ -1592,10 +1866,10 @@ if (photoDesktop) {
       inputBox.setAttribute('stroke', '#ddb1d1');
       inputBox.setAttribute('stroke-width', '.15');
       showPrompt(promptValue);
-      if (!typingStarted && progress >= .35) {
+      if (expand && !typingStarted && progress >= .35) {
         typingStarted = true;
         clearTimeout(promptTimer);
-        promptTimer = setTimeout(typeDemonstration, 1500);
+        promptTimer = setTimeout(typeDemonstration, 450);
       }
       if (progress < 1) motionFrame(step);
       else inputExpanding = false;
@@ -1606,20 +1880,25 @@ if (photoDesktop) {
     promptValue = text;
     promptText.replaceChildren();
     promptText.setAttribute('font-size', String(inputLayout.fontSize));
-    promptText.setAttribute('fill', '#555');
-    promptText.setAttribute('font-weight', '700');
+    promptText.setAttribute('fill', '#eee');
+    promptText.setAttribute('font-weight', '400');
     const lines = [];
-    for (let offset = 0; offset < text.length; offset += 34) {
-      const chunk = text.slice(offset, offset + 34);
-      if (/^[.,!?。！？]/.test(chunk) && lines.length) {
-        lines[lines.length - 1] += chunk[0];
-        if (chunk.length > 1) lines.push(chunk.slice(1));
-      } else lines.push(chunk);
-    }
+    const lineLength = Math.max(10, Math.floor((inputLayout.width - 2) / inputLayout.fontSize));
+    const paragraphs = text.replace(/\s+(?=인물[의은])/, '\n').split('\n');
+    paragraphs.forEach(paragraph => {
+      let line = '';
+      paragraph.split(' ').forEach(word => {
+        if (line && line.length + 1 + word.length > lineLength) {
+          lines.push(line);
+          line = word;
+        } else line += (line ? ' ' : '') + word;
+      });
+      if (line) lines.push(line);
+    });
     lines.forEach((textLine, index) => {
       const line = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-      line.setAttribute('x', String(inputLayout.x + 1.5));
-      line.setAttribute('y', String(inputLayout.y + 3 + index * 2));
+      line.setAttribute('x', String(inputLayout.x + .6));
+      line.setAttribute('y', String(inputLayout.y + 3.5 + index * inputLayout.fontSize * 1.7));
       line.textContent = textLine;
       promptText.append(line);
     });
@@ -1629,10 +1908,10 @@ if (photoDesktop) {
     let length = 0;
     const tick = () => {
       showPrompt(demonstrationPrompt.slice(0, ++length));
-      if (length < demonstrationPrompt.length) promptTimer = setTimeout(tick, Math.max(16, 65 - 500 / (demonstrationPrompt.length - 1)));
-      else promptTimer = setTimeout(revealProjection, 250);
+      if (length < demonstrationPrompt.length) promptTimer = setTimeout(tick, 24);
+      else readyToGenerate();
     };
-    if (reducedMotion.matches) { showPrompt(demonstrationPrompt); revealProjection(); }
+    if (reducedMotion.matches) { showPrompt(demonstrationPrompt); readyToGenerate(); }
     else tick();
   };
   let action = null;
@@ -1640,6 +1919,8 @@ if (photoDesktop) {
     if (event.button !== 0 || action || inputExpanding) return;
     const photo = event.target.closest('.desktop-photo');
     if (!photo || photo.classList.contains('is-placed')) return;
+    hand.classList.remove('is-drag-guide');
+    hand.style.display = 'none';
     event.preventDefault();
     const start = point(event);
     const additive = event.shiftKey || event.metaKey || event.ctrlKey;
@@ -1682,14 +1963,15 @@ if (photoDesktop) {
     if (!action || event.pointerId !== action.pointer) return;
     if (action.type === 'move') {
       const at = !cancel && Number.isFinite(event.clientX) ? point(event) : null;
-      const dropped = at && at.x >= 90 && at.x <= 124 && at.y >= 41 && at.y <= 57 && action.origins.length > 0;
+      const dropped = at && at.x >= 74 && at.x <= 87 && at.y >= 19 && at.y <= 41 && action.origins.length > 0;
       action.origins.forEach(({item,x,y}) => {
         if (dropped) {
           const slot = placedCount++;
-          item.dataset.x = 91 + (slot % 8) * 4;
-          item.dataset.y = 41.5 + Math.floor(slot / 8) * 5;
+          item.dataset.x = 74.4 + (slot % 4) * 3.1;
+          item.dataset.y = 19.5 + Math.floor(slot / 4) * 4;
           setSelected(item, false);
           item.classList.add('is-placed');
+          photoDesktop.insertBefore(item, hand);
           item.setAttribute('tabindex', '-1');
           item.setAttribute('aria-label', '편집 창에 놓인 사진');
         } else {
@@ -1701,7 +1983,7 @@ if (photoDesktop) {
           item.dataset.x = galleryDrop ? x + groupDx : x;
           item.dataset.y = galleryDrop ? y + groupDy : y;
         }
-        item.setAttribute('transform', `translate(${item.dataset.x} ${item.dataset.y})`);
+        item.setAttribute('transform', `translate(${item.dataset.x} ${item.dataset.y})${item.classList.contains('is-placed') ? ' scale(.72)' : ''}`);
       });
       if (dropped) {
         clear();
@@ -1726,7 +2008,17 @@ if (photoDesktop) {
   photoDesktop.addEventListener('keydown', event => {
     const photo = event.target.closest('.desktop-photo');
     if (event.key === 'Escape') { if (action) finish({pointerId:action.pointer},true); clear(); }
-    else if (photo && ['Enter',' '].includes(event.key)) { event.preventDefault(); setSelected(photo,!selected.has(photo)); }
+    else if (photo && event.key === 'Enter' && !photo.classList.contains('is-placed')) {
+      event.preventDefault();
+      hand.style.display = 'none';
+      hand.classList.remove('is-drag-guide');
+      selectPhotoGroup();
+      action = { type: 'move', pointer: 1, dx: 0, dy: 0,
+        origins: [...selected].map(item => ({ item, x: Number(item.dataset.x), y: Number(item.dataset.y) })) };
+      const drop = new DOMPoint(80.5, 30).matrixTransform(photoDesktop.getScreenCTM());
+      finish({ pointerId: 1, clientX: drop.x, clientY: drop.y });
+    }
+    else if (photo && event.key === ' ') { event.preventDefault(); setSelected(photo,!selected.has(photo)); }
     else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') { event.preventDefault(); photos.filter(photo => !photo.classList.contains('is-placed')).forEach(photo => setSelected(photo,true)); }
   });
 }
