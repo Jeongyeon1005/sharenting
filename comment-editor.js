@@ -1,4 +1,4 @@
-// Adjust only comment artwork; the outer group keeps its scroll animation.
+// Restore saved comment artwork without changing its scroll animation.
 (() => {
   const scene = document.querySelector('.sharing-scene');
   if (!scene) return;
@@ -14,8 +14,7 @@
   const originalCount = entries.length;
   const templates = groups.map(group => group.cloneNode(true));
   const defaults = entries.map(e => ({ id: e.id, dx: 0, dy: 0, scale: 1, opacity: e.opacity, deleted: false, text: null }));
-  const copy = data => JSON.parse(JSON.stringify(data));
-  let values = copy(defaults), selected = 0, drag = null;
+  let values = defaults;
   const validValue = (v, i) => v.id === i && Number.isFinite(v.dx) && Math.abs(v.dx) <= 2000
     && Number.isFinite(v.dy) && Math.abs(v.dy) <= 2000 && Number.isFinite(v.scale) && v.scale >= .2 && v.scale <= 3
     && Number.isFinite(v.opacity) && v.opacity >= 0 && v.opacity <= 1
@@ -36,14 +35,13 @@
     group.removeAttribute('transform'); group.removeAttribute('style');
     group.dataset.order = id;
     scene.insertBefore(group, groups[originalCount - 1]);
-    const artwork = group.firstElementChild, image = artwork.querySelector('image');
+    const artwork = group.firstElementChild;
     const base = entries[template];
     entries.push({ group, artwork, id, template, label: base.label, cx: base.cx, cy: base.cy, opacity: base.opacity });
-    defaults.push({ id, dx: 30, dy: 70, scale: 1, opacity: base.opacity, deleted: false, text: nextCommentText() });
   };
   const loadSnapshot = data => {
-    entries.splice(originalCount).forEach(e => e.group.remove()); defaults.splice(originalCount);
-    data.added.forEach(e => addEntry(e.template)); values = copy(data.comments);
+    data.added.forEach(e => addEntry(e.template));
+    values = data.comments;
   };
   const snapshot = () => ({ version: 2, comments: values, added: entries.slice(originalCount).map(e => ({ template: e.template })) });
   try {
@@ -61,27 +59,6 @@
     }
   });
   if (filledPending) { try { localStorage.setItem(key, JSON.stringify(snapshot())); } catch {} }
-  const launcher = document.createElement('button'); launcher.type = 'button'; launcher.className = 'comment-editor-launch'; launcher.textContent = '댓글 배치 편집'; launcher.hidden = true; document.body.append(launcher);
-  const dialog = document.createElement('dialog'); dialog.className = 'comment-editor-dialog'; dialog.setAttribute('aria-label', '댓글 크기 투명도 위치 편집');
-  dialog.innerHTML = `<header><strong>댓글 배치 편집</strong><button data-action="add">댓글 추가</button><button data-action="delete">선택 댓글 삭제</button><button data-action="restore">삭제 취소</button><button data-action="save">저장</button><button data-action="export">파일 내보내기</button><button data-action="import">파일 불러오기</button><button data-action="reset">선택 댓글 초기화</button><button data-action="reset-all">전체 초기화</button><button data-action="close">편집 끝내기</button><input type="file" accept=".json,application/json" hidden></header><div class="comment-editor-settings"><label>댓글 선택 <select aria-label="편집할 댓글"></select></label><label>크기 <input data-field="scale" type="range" min="20" max="300" step="1"><output data-output="scale"></output></label><label>투명도 <input data-field="opacity" type="range" min="0" max="100" step="1"><output data-output="opacity"></output></label><label>가로 이동 <input data-field="dx" type="number" min="-2000" max="2000" step="1"></label><label>세로 이동 <input data-field="dy" type="number" min="-2000" max="2000" step="1"></label></div><label class="comment-editor-text-label">댓글 내용 <textarea data-comment-text maxlength="160" rows="2" placeholder="댓글 내용을 입력하세요"></textarea></label><p>댓글을 드래그해 옮기세요. 목록에서 선택하면 해당 댓글로 이동합니다. 방향키로 미세 이동 · Shift와 함께 누르면 10씩 이동</p><div class="comment-editor-canvas"></div><p class="comment-editor-status" role="status"></p>`;
-  document.body.append(dialog);
-  const canvas = dialog.querySelector('.comment-editor-canvas'), select = dialog.querySelector('select'), status = dialog.querySelector('.comment-editor-status');
-  const preview = document.createElementNS(NS, 'svg'); preview.setAttribute('viewBox', '-180 1300 1360 2450'); preview.classList.add('comment-editor-preview'); preview.setAttribute('aria-label', '댓글 드래그 편집 영역');
-  canvas.append(preview);
-  const previews = [];
-  const rebuildPreviews = () => {
-    previews.splice(0).forEach(p => p.group.remove());
-    entries.forEach(entry => {
-      const group = document.createElementNS(NS, 'g'); group.dataset.commentId = entry.id; group.tabIndex = 0; group.setAttribute('role', 'button');
-      const art = entry.artwork.cloneNode(true); group.append(art);
-      const box = document.createElementNS(NS, 'rect'); box.classList.add('comment-editor-outline');
-      const image = art.querySelector('image'); ['x','y','width','height'].forEach(a => box.setAttribute(a, image.getAttribute(a))); group.append(box); preview.append(group);
-      previews.push({ group, art, box });
-    });
-  };
-  rebuildPreviews();
-  const textInput = dialog.querySelector('[data-comment-text]');
-  const deletedHistory = [];
   const writeText = (art, text) => {
     const node = art.querySelector('text'), image = art.querySelector('image');
     const width = +image.getAttribute('width'), x = node.getAttribute('x');
@@ -92,111 +69,34 @@
     }
     if (line) lines.push(line);
     const weight = str => [...str].reduce((n, c) => n + (c === ' ' ? .5 : c.charCodeAt(0) < 128 ? .6 : 1), 0);
-    const size = Math.min(width * .048, width * .78 / Math.max(1, ...lines.map(weight)), width * .105 / Math.max(1, lines.length));
+    const size = Math.min(width * .048, width * .78 / Math.max(1, ...lines.map(weight)));
     node.setAttribute('font-size', size); node.setAttribute('y', +image.getAttribute('y') + +image.getAttribute('height') * .36);
     node.replaceChildren();
     lines.forEach((text, i) => { const span = document.createElementNS(NS, 'tspan'); span.setAttribute('x', x); span.setAttribute('dy', i ? size * 1.15 : 0); span.textContent = text; node.append(span); });
   };
-  const fields = Object.fromEntries([...dialog.querySelectorAll('[data-field]')].map(input => [input.dataset.field, input]));
-  const transform = (entry, v) => `translate(${v.dx} ${v.dy}) translate(${entry.cx} ${entry.cy}) scale(${v.scale}) translate(${-entry.cx} ${-entry.cy})`;
-  const render = () => {
-    entries.forEach((entry, i) => {
-      const v = values[i], t = transform(entry, v);
-      entry.group.dataset.commentDeleted = String(Boolean(v.deleted));
-      entry.group.style.display = v.deleted ? 'none' : '';
-      previews[i].group.style.display = v.deleted ? 'none' : '';
-      if (v.text != null) { writeText(entry.artwork, v.text); writeText(previews[i].art, v.text); }
-      else {
-        const originalText = templates[entry.template ?? i].querySelector('text');
-        entry.artwork.querySelector('text').replaceWith(originalText.cloneNode(true));
-        previews[i].art.querySelector('text').replaceWith(originalText.cloneNode(true));
-      }
-      previews[i].group.setAttribute('aria-label', v.text ?? entry.label);
-      entry.artwork.setAttribute('transform', t); entry.artwork.setAttribute('opacity', v.opacity);
-      entry.group.dataset.commentOffsetY = v.dy;
-      const shift = entry.group.getAttribute('transform')?.match(/translate\(([-\d.]+)/)?.[1] || 0;
-      previews[i].group.setAttribute('transform', `translate(${shift} 0) ${t}`);
-      previews[i].art.removeAttribute('transform'); previews[i].art.setAttribute('opacity', v.opacity);
-      previews[i].group.classList.toggle('is-selected', i === selected);
-    });
-    if (!values[selected] || values[selected].deleted) selected = values.findIndex(v => !v.deleted);
-    select.replaceChildren();
-    entries.forEach((e, i) => {
-      if (values[i].deleted) return;
-      const option = document.createElement('option'); option.value = i; option.textContent = `${i + 1}. ${values[i].text ?? e.label}`; select.append(option);
-    });
-    Object.values(fields).forEach(input => { input.disabled = selected < 0; });
-    textInput.disabled = selected < 0;
-    dialog.querySelector('[data-action="delete"]').disabled = selected < 0;
-    dialog.querySelector('[data-action="reset"]').disabled = selected < 0;
-    dialog.querySelector('[data-action="restore"]').disabled = !deletedHistory.length;
-    if (selected < 0) { textInput.value = ''; window.dispatchEvent(new Event('commentlayoutchange')); return; }
-    const v = values[selected]; select.value = selected;
-    const content = v.text ?? entries[selected].label;
-    if (textInput.value !== content) textInput.value = content;
-    fields.scale.value = Math.round(v.scale * 100); fields.opacity.value = Math.round(v.opacity * 100);
-    fields.dx.value = Math.round(v.dx); fields.dy.value = Math.round(v.dy);
-    dialog.querySelector('[data-output="scale"]').textContent = `${Math.round(v.scale * 100)}%`;
-    dialog.querySelector('[data-output="opacity"]').textContent = `${Math.round(v.opacity * 100)}%`;
-    window.dispatchEvent(new Event('commentlayoutchange'));
+  const fitBubble = art => {
+    const image = art.querySelector('image');
+    const [body, footer] = art.querySelectorAll('text');
+    const baseHeight = Number(image.getAttribute('height'));
+    const baseFooterY = Number(footer.getAttribute('y'));
+    const extraLines = Math.max(0, body.querySelectorAll('tspan').length - 1);
+    const extraHeight = extraLines * Number(body.getAttribute('font-size')) * 1.35;
+    const height = baseHeight + extraHeight;
+    image.setAttribute('height', height);
+    if (extraLines) image.setAttribute('preserveAspectRatio', 'none');
+    else image.removeAttribute('preserveAspectRatio');
+    footer.setAttribute('y', baseFooterY + extraHeight);
   };
-  const focusSelected = () => previews[selected]?.group.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
-  select.addEventListener('change', () => { selected = +select.value; render(); focusSelected(); });
-  Object.entries(fields).forEach(([field, input]) => input.addEventListener('input', () => {
-    if (!input.value || !Number.isFinite(+input.value)) return;
-    values[selected][field] = field === 'scale' ? Math.max(.2, Math.min(3, +input.value / 100)) : field === 'opacity' ? Math.max(0, Math.min(1, +input.value / 100)) : Math.max(-2000, Math.min(2000, +input.value));
-    render(); status.textContent = '수정 중 · 저장하면 다음에도 유지됩니다.';
-  }));
-  textInput.addEventListener('input', () => { if (selected < 0) return; values[selected].text = textInput.value; render(); });
-  const coords = event => new DOMPoint(event.clientX, event.clientY).matrixTransform(preview.getScreenCTM().inverse());
-  preview.addEventListener('pointerdown', event => {
-    const target = event.target.closest('[data-comment-id]'); if (!target || event.button !== 0) return;
-    selected = +target.dataset.commentId; drag = { pointer: event.pointerId, start: coords(event), value: copy(values[selected]) };
-    preview.setPointerCapture(event.pointerId); event.preventDefault(); render();
+  entries.forEach((entry, i) => {
+    const value = values[i];
+    const { group, artwork, cx, cy } = entry;
+    group.dataset.commentDeleted = String(Boolean(value.deleted));
+    group.style.display = value.deleted ? 'none' : '';
+    group.dataset.commentOffsetY = value.dy;
+    if (value.text != null) writeText(artwork, value.text);
+    fitBubble(artwork);
+    artwork.setAttribute('transform', `translate(${value.dx} ${value.dy}) translate(${cx} ${cy}) scale(${value.scale}) translate(${-cx} ${-cy})`);
+    artwork.setAttribute('opacity', value.opacity);
   });
-  preview.addEventListener('pointermove', event => {
-    if (!drag || drag.pointer !== event.pointerId) return;
-    const p = coords(event); values[selected].dx = Math.max(-2000, Math.min(2000, drag.value.dx + p.x - drag.start.x)); values[selected].dy = Math.max(-2000, Math.min(2000, drag.value.dy + p.y - drag.start.y)); render();
-  });
-  const finish = event => { if (drag?.pointer === event.pointerId) { drag = null; if (preview.hasPointerCapture(event.pointerId)) preview.releasePointerCapture(event.pointerId); } };
-  preview.addEventListener('pointerup', finish); preview.addEventListener('pointercancel', finish);
-  preview.addEventListener('focusin', event => { const g = event.target.closest('[data-comment-id]'); if (g) { selected = +g.dataset.commentId; render(); } });
-  preview.addEventListener('keydown', event => {
-    if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)) return;
-    event.preventDefault(); const n = event.shiftKey ? 10 : 1;
-    const field = ['ArrowLeft','ArrowRight'].includes(event.key) ? 'dx' : 'dy';
-    values[selected][field] = Math.max(-2000, Math.min(2000, values[selected][field] + (['ArrowLeft','ArrowUp'].includes(event.key) ? -n : n))); render();
-  });
-  const save = () => { try { localStorage.setItem(key, JSON.stringify(snapshot())); status.textContent = '저장 완료 · 현재 브라우저에 적용됩니다. 다른 기기에서는 배치 파일을 불러오세요.'; } catch { status.textContent = '브라우저 저장을 사용할 수 없습니다. 배치 파일을 내보내 보관하세요.'; } };
-  dialog.querySelector('header').addEventListener('click', event => {
-    const action = event.target.dataset.action;
-    if (action === 'add') {
-      if (entries.length - originalCount >= 200) { status.textContent = '추가 댓글은 최대 200개까지 가능합니다.'; return; }
-      const template = selected >= 0 ? (entries[selected].template ?? selected) : 0;
-      addEntry(template); selected = entries.length - 1; values.push(copy(defaults[selected])); rebuildPreviews(); render(); focusSelected(); textInput.focus(); textInput.select();
-      status.textContent = '새 댓글을 추가했습니다. 내용을 입력하고 위치를 조정하세요.';
-    }
-    if (action === 'delete' && selected >= 0) {
-      deletedHistory.push(selected); values[selected].deleted = true; selected = values.findIndex(v => !v.deleted); render(); status.textContent = '댓글을 삭제했습니다. 삭제 취소로 복원할 수 있습니다.';
-    }
-    if (action === 'restore' && deletedHistory.length) { selected = deletedHistory.pop(); values[selected].deleted = false; render(); focusSelected(); }
-    if (action === 'save') save();
-    if (action === 'close') { save(); dialog.close(); }
-    if (action === 'reset') { values[selected] = copy(defaults[selected]); render(); }
-    if (action === 'reset-all') { values = copy(defaults); selected = 0; deletedHistory.length = 0; render(); }
-    if (action === 'export') {
-      const url = URL.createObjectURL(new Blob([JSON.stringify(snapshot(),null,2)],{type:'application/json'}));
-      const link = document.createElement('a'); link.href = url; link.download = 'posted-by-comments.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url),1000);
-    }
-    if (action === 'import') dialog.querySelector('input[type=file]').click();
-  });
-  dialog.querySelector('input[type=file]').addEventListener('change', async event => {
-    const file = event.target.files[0]; if (!file) return;
-    try { const data = JSON.parse(await file.text()); if (validSnapshot(data)) loadSnapshot(data); else if (data.version === 1 && valid(data.comments)) loadSnapshot({ added: [], comments: data.comments }); else throw new Error(); selected = 0; deletedHistory.length = 0; rebuildPreviews(); render(); save(); } catch { status.textContent = '이 페이지의 댓글 배치 JSON 파일을 선택해주세요.'; }
-    event.target.value = '';
-  });
-  launcher.addEventListener('click', () => { document.body.classList.add('comment-layout-editing'); dialog.showModal(); render(); focusSelected(); });
-  dialog.addEventListener('close', () => { document.body.classList.remove('comment-layout-editing'); launcher.focus({preventScroll:true}); });
-  new IntersectionObserver(entries => { launcher.hidden = !entries[0].isIntersecting; }).observe(scene.closest('.sharing-composition'));
-  render();
+  window.dispatchEvent(new Event('commentlayoutchange'));
 })();

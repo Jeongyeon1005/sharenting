@@ -264,43 +264,37 @@ if (impact) {
 const portraitInteraction = document.querySelector(".post-photo-interaction");
 if (portraitInteraction) {
   const section = portraitInteraction.closest(".privacy");
+  const portrait = portraitInteraction.querySelector(".portrait-default");
   const hoverHand = document.createElement('img');
   hoverHand.className = 'privacy-hover-hand';
-  hoverHand.src = './images/hand-pink.svg';
+  hoverHand.src = './images/hand.svg';
   hoverHand.alt = '';
   hoverHand.setAttribute('aria-hidden', 'true');
   portraitInteraction.append(hoverHand);
-  let hoverHandTimer = 0;
   let portraitInView = false;
   const dismissHoverHand = () => {
-    clearTimeout(hoverHandTimer);
     hoverHand.classList.remove('is-in-view');
   };
-  const scheduleHoverHand = () => {
-    dismissHoverHand();
-    if (!portraitInView || document.hidden) return;
-    hoverHandTimer = setTimeout(() => {
-      if (portraitInView && !document.hidden && !section.classList.contains('is-analyzing')
-        && !portraitInteraction.matches(':hover, :focus-within')) {
-        hoverHand.classList.add('is-in-view');
-      }
-    }, 2000);
+  const updateHoverHand = () => {
+    const show = portraitInView && !document.hidden && !section.classList.contains('is-analyzing')
+      && !portrait.matches(':hover') && !portraitInteraction.matches(':focus-within');
+    hoverHand.classList.toggle('is-in-view', show);
   };
-  portraitInteraction.addEventListener('pointerenter', dismissHoverHand);
-  portraitInteraction.addEventListener('pointerdown', dismissHoverHand);
+  portrait.addEventListener('pointerenter', dismissHoverHand);
+  portrait.addEventListener('pointerdown', dismissHoverHand);
   portraitInteraction.addEventListener('focus', dismissHoverHand);
-  portraitInteraction.addEventListener('pointerleave', scheduleHoverHand);
-  portraitInteraction.addEventListener('blur', scheduleHoverHand);
-  document.addEventListener('visibilitychange', scheduleHoverHand);
+  portrait.addEventListener('pointerleave', updateHoverHand);
+  portraitInteraction.addEventListener('blur', updateHoverHand);
+  document.addEventListener('visibilitychange', updateHoverHand);
   if ('IntersectionObserver' in window) {
     const handObserver = new IntersectionObserver(entries => {
       portraitInView = entries[0].isIntersecting;
-      scheduleHoverHand();
+      updateHoverHand();
     }, { threshold: .25 });
     handObserver.observe(portraitInteraction);
   } else {
     portraitInView = true;
-    scheduleHoverHand();
+    updateHoverHand();
   }
   const panel = section.querySelector(".privacy-analysis");
   const rows = [...panel.querySelectorAll("[data-text]")];
@@ -390,14 +384,14 @@ if (portraitInteraction) {
     codeCanvas.width = codeWidth;
     codeCanvas.height = codeHeight;
     codeCells = [];
-    for (let row = 0, y = 20; y < codeHeight + 28; row++, y += 27) {
+    for (let row = 0, y = 20; y < codeHeight + 28; row++, y += 40) {
       for (let x = -40 + (row % 3) * 17; x < codeWidth + 60;) {
         const token = makeCode();
         const depth = Math.random();
         const size = depth < .2 ? 14 : depth > .8 ? 22 : 18;
         const distance = Math.min(Math.hypot(x, y), Math.hypot(codeWidth - x, y), Math.hypot(x, codeHeight - y), Math.hypot(codeWidth - x, codeHeight - y));
         codeCells.push({ x, y, distance: distance / Math.hypot(codeWidth / 2, codeHeight / 2), token, size, depth, changed: 0 });
-        x += token[0].length * size * .61 + 9;
+        x += token[0].length * size * .61 + 36;
       }
     }
   };
@@ -417,9 +411,8 @@ if (portraitInteraction) {
         cell.changed = now;
       }
       // Keep the center quieter so the photograph and analysis stay legible.
-      const center = Math.max(0, 1 - Math.hypot((cell.x - codeWidth / 2) / (codeWidth * .6), (cell.y - codeHeight / 2) / (codeHeight * .6)));
       const edge = Math.max(0, Math.min(1, (Math.abs(cell.x - codeWidth / 2) / codeWidth - .12) / .25));
-      const alpha = reveal * (.025 + edge * .6) * (cell.depth < .2 ? .38 : 1);
+      const alpha = reveal * (.02 + edge * .35) * (cell.depth < .2 ? .38 : 1);
       codeContext.font = `${cell.depth > .8 ? 600 : 400} ${cell.size}px ui-monospace, SFMono-Regular, Menlo, monospace`;
       codeContext.fillStyle = cell.token[1];
       // Cheap defocused echoes add depth without live CSS or canvas blur filters.
@@ -459,7 +452,7 @@ if (portraitInteraction) {
     clearTimeout(typingTimer);
     section.classList.toggle("is-analyzing", open);
     if (open) dismissHoverHand();
-    else scheduleHoverHand();
+    else updateHoverHand();
     portraitInteraction.classList.toggle("is-open", open);
     portraitInteraction.setAttribute("aria-pressed", String(open));
     panel.setAttribute("aria-hidden", String(!open));
@@ -493,19 +486,22 @@ if (portraitInteraction) {
     };
     decode();
   };
-  const figure = portraitInteraction.closest(".social-figure");
-  figure.addEventListener("pointerenter", (event) => {
-    if (event.pointerType !== "touch") setAnalysis(true);
-  });
-  figure.addEventListener("pointerleave", () => {
+  const dismissPhotoAnalysis = () => {
     if (!pinned && document.activeElement !== portraitInteraction) setAnalysis(false);
-  });
+  };
+  // Layout changes during analysis can move the photo under a stationary pointer.
+  document.addEventListener("pointermove", (event) => {
+    if (event.pointerType === "touch") return;
+    if (event.target === portrait) setAnalysis(true);
+    else if (active) dismissPhotoAnalysis();
+  }, { passive: true });
+  document.documentElement.addEventListener("pointerleave", dismissPhotoAnalysis);
   portraitInteraction.addEventListener("focus", () => setAnalysis(true));
   portraitInteraction.addEventListener("blur", () => {
-    if (!pinned && !figure.matches(":hover")) setAnalysis(false);
+    if (!pinned && !portrait.matches(":hover")) setAnalysis(false);
   });
   const togglePortrait = () => { pinned = !pinned; setAnalysis(pinned); };
-  portraitInteraction.addEventListener("click", togglePortrait);
+  portrait.addEventListener("click", togglePortrait);
   portraitInteraction.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
@@ -1430,7 +1426,11 @@ if (finaleDiagram) {
   const mapStage = document.createElement('div');
   mapStage.className = 'finale-map-stage';
   mapRunway.append(mapStage);
-  mapStage.append(finaleDiagram.querySelector('.finale-photo'), map);
+  mapStage.append(
+    finaleDiagram.querySelector('.finale-heading'),
+    finaleDiagram.querySelector('.finale-photo'),
+    map
+  );
   map.setAttribute('preserveAspectRatio', 'xMidYMin meet');
   const primary = [...map.querySelectorAll('.map-primary')];
   const branches = [...map.querySelectorAll('.map-linework path:not(.map-primary)')];
@@ -1472,14 +1472,25 @@ if (finaleDiagram) {
     path.style.strokeDasharray = '1';
   });
   let frame = 0;
-  let smoothMapProgress = null;
-  let previousTime = 0;
   let autoStarted = false;
   let autoProgress = null;
   let autoButtonProgress = 0;
   let completedStage = false;
   let buttonFlashed = false;
   let cancelThreadFollow = null;
+  const completeFinaleStage = () => {
+    if (completedStage) return;
+    const previousScroll = scrollY;
+    const previousHeight = mapRunway.getBoundingClientRect().height;
+    completedStage = true;
+    autoProgress = autoButtonProgress = 1;
+    mapRunway.classList.add('is-complete');
+    ['position', 'top', 'left', 'width'].forEach(property => { mapStage.style[property] = ''; });
+    alignThreads();
+    const removedHeight = previousHeight - mapRunway.getBoundingClientRect().height;
+    // Keep the Explore button at the same viewport position as the runway collapses.
+    if (removedHeight > 0) window.scrollTo({ top: previousScroll - removedHeight, behavior: 'instant' });
+  };
   const followThreads = () => {
     stopPageScroll();
     autoStarted = true;
@@ -1499,61 +1510,53 @@ if (finaleDiagram) {
     cancelThreadFollow = () => {
       cancelled = true;
       release();
-      autoProgress = autoButtonProgress = 1;
-      completedStage = true;
+      completeFinaleStage();
       cancelThreadFollow = null;
+      schedule();
     };
     addEventListener('wheel', stop, { passive: false });
     addEventListener('touchmove', stop, { passive: false });
     addEventListener('keydown', keys);
+    const threadDuration = 1000;
+    const buttonDuration = 600;
+    const cameraSettleDuration = 300;
     const step = now => {
       if (cancelled) return;
       if (started === undefined) started = now;
       const elapsed = now - started;
-      autoProgress = ease(elapsed / 2500);
-      autoButtonProgress = clamp((elapsed - 2500) / 600);
+      autoProgress = ease(elapsed / threadDuration);
+      autoButtonProgress = clamp((elapsed - threadDuration) / buttonDuration);
       const sample = autoProgress * 128, index = Math.min(127, Math.floor(sample)), fraction = sample - index;
       const a = followSamples[index], b = followSamples[index + 1];
       const bounds = motionBounds(threadSvg), viewBox = threadSvg.viewBox.baseVal;
       const headY = bounds.top + (a.y + (b.y - a.y) * fraction - viewBox.y) / viewBox.height * bounds.height;
       const buttonBounds = motionBounds(button);
-      const focusY = elapsed < 2500 ? headY : buttonBounds.top + buttonBounds.height / 2;
+      const focusY = elapsed < threadDuration ? headY : buttonBounds.top + buttonBounds.height / 2;
       const delta = previous ? Math.min(64, now - previous) : 16.67;
       previous = now;
       const target = Math.max(scrollY, scrollY + focusY - innerHeight * .6);
-      cameraScroll += (target - cameraScroll) * (1 - Math.exp(-delta / 180));
+      cameraScroll += (target - cameraScroll) * (1 - Math.exp(-delta / 85));
       window.scrollTo({ top: cameraScroll, behavior: 'instant' });
       schedule();
-      if (elapsed < 3400) motionFrame(step);
-      else { completedStage = true; release(); cancelThreadFollow = null; schedule(); }
+      if (elapsed < threadDuration + buttonDuration + cameraSettleDuration) motionFrame(step);
+      else { release(); cancelThreadFollow = null; completeFinaleStage(); }
     };
     motionFrame(step);
   };
-  const update = now => {
+  const update = () => {
     frame = 0;
     const threadBounds = motionBounds(threadSvg);
     const runwayBounds = motionBounds(mapRunway);
     const stickyTop = (document.querySelector('body > .site-header')?.getBoundingClientRect().height || 64) + 16;
-    // Once the finale finishes, keep its diagram in normal document flow.
-    // Re-pinning on upward scrolling made the Explore connections slide downward.
-    const stageGeometry = completedStage && !reducedMotion.matches
+    const stageGeometry = completedStage
       ? { height: motionBounds(mapStage).height }
       : pinStoryStage(mapStage, runwayBounds, stickyTop);
-    if (completedStage && !reducedMotion.matches) {
-      mapStage.style.position = 'absolute';
-      mapStage.style.top = `${Math.max(0, runwayBounds.height - stageGeometry.height)}px`;
-      mapStage.style.left = '0';
-      mapStage.style.width = `${runwayBounds.width}px`;
-    }
-    if (runwayBounds.top > innerHeight) { previousTime = 0; return; }
+    if (runwayBounds.top > innerHeight) return;
     const mapRange = Math.max(1, runwayBounds.height - stageGeometry.height);
-    const targetMapProgress = reducedMotion.matches ? 1 : clamp((stickyTop - runwayBounds.top) / (mapRange * .92));
-    const elapsed = previousTime ? Math.min(64, now - previousTime) : 16.67;
-    previousTime = now;
-    smoothMapProgress = targetMapProgress;
-    const mapProgress = smoothMapProgress;
+    const stageAtRunwayEnd = runwayBounds.bottom <= stickyTop + stageGeometry.height;
+    const mapProgress = completedStage || reducedMotion.matches ? 1 : clamp((stickyTop - runwayBounds.top) / (mapRange * .92));
     const endingBounds = motionBounds(button);
-    if (!autoStarted && !reducedMotion.matches && mapProgress >= .95
+    if (!completedStage && !autoStarted && !reducedMotion.matches && stageAtRunwayEnd
       && threadBounds.top < innerHeight * .85 && endingBounds.top > innerHeight * .95) followThreads();
     const manualEndingProgress = clamp((innerHeight * .95 - endingBounds.top) / (innerHeight * .25));
     const threadProgress = reducedMotion.matches ? 1
@@ -1571,6 +1574,7 @@ if (finaleDiagram) {
     label.style.opacity = String(ease((buttonProgress - .85) / .15));
     button.style.visibility = threadProgress > 0 || reducedMotion.matches ? 'visible' : 'hidden';
     button.disabled = buttonProgress < 1;
+    if (buttonProgress === 1 && !autoStarted && !reducedMotion.matches && stageAtRunwayEnd) completeFinaleStage();
     if (buttonProgress === 1 && !buttonFlashed && !reducedMotion.matches) {
       buttonFlashed = true;
       const pink = getComputedStyle(button).getPropertyValue('--accent').trim() || '#ef65c0';
@@ -1585,7 +1589,6 @@ if (finaleDiagram) {
         { stroke: pink, offset: .55 }, { stroke: '#aaa4a7' }
       ], { duration: 1100, easing: 'ease-in-out' });
     }
-    previousTime = 0;
   };
   const schedule = () => { if (!frame) frame = motionFrame(update); };
   addEventListener('scroll', schedule, { passive: true });
@@ -1649,46 +1652,10 @@ if (photoDesktop) {
     projectedCases.append(card);
   });
   computerSection.append(projectedCases);
-  let projectionComplete = false;
-  let projectionScrollOrigin = 0;
-  let projectionFrame = 0;
-  let projectionX = 0;
-  let projectionTime = 0;
-  const moveProjection = now => {
-    projectionFrame = 0;
-    const target = reducedMotion.matches ? 0 : Math.min(innerWidth * .85, Math.max(0, projectionScrollOrigin - scrollY) * .8);
-    const elapsed = projectionTime ? Math.min(64, now - projectionTime) : 16.67;
-    projectionTime = now;
-    projectionX = reducedMotion.matches ? target
-      : projectionX + (target - projectionX) * (1 - Math.exp(-elapsed / 85));
-    if (Math.abs(target - projectionX) < .05) projectionX = target;
-    const shift = `${projectionX.toFixed(3)}px`;
-    if (computerSection.style.getPropertyValue('--projection-shift') !== shift) {
-      computerSection.style.setProperty('--projection-shift', shift);
-    }
-    if (projectionX !== target) projectionFrame = motionFrame(moveProjection);
-    else projectionTime = 0;
-  };
-  const scheduleProjection = () => {
-    if (projectionComplete && !projectionFrame) projectionFrame = motionFrame(moveProjection);
-  };
-  const completeProjection = () => {
-    if (projectionComplete) return;
-    projectionComplete = true;
-    projectionScrollOrigin = scrollY;
-    scheduleProjection();
-  };
-  projectedCases.addEventListener('transitionend', event => {
-    if (event.target === projectedCases && event.propertyName === 'opacity') completeProjection();
-  });
-  addEventListener('scroll', scheduleProjection, { passive: true });
-  addEventListener('resize', scheduleProjection);
-  reducedMotion.addEventListener('change', scheduleProjection);
   const revealProjection = () => {
     projectedCases.hidden = false;
     motionFrame(() => motionFrame(() => {
       computerSection.classList.add('is-projecting');
-      if (reducedMotion.matches) completeProjection();
     }));
   };
   const hand = photoDesktop.querySelector('.desktop-hand');
@@ -1776,14 +1743,15 @@ if (photoDesktop) {
           return;
         }
         // Move only the finished image into history; the next image forms in place.
-        const slideStarted = performance.now();
+        let slideStarted;
         const slide = time => {
-          const t = reducedMotion.matches ? 1 : Math.min(1, (time - slideStarted) / 750);
-          const eased = 1 - Math.pow(1 - t, 3);
+          slideStarted ??= time;
+          const t = reducedMotion.matches ? 1 : Math.min(1, (time - slideStarted) / 900);
+          const eased = t * t * (3 - 2 * t);
           result.group.setAttribute('transform', `translate(91.6 ${37 - eased * 18}) scale(1 ${1 - eased * (1 - 17.5 / 26.6)})`);
           log.setAttribute('transform', `translate(0 ${18 * (1 - eased)})`);
-          if (previousResult) previousResult.style.opacity = String(1 - t);
-          if (previousLog) previousLog.style.opacity = String(1 - t);
+          if (previousResult) previousResult.style.opacity = String(1 - eased);
+          if (previousLog) previousLog.style.opacity = String(1 - eased);
           if (t < 1) motionFrame(slide);
           else {
             previousResult?.remove();
@@ -2095,10 +2063,28 @@ if (rightsCaseEntries.length) {
   measure();
 }
 
+// Start the crime-summary video when the reader reaches it, and resume on return.
+const spreadStoryVideo = document.querySelector('.spread-story-video');
+if (spreadStoryVideo) {
+  let inView = !('IntersectionObserver' in window);
+  const syncPlayback = () => {
+    if (inView && !document.hidden) spreadStoryVideo.play().catch(() => {});
+    else spreadStoryVideo.pause();
+  };
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver(([entry]) => {
+      inView = entry.isIntersecting && entry.intersectionRatio >= .25;
+      syncPlayback();
+    }, { threshold: .25 });
+    observer.observe(spreadStoryVideo);
+  } else syncPlayback();
+  document.addEventListener('visibilitychange', syncPlayback);
+}
+
 // Unspecified sections share the people's soft upward, fading entrance.
 const floatingSectionParts = [...document.querySelectorAll(
   '#rights .rights-copy, #rights .timeline, ' +
-  '.crime-summary .spread-result-copy, .crime-summary .spread-data-image, ' +
+  '.crime-summary .spread-story-video, ' +
   '#archive .section-copy, #archive .social-figure'
 )];
 if (floatingSectionParts.length && 'IntersectionObserver' in window && !reducedMotion.matches) {
@@ -2113,7 +2099,7 @@ if (floatingSectionParts.length && 'IntersectionObserver' in window && !reducedM
       const element = entry.target;
       floatObserver.unobserve(element);
       const distance = innerWidth > 760 ? 180 : 90;
-      const visual = element.matches('.timeline, .creative-monitor, .spread-data-image, .social-figure');
+      const visual = element.matches('.timeline, .creative-monitor, .spread-story-video, .social-figure');
       element.style.willChange = 'transform, opacity';
       const animation = element.animate([
         { opacity: 0, transform: `translate3d(0, ${distance}px, 0)` },
@@ -2166,20 +2152,14 @@ if (photoTransform) {
     return { order, shade: 125 + (index * 37 % 65), gray: null };
   });
   let frame = 0;
-  let currentProgress = null;
-  let previousTime = 0;
-  const update = timestamp => {
+  const update = () => {
     frame = 0;
     const bounds = motionBounds(photoTransform);
     const header = document.querySelector('body > .site-header')?.getBoundingClientRect().height || 64;
     const stageHeight = pinStoryStage(stage, bounds, header).height;
-    if (bounds.bottom < 0 || bounds.top > innerHeight) { previousTime = 0; return; }
-    const targetProgress = reducedMotion.matches ? 1 : clampProgress((header - bounds.top) / Math.max(1, bounds.height - stageHeight));
-    const elapsed = previousTime ? Math.min(64, timestamp - previousTime) : 16.67;
-    previousTime = timestamp;
-    currentProgress = targetProgress;
-    const progress = currentProgress;
-    // Show the photograph as the section enters, before the pinned conversion begins.
+    if (bounds.bottom < 0 || bounds.top > innerHeight) return;
+    const progress = reducedMotion.matches ? 1 : clampProgress((header - bounds.top) / Math.max(1, bounds.height - stageHeight));
+    // Bring the first photograph into view before the pinned conversion.
     const entrance = reducedMotion.matches ? 1
       : ease((innerHeight - bounds.top) / (innerHeight * .65));
     const sequence = clampProgress((progress - .16) / .68) * 4;
@@ -2216,8 +2196,6 @@ if (photoTransform) {
       }
     });
     if (mosaicChanged) mosaicContext.putImageData(mosaicImage, 0, 0);
-    if (currentProgress !== targetProgress && !reducedMotion.matches) frame = motionFrame(update);
-    else previousTime = 0;
   };
   const schedule = () => { if (!frame) frame = motionFrame(update); };
   addEventListener('scroll', schedule, { passive: true });

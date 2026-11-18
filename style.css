@@ -198,19 +198,12 @@ a:focus-visible {
   margin: 0;
   transform: translateX(-50%);
   color: #c3bdc0;
-  /* 첫 화면 스크롤 안내 문구 크기: 최소 / 화면 비례 / 최대 */
-  font-size: clamp(1rem, 1.3vw, 1.2rem);
-  line-height: 1.35;
   text-align: center;
-}
-
-.scroll-note p {
-  margin: 0;
 }
 
 .scroll-cue {
   position: relative;
-  top: -14px;
+  top: -8px;
   width: 42px;
   height: 60px;
   margin: 0 auto 0.65rem;
@@ -917,7 +910,8 @@ a:focus-visible {
 
 /* Reveal the details a shared portrait can expose. */
 .social-post { overflow: visible; }
-.post-photo-interaction { position: relative; cursor: pointer; }
+.post-photo-interaction { position: relative; }
+.post-photo-interaction .portrait-default { cursor: pointer; }
 .post-photo-interaction:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 /* Expand the post into a photo-analysis scene. */
 .privacy-layout { transition: grid-template-columns 650ms ease, gap 650ms ease; }
@@ -930,7 +924,8 @@ a:focus-visible {
 .privacy .post-image img { object-fit: contain; filter: brightness(1); transition: filter 300ms ease; }
 .privacy.is-analyzing .post-image img { filter: brightness(0.8); }
 .privacy-analysis { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; opacity: 0; visibility: hidden; transition: opacity 350ms ease; color: #f4eff1; }
-.privacy.is-analyzing .section-copy > h2, .privacy.is-analyzing .section-copy > p { opacity: 0; pointer-events: none; }
+.privacy.is-analyzing .section-copy { min-height: 0; }
+.privacy.is-analyzing .section-copy > h2, .privacy.is-analyzing .section-copy > p { display: none; }
 .privacy.is-analyzing .privacy-analysis { opacity: 1; visibility: visible; }
 .analysis-kicker { font: 0.65rem monospace; letter-spacing: 0.18em; color: #a8d9cb; }
 .analysis-kicker span { margin-left: 1rem; }
@@ -1817,7 +1812,7 @@ body.cases-open { overflow: hidden; }
 .privacy.is-analyzing .post-actions,
 .privacy.is-analyzing .post-likes,
 .privacy.is-analyzing .post-caption,
-.privacy.is-analyzing .social-figure > figcaption { opacity: 0; visibility: hidden; }
+.privacy.is-analyzing .social-figure > figcaption { display: none; }
 .privacy.is-analyzing .post-image { margin-inline: 0; }
 
 /* Lift the statistics copy and phone into view as this block is reached. */
@@ -1906,11 +1901,6 @@ body.cases-open { overflow: hidden; }
 /* Hide thin edge lines included in the supplied story images. */
 .story-slide:first-child img { clip-path: inset(0 0 0 3px); }
 .story-slide:nth-child(2) img { clip-path: inset(0 0 3px 0); }
-
-/* Lift the analysis copy alongside the photograph on desktop. */
-@media (min-width: 761px) {
-  .privacy-analysis { transform: translateY(-48px); }
-}
 
 /* Side arrows use the supplied icon and retain category navigation. */
 .case-detail {
@@ -2289,7 +2279,7 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
 .impact-finale .finale-heading h2{font-size:clamp(1.1rem,2vw,1.65rem);line-height:1.65;font-weight:400;letter-spacing:-.035em}
 .impact-finale .finale-heading h2 span{color:var(--accent)}
 .impact-finale .finale-photo{position:relative;inset:auto;transform:none;margin:0 auto;width:clamp(140px,20vw,240px)}
-.impact-finale .finale-photo img{width:100%;aspect-ratio:1.2;object-fit:cover}
+.impact-finale .finale-photo img{display:block;width:100%;height:auto;border-radius:12px}
 .impact-finale .finale-map{width:100%;position:relative}
 .impact-finale .finale-branches{width:100%;height:clamp(100px,15vw,210px);fill:none;stroke:#8a7785;stroke-width:1;overflow:visible}
 .impact-finale .impact-list.finale-categories{position:relative;inset:auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:100%;height:auto;min-height:0;padding:0;margin:0;list-style:none;gap:1rem;transform:none}
@@ -2305,7 +2295,6 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
 .impact-finale .final-explore .explore-button:hover{background:#ef65c012;border-color:var(--accent);color:var(--accent)}
 @media(prefers-reduced-motion:no-preference){
  .impact-finale.finale-visible .finale-heading,.impact-finale.finale-visible .finale-photo{animation:finale-fade-in 1s ease both}
- .impact-finale.finale-visible .finale-photo{animation-delay:.12s}
  .impact-finale.finale-visible .finale-categories li{animation:finale-fade-up 1s var(--animation-delay,0s) ease both}
 }
 @media(max-width:600px){.impact-finale .impact-list.finale-categories{gap:.3rem}.impact-finale .finale-categories li{font-size:.65rem}.impact-finale .finale-categories p{font-size:.55rem}.impact-finale .finale-heading{margin-bottom:1.5rem}.impact-finale .final-explore .explore-button{width:138px;height:48px;font-size:.85rem}}
@@ -2421,7 +2410,6 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
 }
 
 /* Sharing demo removed; keep the following crime information. */
-.crime-summary .spread-result { margin-top: 0; }
 
 /* Let the rights heading and growth timeline use the desktop viewport. */
 @media (min-width: 761px) {
@@ -2510,15 +2498,10 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
 }
 
 /* Center both case stories on the same axis. */
-#main > .rights-case-stories {
-  width: calc(100% - clamp(32px, 8vw, 160px));
-  max-width: none;
-}
-.rights-case-stories .rights-case-story { width: 72%; margin: 0 auto; }
+.rights-case-stories .rights-case-story { width: 100%; margin: 0 auto; }
 .rights-case-stories .rights-case-story :is(img, video) { display: block; width: 100%; height: auto; filter: brightness(.84); }
 .rights-case-stories .rights-case-story-2 { margin-top: clamp(100px, 15vw, 260px); }
 @media(max-width:760px) {
-  .rights-case-stories .rights-case-story { width: 100%; }
   .rights-case-stories .rights-case-story-2 { margin-top: 64px; }
 }
 
@@ -2592,10 +2575,6 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
   .computer-scene-frame, .computer-audience, .computer-projection, .computer-projected-cases, .computer-projected-case, .computer-case-copy { transition: none; }
 }
 
-/* Keep the completed monitor, beam and cards on the same scroll-driven track. */
-.is-projecting .computer-scene-frame,
-.is-projecting .computer-projection,
-.is-projecting .computer-projected-cases { translate: var(--projection-shift, 0px) 0; }
 .computer-projected-cases { gap: 14px; }
 .computer-projected-case { min-height: 70px; }
 .computer-case-placeholder { min-height: clamp(65px, 7vw, 105px); }
@@ -2622,7 +2601,6 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
 .rights .rights-message { pointer-events: none; }
 
 /* The person exits opposite the projection as the completed scene scrolls back. */
-.is-projecting .computer-audience { translate: calc(-1 * var(--projection-shift, 0px)) 0; }
 
 /* Give every branch room across the screen and hold it while its text unfolds. */
 #main > .impact-finale { width: calc(100% - clamp(24px, 4vw, 80px)); max-width: none; }
@@ -2639,13 +2617,13 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
 }
 
 /* Keep the source photo touching the centered origin throughout the pinned reveal. */
-.finale-map-stage { position: sticky; top: calc(var(--header-height) + 16px); height: calc(100svh - var(--header-height) - 32px); display: flex; flex-direction: column; align-items: center; }
+.finale-map-stage { position: sticky; top: calc(var(--header-height) + 16px); display: flex; flex-direction: column; align-items: center; }
+.impact-finale .finale-map-stage .finale-heading { flex: none; }
 .impact-finale .finale-map-stage .finale-photo { flex: 0 0 auto; width: auto; margin: 0; }
-.impact-finale .finale-map-stage .finale-photo img { height: clamp(70px, 14svh, 140px); width: auto; aspect-ratio: 1.2; }
-.impact-finale .finale-map-stage .finale-detail-map { position: static; flex: 1; min-height: 0; height: 0; width: 100%; }
+.impact-finale .finale-map-stage .finale-photo img { height: clamp(115px, 26svh, 280px); width: auto; }
+.impact-finale .finale-map-stage .finale-detail-map { position: static; flex: none; width: 100%; height: auto; aspect-ratio: 1240 / 480; }
 @media(prefers-reduced-motion:reduce) {
-  .finale-map-stage { position: static; height: auto; }
-  .impact-finale .finale-map-stage .finale-detail-map { flex: none; height: auto; }
+  .finale-map-stage { position: static; }
 }
 
 /* A diagonal stack of photographs, inspired by the supplied archive film. */
@@ -2717,8 +2695,18 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
 /* Open the photo analysis composition across the desktop viewport. */
 @media(min-width:761px) {
   #main > .privacy { width: calc(100% - clamp(40px, 6vw, 120px)); max-width: none; }
-  .privacy .privacy-layout,
-  .privacy.is-analyzing .privacy-layout { grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); gap: clamp(60px, 11vw, 210px); }
+  .privacy .privacy-layout {
+    position: relative;
+    inset-inline-start: min(2vw, 36px);
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
+    gap: clamp(60px, 11vw, 210px);
+  }
+  .privacy.is-analyzing .privacy-layout {
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: clamp(24px, 5vw, 72px);
+    width: min(100%, 90rem);
+    margin-inline: auto;
+  }
   .privacy .privacy-layout > .social-figure {
   max-width: 38rem;
   justify-self: start;
@@ -2727,7 +2715,6 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
   left: 130px; /* 양수: 오른쪽, 음수: 왼쪽 */
   top: 20px;   /* 양수: 아래, 음수: 위 */
 }
-  .privacy.is-analyzing .privacy-layout > .social-figure { max-width: 43rem; }
   .privacy .privacy-layout > .section-copy {
   width: 100%;
   justify-self: end;
@@ -2735,6 +2722,11 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
   left: 40px;  /* 양수: 오른쪽, 음수: 왼쪽 */
   top: -20px;  /* 양수: 아래, 음수: 위 */
 }
+  .privacy.is-analyzing .privacy-layout > .social-figure,
+  .privacy.is-analyzing .privacy-layout > .section-copy {
+    max-width: none;
+    inset: auto;
+  }
 }
 
 /* Dropped photos no longer retain selection or keyboard-focus decoration. */
@@ -2760,12 +2752,7 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
 .privacy-analysis .is-decoding { color: #a8d9cb; }
 .privacy-analysis h3 span { display: inline-block; min-height: 1.35em; }
 
-/* Align the photo section's introduction and decoded analysis to the right. */
 .privacy .privacy-layout > .section-copy { text-align: left; }
-.privacy .privacy-analysis { text-align: right; }
-
-/* Keep the analysis anchored in its original position; align only its contents. */
-.privacy .privacy-analysis { right: auto; width: max-content; max-width: 100%; text-align: right; }
 
 /* Opening the archive must not draw the browser's blue focus band around its shell. */
 .cases-dialog:focus,
@@ -2871,17 +2858,14 @@ html.intro-active { overflow: hidden; }
 
 /* Copy brightens together with the shrinking logo, without changing its layout. */
 .intro-active .hero-copy,
-.intro-active .scroll-note > p,
 .intro-active .scroll-note > .scroll-cue { opacity: .12; }
 .intro-active.intro-settling .hero-copy,
-.intro-active.intro-settling .scroll-note > p,
 .intro-active.intro-settling .scroll-note > .scroll-cue {
   opacity: 1;
   transition: opacity 800ms cubic-bezier(.22, 1, .36, 1);
 }
 @media (prefers-reduced-motion: reduce) {
   .intro-active .hero-copy,
-  .intro-active .scroll-note > p,
   .intro-active .scroll-note > .scroll-cue { opacity: 1; }
 }
 
@@ -2902,12 +2886,13 @@ html.intro-active { overflow: hidden; }
     top: 0;
     left: 0;
     width: 100%;
-    height: calc(var(--story-viewport-height, 100svh) - var(--header-height) - 32px);
   }
 }
 @media (max-width: 760px) and (prefers-reduced-motion: no-preference) {
   .finale-map-runway { height: calc(var(--story-viewport-height, 100svh) * 2.4); }
 }
+.finale-map-runway.is-complete { height: auto; }
+.finale-map-runway.is-complete > .finale-map-stage { position: relative; top: 0; }
 
 
 /* Keep the moving computer scene on a stable compositor surface. */
@@ -2916,7 +2901,7 @@ html.intro-active { overflow: hidden; }
   .is-projecting .computer-scene-frame,
   .is-projecting .computer-audience,
   .is-projecting .computer-projection,
-  .is-projecting .computer-projected-cases { will-change: transform, translate; }
+  .is-projecting .computer-projected-cases { will-change: transform; }
 }
 
 
@@ -2925,7 +2910,14 @@ html.intro-active { overflow: hidden; }
 
 
 /* Photo analysis: a heading above left labels and right-aligned values. */
-.privacy .privacy-analysis { width: max-content; min-width: min(100%, 24rem); max-width: 100%; text-align: left; }
+.privacy.is-analyzing .privacy-analysis {
+  position: relative;
+  padding: clamp(16px, 2vw, 30px);
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 20%);
+  text-align: left;
+}
+.privacy .analysis-output { min-height: 0; }
 .privacy .privacy-analysis h3 {
   margin-bottom: 2rem;
   font-size: clamp(1.4rem, 2.4vw, 2rem);
@@ -2936,6 +2928,15 @@ html.intro-active { overflow: hidden; }
   grid-template-columns: 6em minmax(0, 1fr);
   column-gap: clamp(12px, 2vw, 32px);
   align-items: baseline;
+}
+.privacy .analysis-output p:last-child { margin-bottom: 0; }
+@media (max-width: 760px) {
+  .privacy.is-analyzing .privacy-layout { gap: 1.5rem; }
+  .privacy.is-analyzing .privacy-layout > .social-figure { grid-row: 1; }
+  .privacy.is-analyzing .privacy-layout > .section-copy {
+    width: min(100%, 28rem);
+    justify-self: center;
+  }
 }
 .privacy .analysis-output .analysis-label {
   font-size: inherit;
@@ -2960,30 +2961,11 @@ html.intro-active { overflow: hidden; }
   .case-gallery.is-ring .case-card:is(:hover, :focus-visible) .case-card-front { transform: translateZ(.1px); }
 }
 
-/* Match the crime summary's scale to the child photo interaction scene. */
-.crime-summary .spread-result h3 {
-  margin: 0;
-  font-size: clamp(1.8rem, 3.25vw, 2.7rem);
-  font-weight: 650;
-  letter-spacing: -.065em;
-  line-height: 1.4;
-  word-break: keep-all;
-}
-.crime-summary .spread-result-copy > p {
-  margin: 1.4rem 0 0;
-  font-size: clamp(.9rem, 1.3vw, 1rem);
-  line-height: 1.85;
-  word-break: keep-all;
-}
+/* Use the same page width for all three story videos. */
+.spread-story-video { display: block; width: 100%; height: auto; }
 @media(min-width:761px) {
+  #main > .rights-case-stories,
   #main > .crime-summary { width: calc(100% - clamp(40px, 6vw, 120px)); max-width: none; }
-  .crime-summary .spread-result { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: clamp(32px, 4vw, 80px); padding-left: clamp(32px, 5vw, 100px); box-sizing: border-box; }
-  .crime-summary .spread-data-image { width: 100%; max-width: 50rem; }
-}
-@media(max-width:760px) {
-  .crime-summary .spread-result h3 { font-size: clamp(1.7rem, 6.2vw, 2.4rem); }
-  .crime-summary .spread-result-copy > p { font-size: .9rem; }
-  .crime-summary .spread-data-image { width: 100%; max-width: 28rem; }
 }
 
 /* Two-stage case card: photographic cover, then a white reading face. */
@@ -3063,20 +3045,6 @@ html.intro-active { overflow: hidden; }
 /* Bring the children's rights heading another 100px closer to the comments. */
 #main > #rights { margin-top: -100px; }
 
-/* Continue the opening icon sequence inside the settled, monochrome wordmark. */
-.hero-logo-icons image {
-  opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: hero-logo-cycle 5s linear infinite;
-  animation-delay: calc(var(--icon-index) * 1s);
-}
-.intro-active .hero-logo-icons image { animation-play-state: paused; }
-@keyframes hero-logo-cycle {
-  0% { opacity: 0; transform: translateY(65px); }
-  4%, 16% { opacity: 1; transform: translateY(0); }
-  20%, 100% { opacity: 0; transform: translateY(-65px); }
-}
 .sharing-received-photo { opacity: 0; pointer-events: none; transform-box: fill-box; transform-origin: center bottom; }
 .sharing-received-photo.is-received { opacity: 1; animation: received-photo-rise 500ms ease-out both, received-photo-wiggle 650ms ease-in-out 500ms 2; }
 @keyframes received-photo-rise {
@@ -3088,15 +3056,7 @@ html.intro-active { overflow: hidden; }
   25% { transform: rotate(-5deg); }
   75% { transform: rotate(5deg); }
 }
-.privacy .analysis-output .analysis-label {
-  justify-self: start;
-  padding: .12em .55em;
-  border-radius: .15em;
-  background: rgb(255 255 255 / 25%);
-}
 @media(prefers-reduced-motion:reduce) {
-  .hero-logo-icons image { animation: none; }
-  .hero-logo-icons image:first-child { opacity: 1; }
   .sharing-received-photo.is-received { animation: none; }
 }
 
@@ -3159,7 +3119,7 @@ html.intro-active { overflow: hidden; }
 .privacy-hover-hand.is-in-view { animation: privacy-hover-guide 2.8s ease-in-out infinite; }
 .privacy.is-analyzing .privacy-hover-hand { display: none; }
 @keyframes privacy-hover-guide {
-  0% { opacity: 0; transform: translate(35px, 30px); }
+  0% { opacity: 1; transform: translate(35px, 30px); }
   25%, 65% { opacity: 1; transform: translate(0, 0); }
   80%, 100% { opacity: 0; transform: translate(0, 0); }
 }
@@ -3194,30 +3154,6 @@ html.intro-active { overflow: hidden; }
 }
 
 
-/* Comment artwork editor; the reading page keeps its original entrance animation. */
-.comment-editor-launch { position: fixed; bottom: 24px; right: 24px; z-index: 80; padding: 12px 20px; border: 1px solid var(--accent); border-radius: 999px; background: #292126; color: white; font: inherit; cursor: pointer; }
-.comment-editor-launch[hidden] { display: none; }
-.comment-layout-editing { overflow: hidden; }
-.comment-editor-dialog { width: 96vw; height: 92dvh; max-width: none; max-height: 94dvh; padding: 16px; border: 1px solid #77616e; border-radius: 12px; background: #1d191b; color: #eee; }
-.comment-editor-dialog::backdrop { background: #000c; }
-.comment-editor-dialog header, .comment-editor-settings { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
-.comment-editor-dialog button, .comment-editor-dialog select, .comment-editor-dialog input[type=number] { font: inherit; font-size: 13px; padding: 7px 10px; background: #30272d; color: #eee; border: 1px solid #77616e; border-radius: 5px; }
-.comment-editor-dialog button { cursor: pointer; }
-.comment-editor-dialog select { max-width: min(470px, 75vw); }
-.comment-editor-settings label { font-size: 13px; display: flex; align-items: center; gap: 6px; }
-.comment-editor-settings input[type=range] { width: 100px; accent-color: var(--accent); }
-.comment-editor-settings input[type=number] { width: 80px; }
-.comment-editor-dialog p { margin: 8px 0; font-size: 13px; color: #c5b8c0; }
-.comment-editor-canvas { height: calc(100% - 160px); min-height: 220px; overflow: auto; border: 1px solid #ffffff20; background: #1d191b; }
-.comment-editor-preview { display: block; width: 100%; min-width: 850px; height: auto; overflow: visible; touch-action: none; }
-.comment-editor-preview [data-comment-id] { cursor: move; }
-.comment-editor-outline { fill: transparent; stroke: transparent; stroke-width: 2; pointer-events: all; }
-.comment-editor-preview .is-selected .comment-editor-outline { stroke: #ef65c0; }
-@media(max-width:760px) { .comment-editor-canvas { height: calc(100% - 250px); } .comment-editor-dialog { padding: 10px; } }
-.comment-editor-text-label { display: flex; align-items: center; gap: 12px; font-size: 13px; }
-.comment-editor-text-label textarea { flex: 1; padding: 8px 10px; font: inherit; color: #eee; background: #30272d; border: 1px solid #77616e; border-radius: 5px; resize: vertical; }
-.comment-editor-dialog .comment-editor-canvas { height: calc(100% - 230px); }
-@media(max-width:760px) { .comment-editor-dialog .comment-editor-canvas { height: calc(100% - 330px); } }
 .opening-line-launch { position: fixed; right: 24px; bottom: 80px; z-index: 80; border: 1px solid var(--accent); border-radius: 999px; padding: 12px 20px; background: #292126; color: #fff; font: inherit; cursor: pointer; }
 .opening-line-launch[hidden] { display: none; }
 .opening-lines-editing { overflow: hidden; }
