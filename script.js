@@ -265,65 +265,40 @@ const portraitInteraction = document.querySelector(".post-photo-interaction");
 if (portraitInteraction) {
   const section = portraitInteraction.closest(".privacy");
   const portrait = portraitInteraction.querySelector(".portrait-default");
-  const hoverHand = document.createElement('img');
-  hoverHand.className = 'privacy-hover-hand';
-  hoverHand.src = './images/hand.svg';
-  hoverHand.alt = '';
-  hoverHand.setAttribute('aria-hidden', 'true');
-  portraitInteraction.append(hoverHand);
+  const hoverDot = document.createElement('span');
+  hoverDot.className = 'privacy-hover-dot';
+  hoverDot.setAttribute('aria-hidden', 'true');
+  portraitInteraction.append(hoverDot);
   let portraitInView = false;
-  const dismissHoverHand = () => {
-    hoverHand.classList.remove('is-in-view');
+  const dismissHoverDot = () => {
+    hoverDot.classList.remove('is-in-view');
   };
-  const updateHoverHand = () => {
+  const updateHoverDot = () => {
     const show = portraitInView && !document.hidden && !section.classList.contains('is-analyzing')
       && !portrait.matches(':hover') && !portraitInteraction.matches(':focus-within');
-    hoverHand.classList.toggle('is-in-view', show);
+    hoverDot.classList.toggle('is-in-view', show);
   };
-  portrait.addEventListener('pointerenter', dismissHoverHand);
-  portrait.addEventListener('pointerdown', dismissHoverHand);
-  portraitInteraction.addEventListener('focus', dismissHoverHand);
-  portrait.addEventListener('pointerleave', updateHoverHand);
-  portraitInteraction.addEventListener('blur', updateHoverHand);
-  document.addEventListener('visibilitychange', updateHoverHand);
+  portrait.addEventListener('pointerenter', dismissHoverDot);
+  portrait.addEventListener('pointerdown', dismissHoverDot);
+  portraitInteraction.addEventListener('focus', dismissHoverDot);
+  portrait.addEventListener('pointerleave', updateHoverDot);
+  portraitInteraction.addEventListener('blur', updateHoverDot);
+  document.addEventListener('visibilitychange', updateHoverDot);
   if ('IntersectionObserver' in window) {
     const handObserver = new IntersectionObserver(entries => {
       portraitInView = entries[0].isIntersecting;
-      updateHoverHand();
+      updateHoverDot();
     }, { threshold: .25 });
     handObserver.observe(portraitInteraction);
   } else {
     portraitInView = true;
-    updateHoverHand();
+    updateHoverDot();
   }
   const panel = section.querySelector(".privacy-analysis");
-  const rows = [...panel.querySelectorAll("[data-text]")];
-  // Keep label and value styling throughout the typing animation.
-  const analysisRows = new Map(rows.map((row) => {
-    const label = document.createElement("strong");
-    label.className = "analysis-label";
-    const value = document.createElement("span");
-    value.className = "analysis-value";
-    row.replaceChildren(label, value);
-    return [row, { label, value, split: row.dataset.text.indexOf(":") + 1 }];
+  const analysisTokens = [...panel.querySelectorAll('[data-decode]')].map(span => ({
+    span,
+    text: span.textContent
   }));
-  const renderAnalysisRow = (row, length, decodedText = null) => {
-    const { label, value, split } = analysisRows.get(row);
-    const text = decodedText ?? row.dataset.text.slice(0, length);
-    label.textContent = text.slice(0, Math.max(0, split - 1));
-    value.textContent = text.slice(split).trimStart();
-  };
-  const analysisHeading = panel.querySelector('h3');
-  const headingLines = analysisHeading.innerHTML.split(/<br\s*\/?\s*>/i).map(line => {
-    const span = document.createElement('span');
-    span.innerHTML = line;
-    return { span, text: span.textContent };
-  });
-  analysisHeading.replaceChildren();
-  headingLines.forEach(({ span }, index) => {
-    if (index) analysisHeading.append(document.createElement('br'));
-    analysisHeading.append(span);
-  });
   const codeAlphabet = '01{}[]<>/=$#_abcdefghijklmnopqrstuvwxyz';
   const decodeText = (text, progress) => [...text].map((letter, index) => {
     if (/\s/.test(letter) || index < Math.floor(progress * text.length)) return letter;
@@ -451,38 +426,22 @@ if (portraitInteraction) {
     toggleCode();
     clearTimeout(typingTimer);
     section.classList.toggle("is-analyzing", open);
-    if (open) dismissHoverHand();
-    else updateHoverHand();
+    if (open) dismissHoverDot();
+    else updateHoverDot();
     portraitInteraction.classList.toggle("is-open", open);
     portraitInteraction.setAttribute("aria-pressed", String(open));
     panel.setAttribute("aria-hidden", String(!open));
-    rows.forEach((row) => { renderAnalysisRow(row, 0); row.classList.remove("is-typing"); });
-    headingLines.forEach(({ span, text }) => { span.textContent = text; });
-    rows.forEach(row => row.classList.remove('is-decoding'));
-    if (!open) return;
-    if (reducedMotion.matches) {
-      rows.forEach((row) => { renderAnalysisRow(row, row.dataset.text.length); });
-      return;
-    }
+    analysisTokens.forEach(({ span, text }) => { span.textContent = text; });
+    if (!open || reducedMotion.matches) return;
     const decodeStarted = performance.now();
     const decode = () => {
       if (!active) return;
       const elapsed = performance.now() - decodeStarted;
-      const titleProgress = Math.max(0, Math.min(1, elapsed / 1000));
-      headingLines.forEach(({ span, text }) => { span.textContent = decodeText(text, titleProgress); });
-      rows.forEach((row, index) => {
-        const progress = Math.max(0, Math.min(1, (elapsed - 150 - index * 100) / 950));
-        row.classList.toggle('is-decoding', progress < 1);
-        renderAnalysisRow(row, row.dataset.text.length, decodeText(row.dataset.text, progress));
+      analysisTokens.forEach(({ span, text }, index) => {
+        const progress = Math.max(0, Math.min(1, (elapsed - index * 45) / 950));
+        span.textContent = decodeText(text, progress);
       });
       if (elapsed < 1500) typingTimer = setTimeout(decode, 50);
-      else {
-        headingLines.forEach(({ span, text }) => { span.textContent = text; });
-        rows.forEach(row => {
-          row.classList.remove('is-decoding');
-          renderAnalysisRow(row, row.dataset.text.length);
-        });
-      }
     };
     decode();
   };
@@ -625,7 +584,6 @@ if (caseExplorer) {
     card.append(front);
   });
   let visible = [...cards];
-  let layout = 0, layoutTarget = 0, waitingForCategory = false;
   let selectedCategory = 'all';
   const categoryOrder = filters.map(button => button.dataset.filter).filter(category => category !== 'all');
   const rendered = [];
@@ -669,14 +627,9 @@ if (caseExplorer) {
     previous = now;
     current = reducedMotion.matches ? target : current + (target - current) * (1 - Math.exp(-elapsed / 150));
     if (Math.abs(target - current) < .01) current = target;
-    if (waitingForCategory && Math.abs(target - current) < .35) {
-      waitingForCategory = false; layoutTarget = 1;
-    }
-    layout = reducedMotion.matches ? layoutTarget : layout + (layoutTarget - layout) * (1 - Math.exp(-elapsed / 190));
-    if (Math.abs(layoutTarget - layout) < .005) layout = layoutTarget;
-    const showRing = layout < .5;
+    const showRing = selectedCategory === 'all';
     if (paintedRing !== showRing) { viewport.classList.toggle('is-ring', showRing); paintedRing = showRing; }
-    const blend = layout * layout * (3 - 2 * layout);
+    const blend = showRing ? 0 : 1;
     const spacing = windowWidth > 760 ? 155 : 100;
     const radius = Math.min(viewportWidth * .34, 490);
     const baseWidth = windowWidth > 760 ? Math.max(78, Math.min(145, windowWidth * .1)) : Math.max(54, Math.min(90, windowWidth * .12));
@@ -694,7 +647,7 @@ if (caseExplorer) {
       const opacity = match ? 1 : 1 - blend;
       const hidden = blend > .995 && (!match || !onScreen);
       writeCardStyle(card, 'visibility', hidden ? 'hidden' : 'visible');
-      writeCardStyle(card, 'pointerEvents', match && (layout < .5 || onScreen) ? 'auto' : 'none');
+      writeCardStyle(card, 'pointerEvents', match && (showRing || onScreen) ? 'auto' : 'none');
       if (hidden) return;
       writeCardStyle(card, 'zIndex', String(Math.round((1000 + ringZ) * (1 - blend) + (1000 - distance * 10) * blend)));
       writeCardStyle(card, 'opacity', String(opacity));
@@ -702,13 +655,13 @@ if (caseExplorer) {
     });
     const status = `${selectedCategory === 'all' ? '모든 사례' : categoryLabels[selectedCategory]} · ${visible.length}개 사례 · 드래그하여 탐색`;
     if (status !== lastStatus) { statusElement.textContent = status; lastStatus = status; }
-    if (current !== target || layout !== layoutTarget || waitingForCategory) frame = motionFrame(paint);
+    if (current !== target) frame = motionFrame(paint);
     else previous = 0;
   };
   const schedule = () => { if (!frame) frame = motionFrame(paint); };
   const move = amount => {
     if (visible.length) target += amount;
-    if (selectedCategory !== 'all' && !waitingForCategory) {
+    if (selectedCategory !== 'all') {
       const positions = categoryPositions.get(selectedCategory);
       const start = positions[0] + Math.round((current - positions[0]) / rendered.length) * rendered.length;
       target = Math.max(start, Math.min(start + positions.length - 1, target));
@@ -768,7 +721,6 @@ if (caseExplorer) {
   }));
   filters.forEach(button => button.addEventListener('click', () => {
     if (button.getAttribute('aria-pressed') === 'true') return;
-    const previousCategory = selectedCategory;
     selectedCategory = button.dataset.filter;
     filters.forEach(filter => filter.setAttribute('aria-pressed', String(filter === button)));
     visible = cards.filter(card => selectedCategory === 'all' || card.dataset.categories.split(/\s+/).includes(selectedCategory));
@@ -779,10 +731,8 @@ if (caseExplorer) {
     });
     const positions = categoryPositions.get(selectedCategory);
     const destination = positions?.length ? positions[0] + Math.min(2, positions.length - 1) : 0;
-    const directCategorySwitch = previousCategory !== 'all' && selectedCategory !== 'all';
-    layoutTarget = directCategorySwitch ? 1 : 0;
-    waitingForCategory = !directCategorySwitch && selectedCategory !== 'all';
     target = destination + Math.round((current - destination) / rendered.length) * rendered.length;
+    current = target;
     schedule();
   }));
   addEventListener('resize', measureGallery);
@@ -851,8 +801,7 @@ const caseDetail = document.querySelector(".case-detail");
 if (caseExplorer && caseDetail) {
   const cover = caseDetail.querySelector('.case-detail-cover');
   const sheet = caseDetail.querySelector('.case-detail-sheet');
-  const navigation = caseDetail.querySelector('.case-detail-navigation');
-  caseDetail.append(navigation);
+  const detailScroll = caseDetail.querySelector('.case-detail-scroll');
   sheet.tabIndex = 0;
   sheet.setAttribute('aria-label', '사례 카드. 클릭하거나 Enter 키를 누르면 사진과 설명을 전환합니다.');
   let flipAnimation = null, flipping = false, flipVersion = 0;
@@ -866,23 +815,23 @@ if (caseExplorer && caseDetail) {
     flipping = true;
     const applyFace = () => {
       caseDetail.classList.toggle('is-cover', showCover);
-      caseDetail.scrollTop = 0;
+      detailScroll.scrollTop = 0;
       (showCover ? cover : sheet).focus({ preventScroll: true });
     };
     if (reducedMotion.matches) { applyFace(); flipping = false; return; }
     const direction = showCover ? -1 : 1;
     try {
       flipAnimation = sheet.animate([
-        { transform: 'perspective(1400px) rotateY(0deg)', opacity: 1 },
-        { transform: `perspective(1400px) rotateY(${direction * 90}deg)`, opacity: .7 }
+        { transform: 'rotateY(0deg)', opacity: 1 },
+        { transform: `rotateY(${direction * 90}deg)`, opacity: .7 }
       ], { duration: 240, easing: 'ease-in', fill: 'forwards' });
       await flipAnimation.finished;
       if (version !== flipVersion || !caseDetail.open) return;
       applyFace();
       flipAnimation.cancel();
       flipAnimation = sheet.animate([
-        { transform: `perspective(1400px) rotateY(${-direction * 90}deg)`, opacity: .7 },
-        { transform: 'perspective(1400px) rotateY(0deg)', opacity: 1 }
+        { transform: `rotateY(${-direction * 90}deg)`, opacity: .7 },
+        { transform: 'rotateY(0deg)', opacity: 1 }
       ], { duration: 300, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'forwards' });
       await flipAnimation.finished;
       if (version === flipVersion) { flipAnimation.cancel(); flipAnimation = null; }
@@ -958,7 +907,7 @@ if (caseExplorer && caseDetail) {
     position.textContent = `${selected?.textContent || "모든 사례"} · ${current + 1} / ${available.length}`;
     if (!caseDetail.open) caseDetail.showModal();
     cover.focus({ preventScroll: true });
-    caseDetail.scrollTop = 0;
+    detailScroll.scrollTop = 0;
   };
   const moveCase = (direction) => {
     const available = availableCards();
@@ -987,7 +936,13 @@ if (caseExplorer && caseDetail) {
     const bounds = caseDetail.getBoundingClientRect();
     if (event.target === caseDetail && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)) caseDetail.close();
   });
-  caseDetail.addEventListener("close", () => { cancelFlip(); activeCard?.focus({ preventScroll: true }); });
+  const gallery = caseExplorer.querySelector('.case-gallery');
+  caseDetail.addEventListener("close", () => {
+    cancelFlip();
+    gallery.classList.add('is-returning');
+    gallery.focus({ preventScroll: true });
+    document.addEventListener('pointermove', () => gallery.classList.remove('is-returning'), { once: true });
+  });
 }
 
 // Keep the final archive action available without interrupting scrolling.
@@ -1051,7 +1006,9 @@ if (sharingComposition) {
   // Extra upward routes keep the original phone connections intact.
   const burstGroup = document.createElementNS(svgNS, 'g');
   burstGroup.setAttribute('class', 'sharing-upward-lines');
-  scene.querySelector('.sharing-connections').prepend(burstGroup);
+  const connections = scene.querySelector('.sharing-connections');
+  connections.prepend(burstGroup);
+  connections.after(scene.querySelector('.sharing-people'));
   const upwardSources = [{ x: 539, y: 480 }, ...scrollLines.slice(0, 24).map(line => {
     const point = line.getPointAtLength(line.getTotalLength());
     return { x: point.x, y: point.y };
@@ -1207,7 +1164,10 @@ if (sharingComposition) {
     // Time-based easing stays consistent across trackpads, mouse wheels and refresh rates.
     smoothDistance = targetDistance;
     const distance = smoothDistance;
-    const openingProgress = clamp(distance / holdDistance);
+    // Frame the foreground phone near the lower fifth of the opening viewport.
+    const openingPan = reducedMotion.matches ? 0
+      : Math.max(-viewHeight * .34, Math.min(viewHeight * .18, 480 * sceneScale - viewHeight * .79));
+    const openingProgress = clamp((headerHeight - bounds.top) / holdDistance);
     const followingDistance = Math.max(0, distance - holdDistance - completionPause);
     // Keep the phone connections unchanged; slow only the comment portion.
     const followingProgress = clamp(followingDistance <= travelDistance * .5
@@ -1225,10 +1185,9 @@ if (sharingComposition) {
     const routesPanDistance = Math.min(panDistance, Math.max(0, lastPhone.phoneY * scale - viewHeight * .58));
     // Reach the final phone early, then hold the camera while the last line finishes.
     const openingComplete = openingProgress >= 1;
-    const cameraPan = openingComplete
-      ? clamp(routesProgress / .84) * routesPanDistance
-        + commentsProgress * (panDistance - routesPanDistance)
-      : 0;
+    const routePanProgress = openingComplete ? clamp(routesProgress / .84) : 0;
+    const cameraPan = openingPan + routePanProgress * (routesPanDistance - openingPan)
+      + commentsProgress * (panDistance - routesPanDistance);
     // Use the same progress calculation as the final phone-to-phone line.
     const finalRouteIndex = Math.max(0, scrollLines.length - 25);
     const finalRouteProgress = clamp((routesProgress - finalRouteIndex * .22) / .25);
@@ -1612,7 +1571,10 @@ if (photoDesktop) {
   const computerSection = photoDesktop.closest('.creative-interface');
   const computerFrame = document.createElement('div');
   computerFrame.className = 'computer-scene-frame';
-  photoDesktop.before(computerFrame);
+  const computerMotion = document.createElement('div');
+  computerMotion.className = 'computer-scene-motion';
+  photoDesktop.before(computerMotion);
+  computerMotion.append(computerFrame);
   computerFrame.append(photoDesktop);
   const beam = document.createElement('div');
   beam.className = 'computer-projection';
@@ -1623,29 +1585,40 @@ if (photoDesktop) {
   projectedCases.setAttribute('aria-label', '사진을 악용한 AI 합성 피해 사례');
   projectedCases.hidden = true;
   const projectionItems = archiveCases.filter(item => item.title.includes('AI 성착취')).slice(0, 3);
-  while (projectionItems.length < 3) projectionItems.push({ title: '딥페이크 사례 · 준비 중', summary: '사례 이미지와 내용을 추가할 예정입니다.', sources: [] });
-  projectionItems.forEach((item, index) => {
+  if (projectionItems.length < 3) projectionItems.push({
+    title: '실제 아동 사진과 영상을 AI로 합성해 유포한 사건',
+    summary: '미국 오하이오주에서 오스틴 피트먼은 실제 아동의 사진과 영상을 AI로 변형해 성착취물을 만들고 온라인에 유포한 사실을 인정했다. 2026년 5월 연방법원은 아동 성착취물 관련 두 범죄에 대해 징역 14년을 선고했다.',
+    sources: ['https://www.justice.gov/usao-sdoh/pr/hilliard-man-sentenced-14-years-prison-using-ai-morph-images-real-minors-child']
+  });
+  const appendTypedText = (element, text, startIndex = 0) => {
+    [...text].forEach((character, index) => {
+      const letter = document.createElement('span');
+      letter.className = 'computer-case-letter';
+      letter.style.setProperty('--letter-delay', `${340 + (startIndex + index) * 13}ms`);
+      letter.textContent = character;
+      element.append(letter);
+    });
+  };
+  projectionItems.forEach(item => {
     const card = document.createElement('article');
     card.className = 'computer-projected-case';
     card.tabIndex = 0;
     card.setAttribute('aria-label', item.title);
-    const placeholder = document.createElement('div');
-    placeholder.className = 'computer-case-placeholder';
-    placeholder.textContent = `사례 0${index + 1}`;
+    const title = document.createElement('h3');
+    title.className = 'computer-case-title';
+    title.textContent = item.title;
     const copy = document.createElement('div');
     copy.className = 'computer-case-copy';
-    const title = document.createElement('h3');
-    title.textContent = item.title;
     const summary = document.createElement('p');
-    summary.textContent = item.summary;
+    appendTypedText(summary, item.summary);
     const source = document.createElement('a');
-    source.textContent = '출처 보기 ↗';
+    appendTypedText(source, '원문 보기 ↗', [...item.summary].length + 5);
     if (item.sources[0]) source.href = item.sources[0];
     else source.hidden = true;
     source.target = '_blank';
     source.rel = 'noopener noreferrer';
-    copy.append(title, summary, source);
-    card.append(placeholder, copy);
+    copy.append(summary, source);
+    card.append(title, copy);
     card.addEventListener('click', event => {
       if (!event.target.closest('a')) card.classList.toggle('is-open');
     });
@@ -1653,21 +1626,47 @@ if (photoDesktop) {
   });
   computerSection.append(projectedCases);
   const revealProjection = () => {
-    projectedCases.hidden = false;
-    motionFrame(() => motionFrame(() => {
+    computerSection.classList.add('is-desktop-hidden');
+    const enlargeEditor = () => {
+      const start = editor.getBoundingClientRect();
       computerSection.classList.add('is-projecting');
-    }));
+      photoDesktop.style.transform = 'none';
+      photoDesktop.style.opacity = '1';
+      photoDesktop.style.willChange = 'auto';
+      const showCases = () => {
+        projectedCases.hidden = false;
+        computerSection.classList.add('has-projected-cases');
+      };
+      const end = editor.getBoundingClientRect();
+      if (reducedMotion.matches || !start.width || !end.width) {
+        showCases();
+        return;
+      }
+
+      // Animate the finished layout as one layer, starting at the editor's old bounds.
+      const origin = computerMotion.getBoundingClientRect();
+      const scale = start.width / end.width;
+      const x = start.left - origin.left - (end.left - origin.left) * scale;
+      const y = start.top - origin.top - (end.top - origin.top) * scale;
+      const slide = computerMotion.animate([
+        { transform: `translate3d(${x}px, ${y}px, 0) scale(${scale})` },
+        { transform: 'translate3d(0, 0, 0) scale(1)' }
+      ], { duration: 440, easing: 'cubic-bezier(.22,.61,.36,1)' });
+      slide.finished.then(showCases, showCases);
+    };
+    if (reducedMotion.matches) enlargeEditor();
+    else motionFrame(() => motionFrame(enlargeEditor));
   };
-  const hand = photoDesktop.querySelector('.desktop-hand');
+  const pointerGuide = photoDesktop.querySelector('.desktop-pointer-guide');
   const generateButton = photoDesktop.querySelector('.desktop-generate');
   let generating = false;
   const readyToGenerate = () => {
     generateButton.setAttribute('aria-disabled', 'false');
-    hand.style.display = '';
-    hand.classList.remove('is-drag-guide');
-    hand.classList.add('is-generate-guide');
-    hand.setAttribute('x', '80');
-    hand.setAttribute('y', '62');
+    pointerGuide.style.display = '';
+    pointerGuide.classList.remove('is-drag-guide');
+    pointerGuide.classList.add('is-generate-guide');
+    pointerGuide.setAttribute('cx', '80.5');
+    pointerGuide.setAttribute('cy', '62.55');
   };
   const resultArea = photoDesktop.querySelector('.desktop-results');
   const processTemplate = photoDesktop.querySelector('.desktop-process-entry');
@@ -1704,8 +1703,8 @@ if (photoDesktop) {
     if (generating || generateButton.getAttribute('aria-disabled') === 'true') return;
     generating = true;
     generateButton.setAttribute('aria-disabled', 'true');
-    hand.style.display = 'none';
-    hand.classList.remove('is-generate-guide');
+    pointerGuide.style.display = 'none';
+    pointerGuide.classList.remove('is-generate-guide');
     expandTypingInput(false);
     photoDesktop.classList.add('is-generating');
     const status = photoDesktop.querySelector('.desktop-process-status');
@@ -1739,7 +1738,7 @@ if (photoDesktop) {
         if (number === 2) {
           status.textContent = '3개 이미지 생성 완료';
           photoDesktop.classList.add('is-generated');
-          setTimeout(revealProjection, reducedMotion.matches ? 0 : 1000);
+          setTimeout(revealProjection, reducedMotion.matches ? 0 : 300);
           return;
         }
         // Move only the finished image into history; the next image forms in place.
@@ -1803,7 +1802,7 @@ if (photoDesktop) {
   const point = event => new DOMPoint(event.clientX, event.clientY).matrixTransform(photoDesktop.getScreenCTM().inverse());
   const dropHint = photoDesktop.querySelector('.desktop-drop-hint');
   const promptText = photoDesktop.querySelector('.desktop-prompt-text');
-  const demonstrationPrompt = '업로드한 사진을 참조하여 인물의 얼굴과 배경을 다른 이미지에 합성해줘.';
+  const demonstrationPrompt = '업로드한 사진을 참조하여\n인물의 얼굴과 배경을 다른 이미지에 합성해줘.';
   let promptTimer;
   let placedCount = 0;
   let inputExpanding = false;
@@ -1812,11 +1811,12 @@ if (photoDesktop) {
   const inputPanel = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   inputPanel.setAttribute('class', 'desktop-growing-input');
   inputPanel.append(inputBox, promptText);
-  photoDesktop.querySelector('.desktop-editor').append(inputPanel);
+  const editor = photoDesktop.querySelector('.desktop-editor');
+  editor.append(inputPanel);
   // Photos stay above the prompt box while dragging; the guide remains on top.
   photos.forEach(photo => photoDesktop.append(photo));
   // SVG paints in DOM order: keep the guide above photos and editor panels.
-  photoDesktop.append(hand);
+  photoDesktop.append(pointerGuide);
   const inputLayout = { x: 78, y: 42, width: 13, height: 19, fontSize: .7 };
   const expandTypingInput = (expand = true) => {
     inputExpanding = true;
@@ -1851,8 +1851,8 @@ if (photoDesktop) {
     promptText.setAttribute('fill', '#eee');
     promptText.setAttribute('font-weight', '400');
     const lines = [];
-    const lineLength = Math.max(10, Math.floor((inputLayout.width - 2) / inputLayout.fontSize));
-    const paragraphs = text.replace(/\s+(?=인물[의은])/, '\n').split('\n');
+    const lineLength = Math.max(10, Math.floor((inputLayout.width - 2.6) / inputLayout.fontSize));
+    const paragraphs = text.split('\n');
     paragraphs.forEach(paragraph => {
       let line = '';
       paragraph.split(' ').forEach(word => {
@@ -1865,7 +1865,7 @@ if (photoDesktop) {
     });
     lines.forEach((textLine, index) => {
       const line = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-      line.setAttribute('x', String(inputLayout.x + .6));
+      line.setAttribute('x', String(inputLayout.x + 1.2));
       line.setAttribute('y', String(inputLayout.y + 3.5 + index * inputLayout.fontSize * 1.7));
       line.textContent = textLine;
       promptText.append(line);
@@ -1887,8 +1887,8 @@ if (photoDesktop) {
     if (event.button !== 0 || action || inputExpanding) return;
     const photo = event.target.closest('.desktop-photo');
     if (!photo || photo.classList.contains('is-placed')) return;
-    hand.classList.remove('is-drag-guide');
-    hand.style.display = 'none';
+    pointerGuide.classList.remove('is-drag-guide');
+    pointerGuide.style.display = 'none';
     event.preventDefault();
     const start = point(event);
     const additive = event.shiftKey || event.metaKey || event.ctrlKey;
@@ -1935,11 +1935,11 @@ if (photoDesktop) {
       action.origins.forEach(({item,x,y}) => {
         if (dropped) {
           const slot = placedCount++;
-          item.dataset.x = 74.4 + (slot % 4) * 3.1;
+          item.dataset.x = 78.4 + (slot % 4) * 3.1;
           item.dataset.y = 19.5 + Math.floor(slot / 4) * 4;
           setSelected(item, false);
           item.classList.add('is-placed');
-          photoDesktop.insertBefore(item, hand);
+          editor.insertBefore(item, inputPanel);
           item.setAttribute('tabindex', '-1');
           item.setAttribute('aria-label', '편집 창에 놓인 사진');
         } else {
@@ -1978,8 +1978,8 @@ if (photoDesktop) {
     if (event.key === 'Escape') { if (action) finish({pointerId:action.pointer},true); clear(); }
     else if (photo && event.key === 'Enter' && !photo.classList.contains('is-placed')) {
       event.preventDefault();
-      hand.style.display = 'none';
-      hand.classList.remove('is-drag-guide');
+      pointerGuide.style.display = 'none';
+      pointerGuide.classList.remove('is-drag-guide');
       selectPhotoGroup();
       action = { type: 'move', pointer: 1, dx: 0, dy: 0,
         origins: [...selected].map(item => ({ item, x: Number(item.dataset.x), y: Number(item.dataset.y) })) };
@@ -2126,81 +2126,4 @@ if (floatingSectionParts.length && 'IntersectionObserver' in window && !reducedM
       element.style.willChange = 'auto';
     });
   });
-}
-
-// Each tool completes its own mosaic pass before the next tool enters.
-const photoTransform = document.querySelector('.photo-transform');
-if (photoTransform) {
-  const stage = photoTransform.querySelector('.photo-transform-stage');
-  const photo = photoTransform.querySelector('.photo-transform-image');
-  const icons = [...photoTransform.querySelectorAll('.photo-transform-icons span')];
-  const grid = photoTransform.querySelector('.photo-transform-pixels');
-  const mosaic = document.createElement('canvas');
-  mosaic.width = 15;
-  mosaic.height = 20;
-  mosaic.setAttribute('aria-hidden', 'true');
-  grid.replaceChildren(mosaic);
-  const mosaicContext = mosaic.getContext('2d');
-  const mosaicImage = mosaicContext.createImageData(15, 20);
-  const clampProgress = value => Math.max(0, Math.min(1, value));
-  const ease = value => { const t = clampProgress(value); return t * t * (3 - 2 * t); };
-  const pixels = Array.from({ length: 300 }, (_, index) => {
-    const row = Math.floor(index / 15);
-    const column = index % 15;
-    // The wave starts at the lower left, with scattered blocks ahead of it.
-    const order = ((19 - row) / 19 * .65 + column / 14 * .2 + ((index * 73) % 97) / 97 * .15);
-    return { order, shade: 125 + (index * 37 % 65), gray: null };
-  });
-  let frame = 0;
-  const update = () => {
-    frame = 0;
-    const bounds = motionBounds(photoTransform);
-    const header = document.querySelector('body > .site-header')?.getBoundingClientRect().height || 64;
-    const stageHeight = pinStoryStage(stage, bounds, header).height;
-    if (bounds.bottom < 0 || bounds.top > innerHeight) return;
-    const progress = reducedMotion.matches ? 1 : clampProgress((header - bounds.top) / Math.max(1, bounds.height - stageHeight));
-    // Bring the first photograph into view before the pinned conversion.
-    const entrance = reducedMotion.matches ? 1
-      : ease((innerHeight - bounds.top) / (innerHeight * .65));
-    const sequence = clampProgress((progress - .16) / .68) * 4;
-    const tool = Math.min(3, Math.floor(sequence));
-    const local = sequence >= 4 ? 1 : sequence - tool;
-    // Hold each icon at the center until its entire mosaic has settled.
-    const toolPosition = Math.min(3, tool + ease((local - .78) / .22));
-    icons.forEach((icon, index) => {
-      const relative = index - toolPosition;
-      const opacity = clampProgress(1 - Math.abs(relative)) * entrance * (1 - ease((progress - .83) / .12));
-      icon.style.opacity = String(opacity);
-      icon.style.transform = `translate3d(calc(-50% + ${relative * Math.min(innerWidth * .42, 420)}px), 0, 0)`;
-    });
-    const zoom = ease((progress - .86) / .14);
-    photo.style.opacity = String(entrance);
-    photo.style.transform = reducedMotion.matches ? 'none' : `translate3d(0, ${(1 - entrance) * stageHeight * .2}px, 0) scale(${.82 + entrance * .18 + zoom * .65})`;
-    const conversion = clampProgress((local - .02) / .60);
-    const settle = ease((local - .62) / .16);
-    const grayStages = [255, 224, 198, 175, 153];
-    let mosaicChanged = false;
-    pixels.forEach((entry, index) => {
-      const { order, shade } = entry;
-      const reveal = ease((conversion * 1.65 - order) / .65);
-      const from = grayStages[tool];
-      const to = grayStages[tool + 1];
-      const mosaicShade = to + (shade - 157) * (1 - settle) * .65;
-      const gray = reducedMotion.matches ? 153 : Math.round(from + (mosaicShade - from) * reveal);
-      if (entry.gray !== gray) {
-        const offset = index * 4;
-        mosaicImage.data[offset] = mosaicImage.data[offset + 1] = mosaicImage.data[offset + 2] = gray;
-        mosaicImage.data[offset + 3] = 255;
-        entry.gray = gray;
-        mosaicChanged = true;
-      }
-    });
-    if (mosaicChanged) mosaicContext.putImageData(mosaicImage, 0, 0);
-  };
-  const schedule = () => { if (!frame) frame = motionFrame(update); };
-  addEventListener('scroll', schedule, { passive: true });
-  addEventListener('resize', schedule);
-  addEventListener('storyviewportchange', schedule);
-  reducedMotion.addEventListener('change', schedule);
-  schedule();
 }
