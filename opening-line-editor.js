@@ -44,7 +44,16 @@
   document.body.append(dialog);
   const select = dialog.querySelector('select'), status = dialog.querySelector('[role=status]');
   const svg = document.createElementNS(NS,'svg'); svg.setAttribute('viewBox','-240 -220 1480 1100'); svg.classList.add('opening-line-preview');
-  const crowd = document.createElementNS(NS,'image'); crowd.setAttribute('href', document.querySelector('.sharing-crowd-layer')?.getAttribute('src') || './images/digital-foreground-safari.svg'); crowd.setAttribute('x','0'); crowd.setAttribute('y','240'); crowd.setAttribute('width','1000'); crowd.setAttribute('height','665.1227'); svg.append(crowd);
+  const liveCrowd = scene.closest('.sharing-camera').querySelector('.sharing-crowd-layer');
+  if (liveCrowd) {
+    const crowd = document.createElementNS(NS, 'image');
+    crowd.setAttribute('href', liveCrowd.getAttribute('src'));
+    crowd.setAttribute('y', liveCrowd.dataset.sceneTop);
+    crowd.setAttribute('width', liveCrowd.dataset.sceneWidth);
+    crowd.setAttribute('height', liveCrowd.dataset.sceneHeight);
+    crowd.classList.add('sharing-crowd-art');
+    svg.append(crowd);
+  }
   const previews = [], deletedHistory = [];
   const rebuildPreviews = () => {
     previews.splice(0).forEach(p => p.g.remove());

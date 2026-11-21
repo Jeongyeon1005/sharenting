@@ -995,8 +995,14 @@ if (sharingComposition) {
   // Keep the detailed, static crowd outside the SVG that repaints its lines.
   const crowdSource = scene.querySelector('.sharing-crowd');
   const crowdLayer = document.createElement('img');
-  crowdLayer.className = 'sharing-crowd-layer';
+  crowdLayer.className = 'sharing-crowd-layer sharing-crowd-art';
   crowdLayer.src = crowdSource.getAttribute('href');
+  // The composited image and editor use the same rectangle in scene coordinates.
+  const crowdWidth = Number(crowdSource.getAttribute('width'));
+  const crowdTop = 240 + (665.1227 - crowdWidth * 58 / 131) / 2;
+  crowdLayer.dataset.sceneWidth = crowdWidth;
+  crowdLayer.dataset.sceneTop = crowdTop;
+  crowdLayer.dataset.sceneHeight = crowdWidth * 954 / 1649;
   crowdLayer.alt = '';
   crowdLayer.setAttribute('aria-hidden', 'true');
   camera.prepend(crowdLayer);
@@ -1008,7 +1014,15 @@ if (sharingComposition) {
   burstGroup.setAttribute('class', 'sharing-upward-lines');
   const connections = scene.querySelector('.sharing-connections');
   connections.prepend(burstGroup);
-  connections.after(scene.querySelector('.sharing-people'));
+  const peopleLayer = scene.querySelector('.sharing-people');
+  connections.after(peopleLayer);
+  const foregroundRoutes = document.createElementNS(svgNS, 'g');
+  foregroundRoutes.setAttribute('class', 'sharing-connections');
+  foregroundRoutes.setAttribute('fill', 'none');
+  foregroundRoutes.setAttribute('stroke-linecap', 'round');
+  peopleLayer.after(foregroundRoutes);
+  const receivedPhotos = document.createElementNS(svgNS, 'g');
+  foregroundRoutes.after(receivedPhotos);
   const upwardSources = [{ x: 539, y: 480 }, ...scrollLines.slice(0, 24).map(line => {
     const point = line.getPointAtLength(line.getTotalLength());
     return { x: point.x, y: point.y };
@@ -1056,6 +1070,8 @@ if (sharingComposition) {
       const length = line.getTotalLength();
       samples = Array.from({ length: 97 }, (_, i) => line.getPointAtLength(length * i / 96));
     }
+    // Keep the incoming and outgoing routes at the third phone above the figures.
+    if (index === 26 || index === 27) foregroundRoutes.append(halo, line, head);
     return { halo, head, samples, curve: null };
   });
 
@@ -1068,6 +1084,14 @@ if (sharingComposition) {
     const mirrored = image.hasAttribute('transform');
     const phoneX = mirrored ? x + width - 52 * height / 162 : x + 52 * height / 162;
     const phoneY = y + 38 * height / 162;
+    // Align the top of the phone artwork to the existing route endpoint.
+    const artworkScale = Math.min(width / 58, height / 287.66);
+    const artworkPhoneX = x + width / 2 + (mirrored ? -1 : 1) * (53 - 29) * artworkScale;
+    const artworkPhoneY = y + (height - 287.66 * artworkScale) / 2 + 48 * artworkScale;
+    const silhouette = document.createElementNS(svgNS, 'g');
+    silhouette.setAttribute('transform', `translate(${phoneX} ${phoneY}) scale(1.2) translate(${-artworkPhoneX} ${-artworkPhoneY})`);
+    group.append(silhouette);
+    silhouette.append(image);
     const photo = document.createElementNS(svgNS, 'rect');
     photo.setAttribute('fill', '#d0d0d0');
     photo.setAttribute('x', String(phoneX - 23));
@@ -1075,8 +1099,10 @@ if (sharingComposition) {
     photo.setAttribute('width', '46');
     photo.setAttribute('height', '64');
     photo.setAttribute('class', 'sharing-received-photo');
-    group.append(photo);
-    return { group, photo, y, reveal: 0, phoneX, phoneY };
+    const photoGroup = document.createElementNS(svgNS, 'g');
+    photoGroup.append(photo);
+    receivedPhotos.append(photoGroup);
+    return { group, photo, photoGroup, y, reveal: 0, phoneX, phoneY };
   });
   let comments = [];
   const collectComments = () => {
@@ -1121,9 +1147,8 @@ if (sharingComposition) {
     sceneScale = scene.getBoundingClientRect().width / scene.viewBox.baseVal.width;
     const canvas = scene.viewBox.baseVal;
     crowdLayer.style.left = `${-canvas.x / canvas.width * 100}%`;
-    crowdLayer.style.width = `${1000 / canvas.width * 100}%`;
-    // The original SVG <image> used xMidYMid meet inside a taller image box.
-    crowdLayer.style.top = `${(240 + (665.1227 - 1000 * 58 / 131) / 2) * sceneScale}px`;
+    crowdLayer.style.width = `${crowdWidth / canvas.width * 100}%`;
+    crowdLayer.style.top = `${crowdTop * sceneScale}px`;
     holdDistance = viewHeight * 1.5;
     completionPause = viewHeight * .2;
     travelDistance = Math.max(viewHeight * 1.8, panDistance * 1.5);
@@ -1210,10 +1235,13 @@ if (sharingComposition) {
       const opacity = String(reveal * reveal * (3 - 2 * reveal));
       if (person.lastOpacity !== opacity) {
         person.group.style.opacity = opacity;
+        person.photoGroup.style.opacity = opacity;
         person.lastOpacity = opacity;
       }
       if (person.lastRise !== rise) {
-        person.group.setAttribute('transform', `translate(0 ${rise})`);
+        const transform = `translate(0 ${rise})`;
+        person.group.setAttribute('transform', transform);
+        person.photoGroup.setAttribute('transform', transform);
         person.lastRise = rise;
       }
       anchors.push({ x: person.phoneX, y: person.phoneY + rise });
@@ -1241,7 +1269,7 @@ if (sharingComposition) {
       comment.group.style.opacity = String(progress * progress * (3 - 2 * progress));
       comment.group.setAttribute('transform', `translate(${comment.shiftX} ${(1 - float) * 90})`);
     });
-    // Anchor each route to the actual phone, including mirrored figures and their entrance motion.
+    // Keep the route anchors on their existing trajectories during the entrance.
     scrollLines.slice(24).forEach((line, index) => {
       const from = anchors[index];
       const to = anchors[index + 1];
@@ -1586,19 +1614,23 @@ if (photoDesktop) {
   projectedCases.hidden = true;
   const projectionItems = archiveCases.filter(item => item.title.includes('AI 성착취')).slice(0, 3);
   if (projectionItems.length < 3) projectionItems.push({
+    id: 'pittman',
     title: '실제 아동 사진과 영상을 AI로 합성해 유포한 사건',
     summary: '미국 오하이오주에서 오스틴 피트먼은 실제 아동의 사진과 영상을 AI로 변형해 성착취물을 만들고 온라인에 유포한 사실을 인정했다. 2026년 5월 연방법원은 아동 성착취물 관련 두 범죄에 대해 징역 14년을 선고했다.',
     sources: ['https://www.justice.gov/usao-sdoh/pr/hilliard-man-sentenced-14-years-prison-using-ai-morph-images-real-minors-child']
   });
-  const appendTypedText = (element, text, startIndex = 0) => {
-    [...text].forEach((character, index) => {
-      const letter = document.createElement('span');
-      letter.className = 'computer-case-letter';
-      letter.style.setProperty('--letter-delay', `${340 + (startIndex + index) * 13}ms`);
-      letter.textContent = character;
-      element.append(letter);
-    });
+  const projectedTitleLines = {
+    kaylin: ['인스타그램 사진을 이용한', 'AI 성착취 이미지 제작'],
+    grok: ['어린 시절 사진을 이용한', 'AI 성착취 이미지 제작·유포'],
+    pittman: ['실제 아동 사진과 영상을', 'AI로 합성해 유포']
   };
+  const appendTypedText = (element, text) => [...text].map(character => {
+    const letter = document.createElement('span');
+    letter.className = 'computer-case-letter';
+    letter.textContent = character;
+    element.append(letter);
+    return letter;
+  });
   projectionItems.forEach(item => {
     const card = document.createElement('article');
     card.className = 'computer-projected-case';
@@ -1606,26 +1638,64 @@ if (photoDesktop) {
     card.setAttribute('aria-label', item.title);
     const title = document.createElement('h3');
     title.className = 'computer-case-title';
-    title.textContent = item.title;
+    for (const line of projectedTitleLines[item.id] ?? [item.title]) {
+      const titleLine = document.createElement('span');
+      titleLine.textContent = line;
+      title.append(titleLine);
+    }
     const copy = document.createElement('div');
     copy.className = 'computer-case-copy';
     const summary = document.createElement('p');
-    appendTypedText(summary, item.summary);
+    const summaryLetters = appendTypedText(summary, item.summary);
     const source = document.createElement('a');
-    appendTypedText(source, '원문 보기 ↗', [...item.summary].length + 5);
+    const sourceLetters = appendTypedText(source, '원문 보기 ↗');
     if (item.sources[0]) source.href = item.sources[0];
     else source.hidden = true;
     source.target = '_blank';
     source.rel = 'noopener noreferrer';
     copy.append(summary, source);
     card.append(title, copy);
+    let typingStarted = false;
+    const startTyping = () => {
+      if (typingStarted) return;
+      typingStarted = true;
+      const letters = [...summaryLetters, ...sourceLetters];
+      if (reducedMotion.matches) {
+        card.classList.add('is-typed');
+        return;
+      }
+      let started;
+      let shown = 0;
+      const type = now => {
+        started ??= now;
+        const count = Math.min(letters.length, Math.max(0, Math.floor((now - started - 200) / 9)));
+        while (shown < count) letters[shown++].classList.add('is-visible');
+        if (shown < letters.length) motionFrame(type);
+        else card.classList.add('is-typed');
+      };
+      motionFrame(type);
+    };
+    card.addEventListener('pointerenter', startTyping);
+    card.addEventListener('focusin', startTyping);
     card.addEventListener('click', event => {
-      if (!event.target.closest('a')) card.classList.toggle('is-open');
+      if (!event.target.closest('a')) {
+        card.classList.toggle('is-open');
+        startTyping();
+      }
     });
     projectedCases.append(card);
   });
   computerSection.append(projectedCases);
-  const revealProjection = () => {
+  const revealProjection = async () => {
+    if (!reducedMotion.matches) {
+      const background = photoDesktop.querySelector('.desktop-background');
+      const fade = background.animate([{ opacity: 1 }, { opacity: 0 }], {
+        duration: 260,
+        easing: 'ease-out',
+        fill: 'forwards'
+      });
+      await fade.finished.catch(() => {});
+    }
     computerSection.classList.add('is-desktop-hidden');
     const enlargeEditor = () => {
       const start = editor.getBoundingClientRect();
@@ -1651,11 +1721,10 @@ if (photoDesktop) {
       const slide = computerMotion.animate([
         { transform: `translate3d(${x}px, ${y}px, 0) scale(${scale})` },
         { transform: 'translate3d(0, 0, 0) scale(1)' }
-      ], { duration: 440, easing: 'cubic-bezier(.22,.61,.36,1)' });
+      ], { duration: 560, easing: 'cubic-bezier(.45,0,.22,1)' });
       slide.finished.then(showCases, showCases);
     };
-    if (reducedMotion.matches) enlargeEditor();
-    else motionFrame(() => motionFrame(enlargeEditor));
+    enlargeEditor();
   };
   const pointerGuide = photoDesktop.querySelector('.desktop-pointer-guide');
   const generateButton = photoDesktop.querySelector('.desktop-generate');
@@ -1741,15 +1810,17 @@ if (photoDesktop) {
           setTimeout(revealProjection, reducedMotion.matches ? 0 : 300);
           return;
         }
-        // Move only the finished image into history; the next image forms in place.
+        // Scroll full-size results through the clipped viewport.
+        const scrollDistance = 26.6 + .5;
         let slideStarted;
         const slide = time => {
           slideStarted ??= time;
-          const t = reducedMotion.matches ? 1 : Math.min(1, (time - slideStarted) / 900);
+          const t = reducedMotion.matches ? 1 : Math.min(1, (time - slideStarted) / 420);
           const eased = t * t * (3 - 2 * t);
-          result.group.setAttribute('transform', `translate(91.6 ${37 - eased * 18}) scale(1 ${1 - eased * (1 - 17.5 / 26.6)})`);
+          const offset = eased * scrollDistance;
+          result.group.setAttribute('transform', `translate(91.6 ${37 - offset})`);
           log.setAttribute('transform', `translate(0 ${18 * (1 - eased)})`);
-          if (previousResult) previousResult.style.opacity = String(1 - eased);
+          previousResult?.setAttribute('transform', `translate(91.6 ${37 - scrollDistance - offset})`);
           if (previousLog) previousLog.style.opacity = String(1 - eased);
           if (t < 1) motionFrame(slide);
           else {
@@ -1760,7 +1831,7 @@ if (photoDesktop) {
             nextResult(number + 1);
           }
         };
-        setTimeout(() => motionFrame(slide), reducedMotion.matches ? 0 : 400);
+        setTimeout(() => motionFrame(slide), reducedMotion.matches ? 0 : 120);
       };
       motionFrame(draw);
     };
@@ -1794,13 +1865,13 @@ if (photoDesktop) {
   };
   const clear = () => [...selected].forEach(photo => setSelected(photo, false));
   const selectPhotoGroup = () => photos.forEach(photo => setSelected(photo, !photo.classList.contains('is-placed')));
-  selectPhotoGroup();
   photoDesktop.addEventListener('pointerover', event => {
     photoDesktop.classList.toggle('is-photo-group-hovered', Boolean(event.target.closest('.desktop-photo:not(.is-placed)')));
   });
   photoDesktop.addEventListener('pointerleave', () => photoDesktop.classList.remove('is-photo-group-hovered'));
   const point = event => new DOMPoint(event.clientX, event.clientY).matrixTransform(photoDesktop.getScreenCTM().inverse());
   const dropHint = photoDesktop.querySelector('.desktop-drop-hint');
+  const dropZone = photoDesktop.querySelector('.desktop-drop-zone');
   const promptText = photoDesktop.querySelector('.desktop-prompt-text');
   const demonstrationPrompt = '업로드한 사진을 참조하여\n인물의 얼굴과 배경을 다른 이미지에 합성해줘.';
   let promptTimer;
@@ -1930,13 +2001,17 @@ if (photoDesktop) {
   const finish = (event, cancel = false) => {
     if (!action || event.pointerId !== action.pointer) return;
     if (action.type === 'move') {
-      const at = !cancel && Number.isFinite(event.clientX) ? point(event) : null;
-      const dropped = at && at.x >= 74 && at.x <= 87 && at.y >= 19 && at.y <= 41 && action.origins.length > 0;
+      const at = !cancel && Number.isFinite(event.clientX)
+        ? new DOMPoint(event.clientX, event.clientY).matrixTransform(dropZone.getScreenCTM().inverse())
+        : null;
+      const zone = dropZone.getBBox();
+      const dropped = at && at.x >= zone.x && at.x <= zone.x + zone.width
+        && at.y >= zone.y && at.y <= zone.y + zone.height && action.origins.length > 0;
       action.origins.forEach(({item,x,y}) => {
         if (dropped) {
           const slot = placedCount++;
           item.dataset.x = 78.4 + (slot % 4) * 3.1;
-          item.dataset.y = 19.5 + Math.floor(slot / 4) * 4;
+          item.dataset.y = zone.y + .5 + Math.floor(slot / 4) * 4;
           setSelected(item, false);
           item.classList.add('is-placed');
           editor.insertBefore(item, inputPanel);
@@ -1944,7 +2019,9 @@ if (photoDesktop) {
           item.setAttribute('aria-label', '편집 창에 놓인 사진');
         } else {
           // Keep unsuccessful drops inside the gallery.
-          const galleryDrop = !cancel && at && at.x >= 39 && at.x <= 86 && at.y >= 20 && at.y <= 60;
+          const galleryPoint = at && point(event);
+          const galleryDrop = galleryPoint && galleryPoint.x >= 39 && galleryPoint.x <= 86
+            && galleryPoint.y >= 20 && galleryPoint.y <= 60;
           const origins = action.origins;
           const groupDx = Math.max(39.5 - Math.min(...origins.map(o => o.x)), Math.min(82 - Math.max(...origins.map(o => o.x)), action.dx));
           const groupDy = Math.max(20.5 - Math.min(...origins.map(o => o.y)), Math.min(55 - Math.max(...origins.map(o => o.y)), action.dy));
@@ -1983,7 +2060,9 @@ if (photoDesktop) {
       selectPhotoGroup();
       action = { type: 'move', pointer: 1, dx: 0, dy: 0,
         origins: [...selected].map(item => ({ item, x: Number(item.dataset.x), y: Number(item.dataset.y) })) };
-      const drop = new DOMPoint(80.5, 30).matrixTransform(photoDesktop.getScreenCTM());
+      const zone = dropZone.getBBox();
+      const drop = new DOMPoint(zone.x + zone.width / 2, zone.y + zone.height / 2)
+        .matrixTransform(dropZone.getScreenCTM());
       finish({ pointerId: 1, clientX: drop.x, clientY: drop.y });
     }
     else if (photo && event.key === ' ') { event.preventDefault(); setSelected(photo,!selected.has(photo)); }
@@ -1991,53 +2070,26 @@ if (photoDesktop) {
   });
 }
 
-// Scroll-linked entrances: cases and the computer rise from below.
-const rightsCaseEntries = [...document.querySelectorAll('.rights-case-story, #creative-interface .creative-monitor')].map((element, index) => ({
-  element, index, monitor: element.matches('.creative-monitor'), top: 0, height: 1, current: null, offsetY: 0
+// Scroll-linked entrances for the case videos.
+const rightsCaseEntries = [...document.querySelectorAll('.rights-case-story')].map(element => ({
+  element, top: 0, offsetY: 0
 }));
 if (rightsCaseEntries.length) {
   let frame = 0;
-  let previousTime = 0;
   let viewportHeight = innerHeight;
   let amplitude = 160;
-  const update = now => {
+  const update = () => {
     frame = 0;
-    const elapsed = previousTime ? Math.min(64, now - previousTime) : 16.67;
-    previousTime = now;
     const scrollTop = scrollY;
-    let settling = false;
-    // All geometry is cached: each frame only updates transform and opacity.
     rightsCaseEntries.forEach(entry => {
-      if (entry.monitor && entry.element.closest('.is-projecting')) {
-        entry.element.style.transform = 'none';
-        entry.offsetY = 0;
-        entry.element.style.opacity = '1';
-        entry.element.style.willChange = 'auto';
-        entry.current = 1;
-        return;
-      }
-      const entranceRange = viewportHeight * (entry.monitor ? .7 : .42);
-      const target = Math.max(0, Math.min(1, (scrollTop + viewportHeight * .95 - entry.top) / entranceRange));
-      const offscreen = entry.top + entry.height < scrollTop || entry.top > scrollTop + viewportHeight;
-      if (entry.current === null || !entry.monitor || offscreen || reducedMotion.matches) entry.current = target;
-      else entry.current += (target - entry.current) * (1 - Math.exp(-elapsed / 75));
-      if (Math.abs(target - entry.current) < .0004) entry.current = target;
-      else settling = true;
-      const eased = entry.current * entry.current * (3 - 2 * entry.current);
-      const distance = entry.monitor ? Math.min(viewportHeight * .28, 260) : amplitude;
-      const offset = reducedMotion.matches ? 0 : distance * (1 - eased);
-      const x = 0;
-      const y = offset;
-      entry.offsetY = y;
-      const transform = Math.abs(offset) < .01 && (!entry.monitor || offscreen)
-        ? 'none' : `translate3d(${x.toFixed(3)}px, ${y.toFixed(3)}px, 0)`;
+      const progress = Math.max(0, Math.min(1, (scrollTop + viewportHeight * .95 - entry.top) / (viewportHeight * .42)));
+      const eased = progress * progress * (3 - 2 * progress);
+      entry.offsetY = reducedMotion.matches ? 0 : amplitude * (1 - eased);
+      const transform = entry.offsetY < .01 ? 'none' : `translate3d(0, ${entry.offsetY.toFixed(3)}px, 0)`;
       if (entry.element.style.transform !== transform) entry.element.style.transform = transform;
-      entry.element.style.willChange = entry.monitor && !offscreen ? 'transform, opacity' : 'auto';
       const opacity = reducedMotion.matches ? '1' : String(eased);
       if (entry.element.style.opacity !== opacity) entry.element.style.opacity = opacity;
     });
-    if (settling && !reducedMotion.matches) frame = motionFrame(update);
-    else previousTime = 0;
   };
   const schedule = () => { if (!frame) frame = motionFrame(update); };
   const measure = () => {
@@ -2046,7 +2098,6 @@ if (rightsCaseEntries.length) {
     rightsCaseEntries.forEach(entry => {
       const bounds = entry.element.getBoundingClientRect();
       entry.top = bounds.top + scrollY - entry.offsetY;
-      entry.height = bounds.height;
       entry.element.classList.add('has-scroll-entry');
     });
     schedule();
@@ -2062,6 +2113,37 @@ if (rightsCaseEntries.length) {
   reducedMotion.addEventListener('change', measure);
   measure();
 }
+
+// Pause the large looping clips and the computer guide outside the viewport.
+const rightsVideos = [...document.querySelectorAll('.rights-case-story video')];
+const visibleRightsVideos = new Set();
+const syncRightsVideos = () => {
+  rightsVideos.forEach(video => {
+    if (!document.hidden && visibleRightsVideos.has(video)) {
+      if (video.paused) video.play().catch(() => {});
+    } else if (!video.paused) video.pause();
+  });
+};
+if ('IntersectionObserver' in window) {
+  const sceneObserver = new IntersectionObserver(entries => {
+    entries.forEach(({ target, isIntersecting }) => {
+      if (target === photoDesktop) target.classList.toggle('is-in-view', isIntersecting);
+      else {
+        const video = target.querySelector('video');
+        if (isIntersecting) visibleRightsVideos.add(video);
+        else visibleRightsVideos.delete(video);
+      }
+    });
+    syncRightsVideos();
+  });
+  rightsVideos.forEach(video => sceneObserver.observe(video.closest('.rights-case-story')));
+  if (photoDesktop) sceneObserver.observe(photoDesktop);
+} else {
+  rightsVideos.forEach(video => visibleRightsVideos.add(video));
+  photoDesktop?.classList.add('is-in-view');
+}
+document.addEventListener('visibilitychange', syncRightsVideos);
+syncRightsVideos();
 
 // Start the crime-summary video when the reader reaches it, and resume on return.
 const spreadStoryVideo = document.querySelector('.spread-story-video');
