@@ -92,12 +92,6 @@
 const motionCallbacks = new Map();
 const motionElements = new Set();
 let motionBoundsCache = new Map();
-const motionTopCache = new Map();
-addEventListener('resize', () => motionTopCache.clear());
-function motionStickyTop(element) {
-  if (!motionTopCache.has(element)) motionTopCache.set(element, parseFloat(getComputedStyle(element).top) || 0);
-  return motionTopCache.get(element);
-}
 let motionFrameId = 0;
 let motionCallbackId = 0;
 function motionFrame(callback) {
@@ -133,7 +127,6 @@ function refreshStoryViewport() {
   storyViewportFrame = requestAnimationFrame(() => {
     storyViewportFrame = requestAnimationFrame(() => {
       document.documentElement.style.setProperty('--story-viewport-height', `${innerHeight}px`);
-      motionTopCache.clear();
       motionBoundsCache.clear();
       stopPageScroll();
       dispatchEvent(new Event('storyviewportchange'));
@@ -477,51 +470,45 @@ if (portraitInteraction) {
 
 const rights = document.querySelector(".rights");
 if (rights) {
+  const panel = rights.querySelector(".rights-stage");
+  const header = document.querySelector("body > .site-header");
   const regions = [...rights.querySelectorAll(".rights-region")];
   const figures = [...rights.querySelectorAll(".figure-slot")];
   const tracks = [...rights.querySelectorAll(".timeline-track > div")];
-  const exploreAction = rights.querySelector(".explore-action");
-  const updateHoverEnd = () => {
-    if (!exploreAction) return;
-    const sectionBounds = rights.getBoundingClientRect();
-    const buttonBounds = exploreAction.getBoundingClientRect();
-    const inset = Math.max(0, sectionBounds.bottom - (buttonBounds.top + buttonBounds.height / 2));
-    rights.style.setProperty("--hover-bottom-inset", `${inset}px`);
-  };
-  const hoverResizeObserver = new ResizeObserver(updateHoverEnd);
-  hoverResizeObserver.observe(rights);
-  if (exploreAction) hoverResizeObserver.observe(exploreAction);
-  window.addEventListener("resize", updateHoverEnd);
-  updateHoverEnd();
-  let selectedStage = -1;
-  const showStage = (stage) => {
+  let stageFrame = 0;
+  let activeStage = -1;
+  const updateStages = () => {
+    stageFrame = 0;
+    const bounds = motionBounds(rights);
+    const travel = Math.max(1, bounds.height - motionBounds(panel).height);
+    const headerHeight = header ? motionBounds(header).height : 0;
+    const distance = headerHeight - bounds.top;
+    const pinned = distance >= 0 && distance <= travel;
+    panel.classList.toggle("is-pinned", pinned);
+    panel.style.top = `${pinned ? headerHeight : Math.max(0, Math.min(travel, distance))}px`;
+    panel.style.left = pinned ? `${bounds.left}px` : "";
+    panel.style.width = pinned ? `${bounds.width}px` : "";
+    const progress = distance / travel;
+    const intro = .08;
+    const stage = Math.max(-1, Math.min(regions.length - 1,
+      Math.floor((progress - intro) / (1 - intro) * regions.length)));
+    if (stage === activeStage) return;
+    activeStage = stage;
     regions.forEach((region, index) => {
       const active = index === stage;
       region.classList.toggle("is-active", active);
-      region.setAttribute("aria-pressed", String(active));
       figures[index].classList.toggle("is-active", active);
       tracks[index].classList.toggle("is-active", active);
     });
   };
-  regions.forEach((region, index) => {
-    region.addEventListener("pointerenter", (event) => {
-      if (event.pointerType !== "touch") showStage(index);
-    });
-    region.addEventListener("pointerleave", () => showStage(selectedStage));
-    region.addEventListener("focus", () => showStage(index));
-    region.addEventListener("blur", () => showStage(selectedStage));
-    region.addEventListener("click", () => {
-      selectedStage = selectedStage === index ? -1 : index;
-      showStage(selectedStage);
-    });
-    region.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        selectedStage = -1;
-        showStage(-1);
-        region.blur();
-      }
-    });
-  });
+  const scheduleStages = () => {
+    if (!stageFrame) stageFrame = motionFrame(updateStages);
+  };
+  rights.classList.add("has-stage-scroll");
+  addEventListener("scroll", scheduleStages, { passive: true });
+  addEventListener("resize", scheduleStages);
+  addEventListener("storyviewportchange", scheduleStages);
+  scheduleStages();
 }
 
 
@@ -566,6 +553,7 @@ if (caseExplorer) {
     field.append(card);
   });
 }
+let playCaseGalleryEntrance;
 if (caseExplorer) {
   const filters = [...caseExplorer.querySelectorAll('.case-filters button')];
   const cards = [...caseExplorer.querySelectorAll('.case-card')];
@@ -611,6 +599,12 @@ if (caseExplorer) {
     categoryPositions.set(category, positions);
   });
   let target = 0, current = 0, frame = 0, previous = 0;
+  let categoryAnimations = [];
+  let ringEntranceStart = null;
+  const ringEntranceDuration = 2050;
+  const cardEntranceDuration = 510;
+  const cardEntranceStagger = 58;
+  let ringEntrancePending = false;
   let pointer = null, suppressClick = false;
   let viewportWidth = 1, windowWidth = innerWidth, paintedRing = true, lastStatus = '';
   const styleCache = new WeakMap();
@@ -628,6 +622,13 @@ if (caseExplorer) {
     current = reducedMotion.matches ? target : current + (target - current) * (1 - Math.exp(-elapsed / 150));
     if (Math.abs(target - current) < .01) current = target;
     const showRing = selectedCategory === 'all';
+    if (ringEntrancePending) {
+      ringEntranceStart = now;
+      ringEntrancePending = false;
+    }
+    const ringEntranceElapsed = ringEntranceStart === null ? ringEntranceDuration : now - ringEntranceStart;
+    const enteringRing = showRing && !reducedMotion.matches && ringEntranceElapsed < ringEntranceDuration;
+    if (!enteringRing) ringEntranceStart = null;
     if (paintedRing !== showRing) { viewport.classList.toggle('is-ring', showRing); paintedRing = showRing; }
     const blend = showRing ? 0 : 1;
     const spacing = windowWidth > 760 ? 155 : 100;
@@ -635,19 +636,25 @@ if (caseExplorer) {
     const baseWidth = windowWidth > 760 ? Math.max(78, Math.min(145, windowWidth * .1)) : Math.max(54, Math.min(90, windowWidth * .12));
     const fullWidth = windowWidth > 760 ? Math.max(230, Math.min(370, windowWidth * .24)) : 210;
     const cardScale = 1 + (fullWidth / baseWidth - 1) * blend;
+    const entranceScale = ringEntranceDuration / (cardEntranceDuration + Math.max(0, rendered.length - 1) * cardEntranceStagger);
+    const horizontal = Math.min(viewportWidth * .24, 260);
+    const vertical = Math.min(viewport.clientHeight * .24, 220);
     rendered.forEach((card, index) => {
       const distance = wrap(index - current + rendered.length / 2, rendered.length) - rendered.length / 2;
       const angle = distance * Math.PI * 2 / rendered.length;
       const ringX = Math.sin(angle) * radius, ringZ = Math.cos(angle) * radius;
-      const x = ringX * (1 - blend) + distance * spacing * blend;
-      const y = -distance * 36 * blend;
+      const progress = enteringRing ? Math.max(0, Math.min(1, (ringEntranceElapsed / entranceScale - index * cardEntranceStagger) / cardEntranceDuration)) : 1;
+      const remaining = (1 - progress) ** 3;
+      const direction = index % 4;
+      const x = ringX * (1 - blend) + distance * spacing * blend + (direction === 0 ? horizontal : direction === 1 ? -horizontal : 0) * remaining;
+      const y = -distance * 36 * blend + (direction === 2 ? -vertical : direction === 3 ? vertical : 0) * remaining;
       const z = ringZ * (1 - blend) - distance * 85 * blend;
       const match = selectedCategory === 'all' || card.dataset.ringCategory === selectedCategory;
       const onScreen = distance > -4 && distance < 14;
-      const opacity = match ? 1 : 1 - blend;
-      const hidden = blend > .995 && (!match || !onScreen);
+      const opacity = match ? progress ** 2 : 1 - blend;
+      const hidden = opacity === 0 || (blend > .995 && (!match || !onScreen));
       writeCardStyle(card, 'visibility', hidden ? 'hidden' : 'visible');
-      writeCardStyle(card, 'pointerEvents', match && (showRing || onScreen) ? 'auto' : 'none');
+      writeCardStyle(card, 'pointerEvents', !hidden && (showRing || onScreen) ? 'auto' : 'none');
       if (hidden) return;
       writeCardStyle(card, 'zIndex', String(Math.round((1000 + ringZ) * (1 - blend) + (1000 - distance * 10) * blend)));
       writeCardStyle(card, 'opacity', String(opacity));
@@ -655,7 +662,7 @@ if (caseExplorer) {
     });
     const status = `${selectedCategory === 'all' ? '모든 사례' : categoryLabels[selectedCategory]} · ${visible.length}개 사례 · 드래그하여 탐색`;
     if (status !== lastStatus) { statusElement.textContent = status; lastStatus = status; }
-    if (current !== target) frame = motionFrame(paint);
+    if (current !== target || enteringRing) frame = motionFrame(paint);
     else previous = 0;
   };
   const schedule = () => { if (!frame) frame = motionFrame(paint); };
@@ -719,6 +726,36 @@ if (caseExplorer) {
       schedule();
     }
   }));
+  const animateCardsIn = entering => {
+    categoryAnimations.forEach(animation => animation.cancel());
+    categoryAnimations = [];
+    if (reducedMotion.matches) return;
+
+    const horizontal = Math.min(viewportWidth * .24, 260);
+    const vertical = Math.min(viewport.clientHeight * .24, 220);
+    const directions = [`${horizontal}px 0px`, `${-horizontal}px 0px`, `0px ${-vertical}px`, `0px ${vertical}px`];
+    categoryAnimations = entering.map((card, index) => card.animate([
+      { translate: directions[index % directions.length], opacity: 0 },
+      { translate: '0px 0px', opacity: 1 }
+    ], { duration: cardEntranceDuration, delay: index * cardEntranceStagger, easing: 'cubic-bezier(.22,.61,.36,1)', fill: 'backwards' }));
+  };
+  const showAllCases = () => {
+    categoryAnimations.forEach(animation => animation.cancel());
+    categoryAnimations = [];
+    current = target = 0;
+    ringEntrancePending = !reducedMotion.matches;
+    ringEntranceStart = null;
+    measureGallery();
+    cancelMotionFrame(frame);
+    paint(performance.now());
+  };
+  playCaseGalleryEntrance = () => {
+    const positions = categoryPositions.get(selectedCategory);
+    if (positions) {
+      measureGallery();
+      animateCardsIn(positions.map(index => rendered[index]));
+    } else showAllCases();
+  };
   filters.forEach(button => button.addEventListener('click', () => {
     if (button.getAttribute('aria-pressed') === 'true') return;
     selectedCategory = button.dataset.filter;
@@ -730,13 +767,28 @@ if (caseExplorer) {
       card.tabIndex = match ? 0 : -1;
     });
     const positions = categoryPositions.get(selectedCategory);
+    if (selectedCategory === 'all') {
+      showAllCases();
+      return;
+    }
+    ringEntrancePending = false;
+    ringEntranceStart = null;
     const destination = positions?.length ? positions[0] + Math.min(2, positions.length - 1) : 0;
     target = destination + Math.round((current - destination) / rendered.length) * rendered.length;
     current = target;
     schedule();
+    if (positions) animateCardsIn(positions.map(index => rendered[index]));
   }));
   addEventListener('resize', measureGallery);
-  reducedMotion.addEventListener('change', schedule);
+  reducedMotion.addEventListener('change', () => {
+    if (reducedMotion.matches) {
+      ringEntrancePending = false;
+      ringEntranceStart = null;
+      categoryAnimations.forEach(animation => animation.cancel());
+      categoryAnimations = [];
+    }
+    schedule();
+  });
   new ResizeObserver(measureGallery).observe(viewport);
   measureGallery();
 }
@@ -750,17 +802,13 @@ if (exploreButton && caseExplorer && casesDialog) {
     event.preventDefault();
     if (casesDialog.open) return;
     caseExplorer.hidden = false;
-    caseExplorer.classList.remove("is-visible");
     exploreButton.setAttribute("aria-expanded", "true");
     document.body.classList.add("cases-open");
     casesDialog.showModal();
     casesDialog.scrollTop = 0;
-    motionFrame(() => {
-      motionFrame(() => {
-        caseExplorer.classList.add("is-visible");
-        caseExplorer.focus({ preventScroll: true });
-      });
-    });
+    caseExplorer.classList.add("is-visible");
+    playCaseGalleryEntrance();
+    caseExplorer.focus({ preventScroll: true });
   };
   exploreButton.addEventListener("click", openCases);
   archiveLink?.addEventListener("click", openCases);
@@ -1075,7 +1123,7 @@ if (sharingComposition) {
     return { halo, head, samples, curve: null };
   });
 
-  const people = [...sharingComposition.querySelectorAll('.sharing-person-reveal')].map(group => {
+  const people = [...sharingComposition.querySelectorAll('.sharing-person-reveal')].map((group, index) => {
     const image = group.querySelector('image');
     const x = Number(image.getAttribute('x'));
     const y = Number(image.getAttribute('y'));
@@ -1085,19 +1133,25 @@ if (sharingComposition) {
     const phoneX = mirrored ? x + width - 52 * height / 162 : x + 52 * height / 162;
     const phoneY = y + 38 * height / 162;
     // Align the top of the phone artwork to the existing route endpoint.
-    const artworkScale = Math.min(width / 58, height / 287.66);
-    const artworkPhoneX = x + width / 2 + (mirrored ? -1 : 1) * (53 - 29) * artworkScale;
+    const artworkWidth = Number(image.dataset.artworkWidth);
+    const artworkAnchorX = Number(image.dataset.artworkPhoneX);
+    const artworkScale = Math.min(width / artworkWidth, height / 287.66);
+    const artworkPhoneX = x + width / 2 + (mirrored ? -1 : 1) * (artworkAnchorX - artworkWidth / 2) * artworkScale;
     const artworkPhoneY = y + (height - 287.66 * artworkScale) / 2 + 48 * artworkScale;
     const silhouette = document.createElementNS(svgNS, 'g');
     silhouette.setAttribute('transform', `translate(${phoneX} ${phoneY}) scale(1.2) translate(${-artworkPhoneX} ${-artworkPhoneY})`);
     group.append(silhouette);
     silhouette.append(image);
-    const photo = document.createElementNS(svgNS, 'rect');
-    photo.setAttribute('fill', '#d0d0d0');
-    photo.setAttribute('x', String(phoneX - 23));
-    photo.setAttribute('y', String(phoneY - 88));
-    photo.setAttribute('width', '46');
-    photo.setAttribute('height', '64');
+    const photo = document.createElementNS(svgNS, 'image');
+    const portraitNumber = String(index + 1).padStart(2, '0');
+    photo.setAttribute('href', `./images/portrait-${portraitNumber}.svg`);
+    photo.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+    const portraitWidth = 52;
+    const portraitHeight = 72;
+    photo.setAttribute('x', String(phoneX - portraitWidth / 2));
+    photo.setAttribute('y', String(phoneY - portraitHeight - 24));
+    photo.setAttribute('width', String(portraitWidth));
+    photo.setAttribute('height', String(portraitHeight));
     photo.setAttribute('class', 'sharing-received-photo');
     const photoGroup = document.createElementNS(svgNS, 'g');
     photoGroup.append(photo);
@@ -1202,6 +1256,10 @@ if (sharingComposition) {
     // Finish every person-to-person route before entering the comment scene.
     const routesProgress = clamp(followingProgress / .42);
     const commentsProgress = clamp((followingProgress - .50) / .50);
+    const topOpacity = clamp(routesProgress / .2).toFixed(3);
+    if (viewport.style.getPropertyValue('--sharing-top-opacity') !== topOpacity) {
+      viewport.style.setProperty('--sharing-top-opacity', topOpacity);
+    }
     people.forEach((person, index) => {
       const arrival = clamp((routesProgress - index * .22) / .25);
       person.photo.classList.toggle('is-received', hasSharingScroll && (reducedMotion.matches || arrival >= 1));
@@ -1367,7 +1425,7 @@ if (sharingComposition) {
   }, { passive: true });
   addEventListener('resize', measureSharing);
   addEventListener('commentlayoutchange', () => { collectComments(); measureSharing(); });
-  addEventListener('openinglineschange', () => {
+  addEventListener('openinglinesloaded', () => {
     extraOpeningLines = [...scene.querySelectorAll('.sharing-extra-opening-line')];
     scrollLines.slice(0, 24).forEach((line, index) => {
       const light = lineLights[index];
@@ -1449,6 +1507,7 @@ if (finaleDiagram) {
   addEventListener('load', alignThreads, { once: true });
   document.fonts.ready.then(alignThreads);
   const button = finaleDiagram.querySelector('.explore-button');
+  const scrollCue = document.querySelector('.scroll-cue');
   const border = button.querySelector('.explore-draw-border path');
   const label = button.querySelector('span');
   const clamp = value => Math.max(0, Math.min(1, value));
@@ -1538,7 +1597,10 @@ if (finaleDiagram) {
     const stageGeometry = completedStage
       ? { height: motionBounds(mapStage).height }
       : pinStoryStage(mapStage, runwayBounds, stickyTop);
-    if (runwayBounds.top > innerHeight) return;
+    if (runwayBounds.top > innerHeight) {
+      if (scrollCue) scrollCue.hidden = false;
+      return;
+    }
     const mapRange = Math.max(1, runwayBounds.height - stageGeometry.height);
     const stageAtRunwayEnd = runwayBounds.bottom <= stickyTop + stageGeometry.height;
     const mapProgress = completedStage || reducedMotion.matches ? 1 : clamp((stickyTop - runwayBounds.top) / (mapRange * .92));
@@ -1557,6 +1619,7 @@ if (finaleDiagram) {
     threads.forEach(path => { path.style.strokeDashoffset = String(1 - threadProgress); });
     const buttonProgress = reducedMotion.matches ? 1 : threadProgress < 1 ? 0
       : autoProgress !== null ? autoButtonProgress : clamp((manualEndingProgress - .8) / .2);
+    if (scrollCue) scrollCue.hidden = buttonProgress > 0 && endingBounds.top < innerHeight;
     border.style.strokeDashoffset = String(1 - buttonProgress);
     label.style.opacity = String(ease((buttonProgress - .85) / .15));
     button.style.visibility = threadProgress > 0 || reducedMotion.matches ? 'visible' : 'hidden';
@@ -1726,18 +1789,16 @@ if (photoDesktop) {
     };
     enlargeEditor();
   };
-  const pointerGuide = photoDesktop.querySelector('.desktop-pointer-guide');
   const generateButton = photoDesktop.querySelector('.desktop-generate');
+  const editor = photoDesktop.querySelector('.desktop-editor');
   let generating = false;
   const readyToGenerate = () => {
     generateButton.setAttribute('aria-disabled', 'false');
-    pointerGuide.style.display = '';
-    pointerGuide.classList.remove('is-drag-guide');
-    pointerGuide.classList.add('is-generate-guide');
-    pointerGuide.setAttribute('cx', '80.5');
-    pointerGuide.setAttribute('cy', '62.55');
   };
   const resultArea = photoDesktop.querySelector('.desktop-results');
+  const resultSlot = resultArea.lastElementChild;
+  const resultX = resultSlot.x.baseVal.value;
+  const pixelWidth = resultSlot.width.baseVal.value / 10;
   const processTemplate = photoDesktop.querySelector('.desktop-process-entry');
   const processArea = photoDesktop.querySelector('.desktop-process');
   processTemplate.remove();
@@ -1749,13 +1810,13 @@ if (photoDesktop) {
   const createResult = seed => {
     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     group.setAttribute('class', 'desktop-generated-panel');
-    group.setAttribute('transform', 'translate(91.6 37)');
+    group.setAttribute('transform', `translate(${resultX} 37)`);
     resultArea.append(group);
     const pixels = Array.from({ length: 150 }, (_, index) => {
       const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      rect.setAttribute('x', String(index % 10 * 2.84));
+      rect.setAttribute('x', String(index % 10 * pixelWidth));
       rect.setAttribute('y', String(Math.floor(index / 10) * (26.6 / 15)));
-      rect.setAttribute('width', '2.86');
+      rect.setAttribute('width', String(pixelWidth + .02));
       rect.setAttribute('height', String(26.6 / 15 + .02));
       rect.setAttribute('fill', '#121516');
       group.append(rect);
@@ -1772,8 +1833,6 @@ if (photoDesktop) {
     if (generating || generateButton.getAttribute('aria-disabled') === 'true') return;
     generating = true;
     generateButton.setAttribute('aria-disabled', 'true');
-    pointerGuide.style.display = 'none';
-    pointerGuide.classList.remove('is-generate-guide');
     expandTypingInput(false);
     photoDesktop.classList.add('is-generating');
     const status = photoDesktop.querySelector('.desktop-process-status');
@@ -1789,11 +1848,11 @@ if (photoDesktop) {
       const draw = now => {
         const progress = reducedMotion.matches ? 1 : Math.min(1, (now - started) / 2200);
         status.textContent = `이미지 ${number + 1} / 3 · ${Math.round(progress * 100)}%`;
-        progressBar.setAttribute('width', String(6.8 * (number + progress) / 3));
+        progressBar.setAttribute('width', String(7.55 * (number + progress) / 3));
         processCode.replaceChildren();
         codeLines.slice(0, Math.ceil(progress * codeLines.length)).forEach((text, index) => {
           const line = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-          line.setAttribute('x', '121');
+          line.setAttribute('x', processCode.getAttribute('x'));
           line.setAttribute('y', String(23 + index * .85));
           line.textContent = text;
           processCode.append(line);
@@ -1818,9 +1877,9 @@ if (photoDesktop) {
           const t = reducedMotion.matches ? 1 : Math.min(1, (time - slideStarted) / 420);
           const eased = t * t * (3 - 2 * t);
           const offset = eased * scrollDistance;
-          result.group.setAttribute('transform', `translate(91.6 ${37 - offset})`);
+          result.group.setAttribute('transform', `translate(${resultX} ${37 - offset})`);
           log.setAttribute('transform', `translate(0 ${18 * (1 - eased)})`);
-          previousResult?.setAttribute('transform', `translate(91.6 ${37 - scrollDistance - offset})`);
+          previousResult?.setAttribute('transform', `translate(${resultX} ${37 - scrollDistance - offset})`);
           if (previousLog) previousLog.style.opacity = String(1 - eased);
           if (t < 1) motionFrame(slide);
           else {
@@ -1870,8 +1929,26 @@ if (photoDesktop) {
   });
   photoDesktop.addEventListener('pointerleave', () => photoDesktop.classList.remove('is-photo-group-hovered'));
   const point = event => new DOMPoint(event.clientX, event.clientY).matrixTransform(photoDesktop.getScreenCTM().inverse());
+  const galleryBounds = photoDesktop.querySelector('.desktop-selection-surface').getBBox();
   const dropHint = photoDesktop.querySelector('.desktop-drop-hint');
   const dropZone = photoDesktop.querySelector('.desktop-drop-zone');
+  const dragGuide = photoDesktop.querySelector('.desktop-drag-guide');
+  const guideX = Number(photos[0].dataset.x) + 1.65;
+  const guideY = Number(photos[0].dataset.y) + 2.075;
+  dragGuide.setAttribute('cx', guideX);
+  dragGuide.setAttribute('cy', guideY);
+  const alignDragGuide = () => {
+    const desktopMatrix = photoDesktop.getScreenCTM();
+    const hintMatrix = dropHint.getScreenCTM();
+    if (!desktopMatrix || !hintMatrix || dropHint.style.display === 'none') return;
+    const { x, y, width, height } = dropHint.getBBox();
+    const hintToDesktop = desktopMatrix.inverse().multiply(hintMatrix);
+    const guideTarget = new DOMPoint(x + width / 2, y + height / 2).matrixTransform(hintToDesktop);
+    dragGuide.style.setProperty('--guide-drag-x', `${guideTarget.x - guideX}px`);
+    dragGuide.style.setProperty('--guide-drag-y', `${guideTarget.y - guideY}px`);
+  };
+  alignDragGuide();
+  if (document.fonts.status === 'loading') document.fonts.ready.then(alignDragGuide);
   const promptText = photoDesktop.querySelector('.desktop-prompt-text');
   const demonstrationPrompt = '업로드한 사진을 참조하여\n인물의 얼굴과 배경을 다른 이미지에 합성해줘.';
   let promptTimer;
@@ -1879,21 +1956,21 @@ if (photoDesktop) {
   let inputExpanding = false;
   let promptValue = '';
   const inputBox = photoDesktop.querySelector('.desktop-prompt-box');
+  const promptLabel = photoDesktop.querySelector('.desktop-prompt-label');
   const inputPanel = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   inputPanel.setAttribute('class', 'desktop-growing-input');
-  inputPanel.append(inputBox, promptText);
-  const editor = photoDesktop.querySelector('.desktop-editor');
+  inputPanel.append(inputBox, promptLabel, promptText);
   editor.append(inputPanel);
-  // Photos stay above the prompt box while dragging; the guide remains on top.
+  // Photos stay above the prompt box while dragging.
   photos.forEach(photo => photoDesktop.append(photo));
-  // SVG paints in DOM order: keep the guide above photos and editor panels.
-  photoDesktop.append(pointerGuide);
-  const inputLayout = { x: 78, y: 42, width: 13, height: 19, fontSize: .7 };
+  photoDesktop.append(dragGuide);
+  const restingInput = { x: 78, y: 42, width: inputBox.width.baseVal.value, height: 19, fontSize: .7, labelSize: .64, textInset: 0, textLeft: 1.2, bodyTop: 2.95 };
+  const inputLayout = { ...restingInput };
   const expandTypingInput = (expand = true) => {
     inputExpanding = true;
     const from = { ...inputLayout };
-    const to = expand ? { x: 65, y: 40, width: 48, height: 20, fontSize: 1.7 }
-      : { x: 78, y: 42, width: 13, height: 19, fontSize: .7 };
+    const to = expand ? { x: 65.6, y: 40, width: 53.5, height: 9.5, fontSize: 1.6, labelSize: .95, textInset: .45, textLeft: 2, bodyTop: 3.7 }
+      : restingInput;
     let started;
     let typingStarted = false;
     const step = now => {
@@ -1902,6 +1979,10 @@ if (photoDesktop) {
       const eased = 1 - Math.pow(1 - progress, 3);
       Object.keys(to).forEach(key => { inputLayout[key] = from[key] + (to[key] - from[key]) * eased; });
       ['x', 'y', 'width', 'height'].forEach(key => inputBox.setAttribute(key, inputLayout[key]));
+      const textX = inputLayout.x + inputLayout.textLeft;
+      promptLabel.setAttribute('x', textX);
+      promptLabel.setAttribute('y', inputLayout.y + inputLayout.textInset + 1.5);
+      promptLabel.setAttribute('font-size', inputLayout.labelSize);
       inputBox.setAttribute('stroke', '#ddb1d1');
       inputBox.setAttribute('stroke-width', '.15');
       showPrompt(promptValue);
@@ -1917,12 +1998,13 @@ if (photoDesktop) {
   };
   const showPrompt = text => {
     promptValue = text;
+    const textX = inputLayout.x + inputLayout.textLeft;
     promptText.replaceChildren();
     promptText.setAttribute('font-size', String(inputLayout.fontSize));
     promptText.setAttribute('fill', '#eee');
     promptText.setAttribute('font-weight', '400');
     const lines = [];
-    const lineLength = Math.max(10, Math.floor((inputLayout.width - 2.6) / inputLayout.fontSize));
+    const lineLength = Math.max(10, Math.floor((inputLayout.width - inputLayout.textLeft - 1.4) / inputLayout.fontSize));
     const paragraphs = text.split('\n');
     paragraphs.forEach(paragraph => {
       let line = '';
@@ -1936,8 +2018,8 @@ if (photoDesktop) {
     });
     lines.forEach((textLine, index) => {
       const line = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-      line.setAttribute('x', String(inputLayout.x + 1.2));
-      line.setAttribute('y', String(inputLayout.y + 3.5 + index * inputLayout.fontSize * 1.7));
+      line.setAttribute('x', String(textX));
+      line.setAttribute('y', String(inputLayout.y + inputLayout.textInset + inputLayout.bodyTop + index * inputLayout.fontSize * 1.5));
       line.textContent = textLine;
       promptText.append(line);
     });
@@ -1958,8 +2040,6 @@ if (photoDesktop) {
     if (event.button !== 0 || action || inputExpanding) return;
     const photo = event.target.closest('.desktop-photo');
     if (!photo || photo.classList.contains('is-placed')) return;
-    pointerGuide.classList.remove('is-drag-guide');
-    pointerGuide.style.display = 'none';
     event.preventDefault();
     const start = point(event);
     const additive = event.shiftKey || event.metaKey || event.ctrlKey;
@@ -1980,15 +2060,15 @@ if (photoDesktop) {
     if (!action || action.pointer !== event.pointerId) return;
     const current = point(event);
     if (action.type === 'select') {
-      const left = Math.max(39, Math.min(action.start.x, current.x));
-      const top = Math.max(20, Math.min(action.start.y, current.y));
-      const right = Math.min(86, Math.max(action.start.x, current.x));
-      const bottom = Math.min(60, Math.max(action.start.y, current.y));
+      const left = Math.max(galleryBounds.x, Math.min(action.start.x, current.x));
+      const top = Math.max(galleryBounds.y, Math.min(action.start.y, current.y));
+      const right = Math.min(galleryBounds.x + galleryBounds.width, Math.max(action.start.x, current.x));
+      const bottom = Math.min(galleryBounds.y + galleryBounds.height, Math.max(action.start.y, current.y));
       marquee.setAttribute('x', left); marquee.setAttribute('y', top);
       marquee.setAttribute('width', Math.max(0,right-left)); marquee.setAttribute('height', Math.max(0,bottom-top));
       photos.forEach(photo => {
         const x = Number(photo.dataset.x), y = Number(photo.dataset.y);
-        setSelected(photo, !photo.classList.contains('is-placed') && (action.previous.has(photo) || (x < right && x+3.6 > left && y < bottom && y+4.5 > top)));
+        setSelected(photo, !photo.classList.contains('is-placed') && (action.previous.has(photo) || (x < right && x+3.3 > left && y < bottom && y+4.15 > top)));
       });
     } else if (action.origins.length) {
       const xs = action.origins.map(o => o.x), ys = action.origins.map(o => o.y);
@@ -2010,7 +2090,8 @@ if (photoDesktop) {
       action.origins.forEach(({item,x,y}) => {
         if (dropped) {
           const slot = placedCount++;
-          item.dataset.x = 78.4 + (slot % 4) * 3.1;
+          const rowWidth = 3 * 3.1 + 3.3 * .72;
+          item.dataset.x = zone.x + (zone.width - rowWidth) / 2 + (slot % 4) * 3.1;
           item.dataset.y = zone.y + .5 + Math.floor(slot / 4) * 4;
           setSelected(item, false);
           item.classList.add('is-placed');
@@ -2020,17 +2101,20 @@ if (photoDesktop) {
         } else {
           // Keep unsuccessful drops inside the gallery.
           const galleryPoint = at && point(event);
-          const galleryDrop = galleryPoint && galleryPoint.x >= 39 && galleryPoint.x <= 86
-            && galleryPoint.y >= 20 && galleryPoint.y <= 60;
+          const galleryRight = galleryBounds.x + galleryBounds.width;
+          const galleryBottom = galleryBounds.y + galleryBounds.height;
+          const galleryDrop = galleryPoint && galleryPoint.x >= galleryBounds.x && galleryPoint.x <= galleryRight
+            && galleryPoint.y >= galleryBounds.y && galleryPoint.y <= galleryBottom;
           const origins = action.origins;
-          const groupDx = Math.max(39.5 - Math.min(...origins.map(o => o.x)), Math.min(82 - Math.max(...origins.map(o => o.x)), action.dx));
-          const groupDy = Math.max(20.5 - Math.min(...origins.map(o => o.y)), Math.min(55 - Math.max(...origins.map(o => o.y)), action.dy));
+          const groupDx = Math.max(galleryBounds.x + .4 - Math.min(...origins.map(o => o.x)), Math.min(galleryRight - 4 - Math.max(...origins.map(o => o.x)), action.dx));
+          const groupDy = Math.max(galleryBounds.y + .5 - Math.min(...origins.map(o => o.y)), Math.min(galleryBottom - 5 - Math.max(...origins.map(o => o.y)), action.dy));
           item.dataset.x = galleryDrop ? x + groupDx : x;
           item.dataset.y = galleryDrop ? y + groupDy : y;
         }
         item.setAttribute('transform', `translate(${item.dataset.x} ${item.dataset.y})${item.classList.contains('is-placed') ? ' scale(.72)' : ''}`);
       });
       if (dropped) {
+        dragGuide.style.display = 'none';
         clear();
         photoDesktop.classList.remove('is-photo-group-hovered');
         if (document.activeElement?.closest('.desktop-photo')) document.activeElement.blur();
@@ -2055,8 +2139,6 @@ if (photoDesktop) {
     if (event.key === 'Escape') { if (action) finish({pointerId:action.pointer},true); clear(); }
     else if (photo && event.key === 'Enter' && !photo.classList.contains('is-placed')) {
       event.preventDefault();
-      pointerGuide.style.display = 'none';
-      pointerGuide.classList.remove('is-drag-guide');
       selectPhotoGroup();
       action = { type: 'move', pointer: 1, dx: 0, dy: 0,
         origins: [...selected].map(item => ({ item, x: Number(item.dataset.x), y: Number(item.dataset.y) })) };
@@ -2165,7 +2247,6 @@ if (spreadStoryVideo) {
 
 // Unspecified sections share the people's soft upward, fading entrance.
 const floatingSectionParts = [...document.querySelectorAll(
-  '#rights .rights-copy, #rights .timeline, ' +
   '.crime-summary .spread-story-video, ' +
   '#archive .section-copy, #archive .social-figure'
 )];
@@ -2181,7 +2262,7 @@ if (floatingSectionParts.length && 'IntersectionObserver' in window && !reducedM
       const element = entry.target;
       floatObserver.unobserve(element);
       const distance = innerWidth > 760 ? 180 : 90;
-      const visual = element.matches('.timeline, .creative-monitor, .spread-story-video, .social-figure');
+      const visual = element.matches('.spread-story-video, .social-figure');
       element.style.willChange = 'transform, opacity';
       const animation = element.animate([
         { opacity: 0, transform: `translate3d(0, ${distance}px, 0)` },

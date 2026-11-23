@@ -22,7 +22,15 @@
   const valid = value => value?.version === 1 && value.nodes?.length === initial.nodes.length && value.edges?.length === initial.edges.length
     && value.nodes.every((n, i) => n.id === i && n.label === initial.nodes[i].label && Number.isFinite(n.x) && Number.isFinite(n.y) && Math.abs(n.x) <= 5000 && Math.abs(n.y) <= 5000)
     && value.edges.every((e, i) => e.a === initial.edges[i].a && e.b === initial.edges[i].b && [e.start, e.end, ...(e.control ? [e.control] : [])].every(p => p && Number.isFinite(p.x) && Number.isFinite(p.y) && Math.abs(p.x) <= 5000 && Math.abs(p.y) <= 5000));
-  try { const saved = JSON.parse(localStorage.getItem(key)); if (valid(saved)) model = saved; } catch {}
+  let saved;
+  try {
+    if (location.protocol !== 'file:') saved = JSON.parse(localStorage.getItem(key));
+  } catch {}
+  try {
+    const embedded = JSON.parse(document.getElementById('saved-layouts')?.textContent || 'null')?.diagram;
+    if (valid(saved)) model = saved;
+    else if (valid(embedded)) model = embedded;
+  } catch {}
   const point = (edge, end) => {
     const id = end === 'start' ? edge.a : edge.b;
     const offset = edge[end];

@@ -44,10 +44,15 @@
     values = data.comments;
   };
   const snapshot = () => ({ version: 2, comments: values, added: entries.slice(originalCount).map(e => ({ template: e.template })) });
+  let saved;
   try {
-    const saved = JSON.parse(localStorage.getItem(key));
+    if (location.protocol !== 'file:') saved = JSON.parse(localStorage.getItem(key));
+  } catch {}
+  try {
+    const embedded = JSON.parse(document.getElementById('saved-layouts')?.textContent || 'null')?.comments;
     if (valid(saved)) values = saved;
     else if (validSnapshot(saved)) loadSnapshot(saved);
+    else if (validSnapshot(embedded)) loadSnapshot(embedded);
   } catch {}
   // Fill only blank or placeholder comments saved through the editor.
   let filledPending = false;

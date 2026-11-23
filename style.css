@@ -196,17 +196,25 @@ a:focus-visible {
   width: max-content;
   max-width: calc(100% - 2.5rem);
   margin: 0;
+  padding-bottom: calc(60px + .65rem);
   transform: translateX(-50%);
   color: #c3bdc0;
   text-align: center;
 }
 
 .scroll-cue {
-  position: relative;
-  top: -8px;
+  position: fixed;
+  z-index: 90;
+  bottom: calc(max(clamp(1.6rem, 4vw, 3rem), env(safe-area-inset-bottom)) + .5rem);
+  left: 50%;
   width: 42px;
   height: 60px;
-  margin: 0 auto 0.65rem;
+  color: #c3bdc0;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+body:has(.creative-interface:not(.has-projected-cases) .creative-monitor.is-in-view) .scroll-cue {
+  visibility: hidden;
 }
 
 /* Based on Balo's CSS Scroll down indicator: https://codepen.io/Balo/pen/PezyWb */
@@ -946,7 +954,7 @@ a:focus-visible {
 }
 
 /* Each life stage is one full-height interactive column. */
-.rights { position: relative; isolation: isolate; padding-block: 2rem; }
+.rights-stage { position: relative; isolation: isolate; }
 .rights-filter { position: absolute; }
 .rights-regions { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); z-index: -1; }
 .rights-region {
@@ -958,8 +966,6 @@ a:focus-visible {
   background: transparent;
   color: var(--page-bg);
   font: inherit;
-  cursor: pointer;
-  transition: background 220ms ease;
 }
 .rights-region::before {
   content: "";
@@ -978,23 +984,23 @@ a:focus-visible {
     transparent 100%
   );
   opacity: 0;
-  transition: opacity 220ms ease;
   pointer-events: none;
 }
 .rights-region.is-active::before { opacity: 1; }
-.rights-region:focus-visible { outline: 2px solid white; outline-offset: -3px; }
+@media (prefers-reduced-motion: no-preference) {
+  .rights-region.is-active::before { transition: opacity 220ms ease; }
+}
 .rights-message {
   position: absolute;
   top: var(--rights-highlight-top);
   left: 0;
   right: 0;
   padding: clamp(.75rem, 1.4vw, 1.25rem);
-  padding-top: calc(clamp(.75rem, 1.4vw, 1.25rem) + 12px);
+  padding-top: calc(clamp(.75rem, 1.4vw, 1.25rem) + 12px + clamp(12px, 3.8svh, 36px));
   visibility: hidden;
   text-align: center;
   opacity: 0;
   transform: translateY(8px);
-  transition: opacity 200ms ease, transform 200ms ease;
   font-size: clamp(0.7rem, 1.2vw, 1rem);
   line-height: 1.35;
   word-break: keep-all;
@@ -1027,6 +1033,9 @@ a:focus-visible {
 .rights-message strong { display: block; margin-bottom: 0.8rem; }
 .rights-message > span { display: block; }
 .rights-region.is-active .rights-message { visibility: visible; opacity: 1; transform: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .rights-region.is-active .rights-message { transition: opacity 200ms ease, transform 200ms ease; }
+}
 .rights .eyebrow, .rights-copy, .rights .timeline, .rights .timeline-note { pointer-events: none; }
 .rights .figure-slot .person {
   transform-origin: center bottom;
@@ -1240,13 +1249,9 @@ body.cases-open { overflow: hidden; }
   color: var(--text);
   overflow-y: auto;
 }
-.cases-dialog[open] { animation: cases-screen-in 650ms ease both; }
 .cases-dialog::backdrop { background: var(--page-bg); }
-.cases-dialog .case-explorer { margin-top: 2rem; }
+.cases-dialog .case-explorer { margin-top: 2rem; transition: none; }
 @keyframes cases-screen-in { from { opacity: 0; } to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) {
-  .cases-dialog[open] { animation: none; }
-}
 
 /* A white folder sheet opens above the case field. */
 .case-card { cursor: pointer; }
@@ -2014,7 +2019,7 @@ body.cases-open { overflow: hidden; }
 .case-detail-sheet { padding-inline: max(4.762cqw, var(--case-arrow-space)); }
 
 /* Fit the rights illustration and hover descriptions into one viewport. */
-.rights {
+.rights-stage {
   /* Extra space between the description and silhouettes; preserves image sizes. */
   --rights-illustration-gap: 64px;
   display: flex;
@@ -2049,13 +2054,14 @@ body.cases-open { overflow: hidden; }
 .rights .rights-region::before { --hover-fade-height: 160px; }
 .rights .rights-message { font-size: clamp(0.8rem, 1.2vw, 1rem); line-height: 1.4; }
 @media (max-width: 760px) {
-  .rights {
+  .rights-stage {
     height: calc(85svh - 2rem + var(--rights-illustration-gap));
     min-height: calc(560px + var(--rights-illustration-gap));
   }
   .rights-copy h2 { font-size: clamp(1.35rem, 4.5vw, 1.8rem); }
   .rights .rights-message {
     top: 0;
+    padding-top: calc(.75rem + 24px);
     background: var(--accent);
     left: calc(var(--rights-column-offset, 0) * -100%);
     right: auto;
@@ -2067,9 +2073,26 @@ body.cases-open { overflow: hidden; }
   .rights-region:nth-child(4) { --rights-column-offset: 3; }
 }
 
-/* Restore interaction after moving hover regions inside the timeline. */
-.rights .rights-regions,
-.rights .rights-region { pointer-events: auto; }
+.rights.has-stage-scroll {
+  --rights-illustration-gap: clamp(0px, calc(20svh - 76px), 64px);
+  --rights-stage-height: min(100svh - var(--header-height), 720px + var(--rights-illustration-gap));
+  position: relative;
+  height: calc(var(--rights-stage-height) + clamp(945px, 213.75svh, 2025px) * 1.25);
+}
+.rights.has-stage-scroll .rights-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  min-height: 0;
+  height: var(--rights-stage-height);
+}
+.rights.has-stage-scroll .rights-stage.is-pinned {
+  position: fixed;
+}
+.rights.has-stage-scroll .timeline {
+  top: clamp(0px, calc((100svh - var(--header-height) - var(--rights-stage-height)) * .65 + 8px), 76px);
+}
 
 /* Follow the growing silhouettes with stepped hover columns. */
 .rights .rights-region:nth-child(1) { --message-top: 15%; }
@@ -2123,16 +2146,6 @@ body.cases-open { overflow: hidden; }
 }
 .case-cylinder.is-dragging { cursor: grabbing; touch-action: none; }
 .case-cylinder:focus-visible { outline: none; }
-.case-cylinder:focus-visible::after {
-  content: "방향키로 회전";
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  color: var(--accent);
-  font-size: 0.75rem;
-  pointer-events: none;
-}
 .case-cylinder .case-field {
   display: block;
   position: absolute;
@@ -2374,6 +2387,13 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
   overflow: hidden;
   isolation: isolate;
 }
+@media (prefers-reduced-motion: no-preference) {
+  .sharing-composition .sharing-viewport {
+    --sharing-top-fade: clamp(56px, 11svh, 144px);
+    -webkit-mask-image: linear-gradient(to bottom, rgb(0 0 0 / var(--sharing-top-opacity, 0)), #000 var(--sharing-top-fade));
+    mask-image: linear-gradient(to bottom, rgb(0 0 0 / var(--sharing-top-opacity, 0)), #000 var(--sharing-top-fade));
+  }
+}
 .sharing-composition .sharing-camera {
   width: min(100%, calc(var(--sharing-height, 90svh) * 1.45));
   margin-inline: auto;
@@ -2551,7 +2571,7 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
   overflow-wrap: anywhere;
 }
 .computer-case-copy a {
-  align-self: flex-start;
+  align-self: flex-end;
   margin-top: auto;
   font-size: .75rem;
   color: #fff;
@@ -2630,11 +2650,8 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
   .rights .figure-slot .person { transition: none; }
 }
 
-/* Match pointer hit testing to each full pink column, including its upper extension. */
-.rights .rights-regions,
-.rights .rights-region { pointer-events: none; }
-.rights .rights-region::before { pointer-events: auto; }
-.rights .rights-message { pointer-events: none; }
+/* Let scrolling drive the stage highlights without intercepting the pointer. */
+.rights .rights-regions { pointer-events: none; }
 
 /* The person exits opposite the projection as the completed scene scrolls back. */
 
@@ -2676,7 +2693,6 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
 .case-gallery .case-card:is(:hover, :focus-visible) .case-card-front { transform: translate3d(0, -65px, 85px) scale(1.12); box-shadow: 0 30px 60px #0008; }
 .case-gallery .case-card:is(:hover, :focus-visible) .case-thumbnail { filter: brightness(1); }
 .case-gallery .case-card:is(:hover, :focus-visible) h3 { opacity: 1; }
-.case-gallery:focus-visible::after { content: '스크롤 또는 방향키로 탐색 · 클릭하여 사례 보기'; bottom: 20px; width: max-content; max-width: 90%; text-align: center; }
 @media(max-width:760px) {
   .case-gallery .case-field { left: 33%; top: calc(60% - 40px); }
   .case-gallery .case-field .case-card { width: 210px; }
@@ -2704,8 +2720,8 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
 .case-explorer .case-filters button:hover { color: var(--accent); }
 @media(max-width:760px) { .case-explorer .case-filters { gap: 4px; bottom: max(16px, env(safe-area-inset-bottom)); } }
 
-.case-explorer .case-filters { bottom: calc(max(24px, env(safe-area-inset-bottom)) + 15px); }
-@media(max-width:760px) { .case-explorer .case-filters { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 15px); } }
+.case-explorer .case-filters { bottom: calc(max(24px, env(safe-area-inset-bottom)) + 29px); }
+@media(max-width:760px) { .case-explorer .case-filters { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 29px); } }
 
 /* Keep the case videos on a separate paint surface. */
 .rights-case-stories { position: relative; isolation: isolate; contain: paint; }
@@ -2891,15 +2907,15 @@ html.intro-active { overflow: hidden; }
 
 /* Copy brightens together with the shrinking logo, without changing its layout. */
 .intro-active .hero-copy,
-.intro-active .scroll-note > .scroll-cue { opacity: .12; }
+.intro-active .scroll-cue { opacity: .12; }
 .intro-active.intro-settling .hero-copy,
-.intro-active.intro-settling .scroll-note > .scroll-cue {
+.intro-active.intro-settling .scroll-cue {
   opacity: 1;
   transition: opacity 800ms cubic-bezier(.22, 1, .36, 1);
 }
 @media (prefers-reduced-motion: reduce) {
   .intro-active .hero-copy,
-  .intro-active .scroll-note > .scroll-cue { opacity: 1; }
+  .intro-active .scroll-cue { opacity: 1; }
 }
 
 
@@ -3030,11 +3046,31 @@ html.intro-active { overflow: hidden; }
   height: min(calc(100cqw * 562 / 768), 90dvh);
   overflow: auto;
   scrollbar-width: none;
+  outline: 1px solid transparent;
 }
-.case-detail[open] { animation: case-card-rise 550ms cubic-bezier(.22, 1, .36, 1) both; }
+.case-detail { --case-card-rise-duration: 950ms; }
+.case-detail[open] { animation: case-card-rise var(--case-card-rise-duration) both; }
+.case-detail[open] .case-detail-scroll {
+  animation: case-card-stroke var(--case-card-rise-duration);
+}
+@media (hover: hover) {
+  .case-detail[open].is-cover .case-detail-scroll:hover {
+    outline-color: #fff;
+  }
+}
 @keyframes case-card-rise {
-  from { opacity: 0; transform: translateY(150px) scale(.88); }
+  from {
+    opacity: 0;
+    transform: translateY(150px) scale(.88);
+    animation-timing-function: cubic-bezier(.22, 1, .36, 1);
+  }
+  47% { opacity: 1; transform: translateY(0) scale(1); animation-timing-function: ease-out; }
+  83% { opacity: 1; transform: translateY(0) scale(1.035); animation-timing-function: ease-in-out; }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes case-card-stroke {
+  from, 47%, to { outline-color: transparent; }
+  83% { outline-color: #fff; }
 }
 .case-detail-sheet { cursor: pointer; }
 .case-detail-sheet:focus { outline: none; }
@@ -3049,7 +3085,9 @@ html.intro-active { overflow: hidden; }
   .case-detail > .case-detail-navigation button { width: 30px; }
   .case-detail-navigation button img { width: 24px; height: 24px; }
 }
-@media(prefers-reduced-motion:reduce) { .case-detail[open] { animation: none; } }
+@media(prefers-reduced-motion:reduce) {
+  .case-detail[open], .case-detail[open] .case-detail-scroll { animation: none; }
+}
 
 /* Add 150px between story sections, preserving the opening line and comment sequence. */
 #main > section.section-shell:not(.sharing-composition) {
@@ -3058,16 +3096,11 @@ html.intro-active { overflow: hidden; }
 /* Bring the children's rights heading another 100px closer to the comments. */
 #main > #rights { margin-top: -100px; }
 
-.sharing-received-photo { opacity: 0; pointer-events: none; transform-box: fill-box; transform-origin: center bottom; }
-.sharing-received-photo.is-received { opacity: 1; animation: received-photo-rise 500ms ease-out both, received-photo-wiggle 650ms ease-in-out 500ms 2; }
+.sharing-received-photo { opacity: 0; pointer-events: none; }
+.sharing-received-photo.is-received { opacity: 1; animation: received-photo-rise 550ms ease-out both; }
 @keyframes received-photo-rise {
-  from { opacity: 0; transform: translateY(65px) scale(.35); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes received-photo-wiggle {
-  0%, 100% { transform: rotate(0); }
-  25% { transform: rotate(-5deg); }
-  75% { transform: rotate(5deg); }
+  from { opacity: 0; transform: translateY(65px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 @media(prefers-reduced-motion:reduce) {
   .sharing-received-photo.is-received { animation: none; }
@@ -3078,28 +3111,40 @@ html.intro-active { overflow: hidden; }
 .desktop-generate { cursor: pointer; }
 .desktop-generate[aria-disabled="true"] { opacity: .5; cursor: default; }
 .desktop-generate:focus-visible { outline: none; filter: drop-shadow(0 0 .3px #8c2857); }
+.desktop-drag-guide,
+.desktop-generate-guide {
+  fill: var(--accent);
+  pointer-events: none;
+}
+.desktop-drag-guide {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.desktop-generate-guide { opacity: .8; }
+.desktop-generate[aria-disabled="true"] .desktop-generate-guide,
+.creative-monitor.is-moving-photos .desktop-drag-guide { visibility: hidden; }
+@media (prefers-reduced-motion: no-preference) {
+  .desktop-drag-guide { animation: desktop-guide-drag 3.5s ease-in-out infinite; }
+  .desktop-generate-guide { animation: desktop-guide-pulse 1.6s ease-in-out infinite; }
+  .creative-monitor:not(.is-in-view) :is(.desktop-drag-guide, .desktop-generate-guide) {
+    animation-play-state: paused;
+  }
+}
+@keyframes desktop-guide-drag {
+  0%, 8% { opacity: 0; transform: scale(1); }
+  18% { opacity: 1; transform: scale(1.2); }
+  30% { opacity: 1; transform: scale(.85); }
+  70%, 82% { opacity: 1; transform: translate(var(--guide-drag-x, 0px), var(--guide-drag-y, 0px)) scale(.85); }
+  92%, 100% { opacity: 0; transform: translate(var(--guide-drag-x, 0px), var(--guide-drag-y, 0px)) scale(1); }
+}
+@keyframes desktop-guide-pulse {
+  0%, 100% { r: .8925px; opacity: .8; }
+  50% { r: 1.26px; opacity: .4; }
+}
 .desktop-process { opacity: 0; transition: opacity .4s ease; }
 .is-generating .desktop-process { opacity: 1; }
 .desktop-generated-panel { pointer-events: none; }
 .is-generating .desktop-result-title { opacity: 0; }
-.desktop-pointer-guide { fill: var(--accent); pointer-events: none; transform-box: fill-box; transform-origin: center; }
-.creative-monitor:not(.is-in-view) .desktop-pointer-guide { animation-play-state: paused; }
-.desktop-pointer-guide.is-drag-guide { animation: desktop-guide-drag 3.5s ease-in-out infinite; }
-@keyframes desktop-guide-drag {
-  0%, 28.57% { opacity: 1; transform: translate(0, 0) scale(1); }
-  35% { transform: translate(0, 0) scale(.9); }
-  70%, 82% { opacity: 1; transform: translate(30px, 0) scale(.9); }
-  90%, 100% { opacity: 0; transform: translate(30px, 0) scale(1); }
-}
-.desktop-pointer-guide.is-generate-guide {
-  fill: #b0b0b0;
-  opacity: .8;
-  animation: desktop-guide-press 1.6s ease-in-out infinite;
-}
-@keyframes desktop-guide-press {
-  0%, 100% { transform: scale(.85); opacity: .8; }
-  50% { transform: scale(1.2); opacity: .4; }
-}
 .computer-audience { display: none; }
 .is-projecting .computer-scene-frame { transform: translateX(-6%) scale(.65); filter: none; }
 .computer-projected-cases { right: 0; width: 34%; }
@@ -3111,7 +3156,7 @@ html.intro-active { overflow: hidden; }
   .computer-case-title { height: auto; min-height: 84px; font-size: clamp(.68rem, 2vw, .9rem); }
 }
 @media(prefers-reduced-motion:reduce) {
-  .desktop-pointer-guide.is-drag-guide, .desktop-pointer-guide.is-generate-guide, .is-generating .desktop-generated-panel { animation: none; }
+  .is-generating .desktop-generated-panel { animation: none; }
   .desktop-process { transition: none; }
 }
 .desktop-generated-panel { opacity: 0; }
@@ -3153,71 +3198,31 @@ html.intro-active { overflow: hidden; }
 /* Form each image in place, then move the completed result into the history slot. */
 .is-generating .desktop-generated-panel { animation: none; opacity: 1; }
 .desktop-growing-input { filter: drop-shadow(0 1px 1.5px #0003); }
-.desktop-growing-input .desktop-prompt-box { fill: #fff; }
-/* Align the two result columns and use the reference's charcoal palette. */
 .desktop-growing-input .desktop-prompt-box { fill: #202324; }
 .desktop-generate[aria-disabled="true"] { opacity: 1; }
 .desktop-generate[aria-disabled="true"] text { opacity: .75; }
 
-/* Give the completed computer and case projection more presence to the right. */
+/* Center the visible editor and projection, accounting for the SVG's left inset. */
 #main > .creative-interface.is-projecting {
   width: min(1400px, calc(100% - clamp(32px, 8vw, 120px)));
-  left: clamp(12px, 2vw, 32px);
+  translate: -5% 0;
 }
 .is-projecting .computer-scene-frame { transform: translateX(-3%) scale(.68); }
-.creative-monitor .desktop-editor {
-  transform-box: fill-box;
-  transform-origin: top left;
-}
 @media (prefers-reduced-motion: no-preference) {
   .creative-monitor .desktop-editor { transition: opacity .24s ease-out; }
 }
-.is-desktop-hidden .desktop-background,
-.is-desktop-hidden .desktop-pointer-guide { visibility: hidden; }
+.is-desktop-hidden .desktop-background { visibility: hidden; }
 .is-projecting .desktop-editor {
+  transform-box: fill-box;
+  transform-origin: top left;
   transform: translate(-30.75px, -6px) scale(1.25);
 }
 .has-projected-cases .desktop-editor { opacity: .65; }
 @media(max-width:760px) {
-  #main > .creative-interface.is-projecting { left: 8px; }
+  #main > .creative-interface.is-projecting { translate: -2% 0; }
   .is-projecting .computer-scene-frame { transform: translateX(-9%) scale(.65); }
 }
 
-
-.opening-line-launch { position: fixed; right: 24px; bottom: 80px; z-index: 80; border: 1px solid var(--accent); border-radius: 999px; padding: 12px 20px; background: #292126; color: #fff; font: inherit; cursor: pointer; }
-.opening-line-launch[hidden] { display: none; }
-.opening-lines-editing { overflow: hidden; }
-.opening-line-dialog { width: 96vw; height: 92dvh; max-width: none; max-height: 94dvh; border: 1px solid #77616e; border-radius: 12px; padding: 16px; background: #1d191b; color: #eee; }
-.opening-line-dialog::backdrop { background: #000c; }
-.opening-line-dialog header, .opening-line-settings { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; }
-.opening-line-dialog button, .opening-line-dialog select { padding: 8px 12px; border: 1px solid #77616e; border-radius: 5px; background: #30272d; color: #eee; font: inherit; font-size: 13px; cursor: pointer; }
-.opening-line-settings label { display: flex; gap: 6px; align-items: center; font-size: 13px; }
-.opening-line-settings input[type=range] { width: 110px; accent-color: var(--accent); }
-.opening-line-dialog p { font-size: 13px; color: #c5b8c0; }
-.opening-line-canvas { height: calc(100% - 170px); min-height: 220px; overflow: auto; border: 1px solid #ffffff20; }
-.opening-line-preview { display: block; width: 100%; height: 100%; min-width: 650px; min-height: 500px; }
-.opening-line-hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
-.opening-line-art { fill: none; pointer-events: none; }
-
-@media(max-width:760px) { .opening-line-canvas { height: calc(100% - 260px); } }
-.opening-line-preview { touch-action: none; }
-.opening-curve-handles line { stroke: #f8b7df; stroke-width: 1.5; stroke-dasharray: 5 5; pointer-events: none; }
-.opening-curve-handles circle { fill: #ef65c0; stroke: #fff; stroke-width: 2; cursor: grab; }
-.opening-curve-handles circle:active { cursor: grabbing; }
-.opening-curve-handles circle:focus-visible { outline: none; stroke-width: 4; }
-.opening-curve-handles circle[data-anchor] { fill: #7fd3ed; }
-.opening-line-hit { cursor: move; }
-/* Use the full editing window, with zoom and pan for fine adjustments. */
-.opening-line-dialog { width: 99vw; height: 98dvh; max-height: 98dvh; padding: 12px; box-sizing: border-box; }
-.opening-line-dialog[open] { display: flex; flex-direction: column; gap: 8px; }
-.opening-line-dialog header, .opening-line-settings { flex: 0 0 auto; gap: 8px; margin: 0; }
-.opening-line-dialog p { margin: 0; flex: 0 0 auto; }
-.opening-line-canvas { flex: 1 1 auto; height: auto; min-height: 0; overflow: hidden; }
-.opening-line-preview { width: 100%; height: 100%; min-width: 0; min-height: 0; cursor: grab; }
-.opening-line-view-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
-.opening-line-view-tools output { min-width: 50px; text-align: center; }
-.opening-line-view-tools span { color: #c5b8c0; }
-.opening-line-settings input[type=color] { width: 42px; height: 28px; padding: 2px; background: #30272d; border: 1px solid #77616e; cursor: pointer; }
 
 /* Keep either face readable during the turn. */
 .case-detail-sheet { transform-origin: center center; backface-visibility: hidden; }
@@ -3263,14 +3268,3 @@ html.intro-active { overflow: hidden; }
   transition: none;
 }
 
-/* Use the same centered pointer across the site and enlarge it over case cards. */
-@media (any-hover: hover) and (any-pointer: fine) {
-  :root {
-    --site-pointer: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAj0lEQVR4nMWVuw3AIAxEGdVNJmIO75BVmIAFkBIKIiF+sYjPKV6T4h45wLh4nA4JNFwqoAxnQiYVQvlGXwRUgq4Xwko0C/eC4BYvFeyETyWjWnbDH2glkHQu2ZOhQGP13V/UAlYU8EigUU9XUy1IioL0iwBeEXyT4ccUftFMRgV82JmMa5MHpxVBnkwV4IIbqrvmKLbBkKoAAAAASUVORK5CYII=") 12 12, auto;
-  }
-  .case-gallery .case-card:hover,
-  .case-detail .case-detail-sheet:hover {
-    --site-pointer: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACYAAAAmCAYAAACoPemuAAAA+UlEQVR4nNWYzRGDIBBG7YMOrMRGqMRKKIEO0gGdkAqYZA+LQ8gSIyJ8Ht7FUecN+wPs9NSPCZHhAq3FFKEJQzjCE4Hx/MzwO6qH2EJY4nUQy982F5srhSTBuZWY5hCdlYoE/ucpsbWhUM5aK3al1K7cr/BdLRURw1pK9JY59U/OfRWEJNai+o5i98SWAVKRjz6HsFriqqVSaqBUZNu+RlViia1CUzEDIGYkMQcg5iQxDyDmJbGeTbVEuJUYbChhkx+2XcA2WNgtCXYThz72wB4UoY/WsJeRCOT1rYdc9YU3DSvciCAtCLihSt7noMZQOXCDu24MFyjxBrdDQwLNs7BOAAAAAElFTkSuQmCC") 19 19, pointer;
-  }
-  :root, body * { cursor: var(--site-pointer) !important; }
-}
