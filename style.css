@@ -2839,17 +2839,6 @@ html.intro-active { overflow: hidden; }
 }
 
 
-/* Project introduction, ready for the project's future copy. */
-.about-page .about-content {
-  min-height: calc(100svh - var(--header-height));
-  display: grid;
-  place-items: center;
-  padding: 2rem 0;
-}
-.about-page .about-logo { width: min(82vw, 1100px); height: auto; }
-.about-page .site-header nav a[aria-current="page"] { color: var(--accent); }
-
-
 /* Composite the static crowd separately from the animated SVG strokes. */
 .sharing-composition .sharing-camera { position: relative; }
 .sharing-crowd-layer {
@@ -3109,26 +3098,26 @@ html.intro-active { overflow: hidden; }
 /* A gallery feeds a generation workspace, then projects its case studies. */
 .creative-interface .creative-monitor { aspect-ratio: 107.1 / 64; }
 .desktop-generate { cursor: pointer; }
-.desktop-generate[aria-disabled="true"] { opacity: .5; cursor: default; }
-.desktop-generate:focus-visible { outline: none; filter: drop-shadow(0 0 .3px #8c2857); }
-.desktop-drag-guide,
-.desktop-generate-guide {
+.desktop-generate[aria-disabled="true"] { cursor: default; }
+.desktop-generate:focus-visible { outline: none; filter: drop-shadow(0 0 .3px #572741); }
+.desktop-generate[aria-disabled="false"] .desktop-generate-surface { fill: #ed82b8; }
+.desktop-drag-guide {
   fill: var(--accent);
   pointer-events: none;
-}
-.desktop-drag-guide {
   transform-box: fill-box;
   transform-origin: center;
 }
-.desktop-generate-guide { opacity: .8; }
-.desktop-generate[aria-disabled="true"] .desktop-generate-guide,
 .creative-monitor.is-moving-photos .desktop-drag-guide { visibility: hidden; }
 @media (prefers-reduced-motion: no-preference) {
   .desktop-drag-guide { animation: desktop-guide-drag 3.5s ease-in-out infinite; }
-  .desktop-generate-guide { animation: desktop-guide-pulse 1.6s ease-in-out infinite; }
-  .creative-monitor:not(.is-in-view) :is(.desktop-drag-guide, .desktop-generate-guide) {
-    animation-play-state: paused;
+  .creative-monitor.is-in-view .desktop-generate[aria-disabled="false"] .desktop-generate-surface {
+    animation: desktop-generate-colors 2.4s ease-in-out infinite;
   }
+  .creative-monitor:not(.is-in-view) .desktop-drag-guide { animation-play-state: paused; }
+}
+@keyframes desktop-generate-colors {
+  0%, 100% { fill: #d7d7d7; }
+  50% { fill: #ed82b8; }
 }
 @keyframes desktop-guide-drag {
   0%, 8% { opacity: 0; transform: scale(1); }
@@ -3136,10 +3125,6 @@ html.intro-active { overflow: hidden; }
   30% { opacity: 1; transform: scale(.85); }
   70%, 82% { opacity: 1; transform: translate(var(--guide-drag-x, 0px), var(--guide-drag-y, 0px)) scale(.85); }
   92%, 100% { opacity: 0; transform: translate(var(--guide-drag-x, 0px), var(--guide-drag-y, 0px)) scale(1); }
-}
-@keyframes desktop-guide-pulse {
-  0%, 100% { r: .8925px; opacity: .8; }
-  50% { r: 1.26px; opacity: .4; }
 }
 .desktop-process { opacity: 0; transition: opacity .4s ease; }
 .is-generating .desktop-process { opacity: 1; }
@@ -3199,7 +3184,6 @@ html.intro-active { overflow: hidden; }
 .is-generating .desktop-generated-panel { animation: none; opacity: 1; }
 .desktop-growing-input { filter: drop-shadow(0 1px 1.5px #0003); }
 .desktop-growing-input .desktop-prompt-box { fill: #202324; }
-.desktop-generate[aria-disabled="true"] { opacity: 1; }
 .desktop-generate[aria-disabled="true"] text { opacity: .75; }
 
 /* Center the visible editor and projection, accounting for the SVG's left inset. */

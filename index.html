@@ -50,7 +50,6 @@
       <a class="wordmark" href="#home" aria-label="Posted by, 홈으로">Posted by</a>
       <nav aria-label="주요 메뉴">
         <a href="#home">Home</a>
-        <a href="./about.html">About</a>
         <a href="#cases" class="archive-link" aria-haspopup="dialog" aria-controls="cases">Archive</a>
       </nav>
     </header>
@@ -146,15 +145,14 @@
 
 
       <section class="rights-case-stories section-shell" aria-label="사진 공유와 아동 권리 침해 사례">
-<figure class="rights-case-story rights-case-story-1"><video src="./video/story1.mov" muted loop playsinline preload="metadata" aria-label="부모가 올린 어린 시절 나체 사진으로 소송 제기. 캐나다의 Darren Randall은 부모가 자신의 나체 사진 등 수천 장을 페이스북에 공개했다며, 자신의 이미지와 향후 구직에 미칠 영향을 이유로 소송을 제기한 사례.">부모가 올린 어린 시절 나체 사진으로 소송 제기. 캐나다의 Darren Randall은 부모가 자신의 나체 사진 등 수천 장을 페이스북에 공개했다며, 자신의 이미지와 향후 구직에 미칠 영향을 이유로 소송을 제기한 사례.</video></figure>
-<figure class="rights-case-story rights-case-story-2"><video src="./video/story2.mov" muted loop playsinline preload="metadata" aria-label="두 살 딸의 목욕 사진을 게시한 어머니. 미국의 Katherine Revelle은 비난 댓글을 받고 사진을 삭제했으며, 아이를 보호하고 싶지만 아이의 신체를 위험의 대상으로만 바라보고 싶지는 않다고 밝힌 사례.">두 살 딸의 목욕 사진을 게시한 어머니. 미국의 Katherine Revelle은 비난 댓글을 받고 사진을 삭제했으며, 아이를 보호하고 싶지만 아이의 신체를 위험의 대상으로만 바라보고 싶지는 않다고 밝힌 사례.</video></figure>
+<figure class="rights-case-story rights-case-story-1"><video src="./video/story1.mp4" muted loop playsinline preload="metadata" aria-label="부모가 올린 어린 시절 나체 사진으로 소송 제기. 캐나다의 Darren Randall은 부모가 자신의 나체 사진 등 수천 장을 페이스북에 공개했다며, 자신의 이미지와 향후 구직에 미칠 영향을 이유로 소송을 제기한 사례.">부모가 올린 어린 시절 나체 사진으로 소송 제기. 캐나다의 Darren Randall은 부모가 자신의 나체 사진 등 수천 장을 페이스북에 공개했다며, 자신의 이미지와 향후 구직에 미칠 영향을 이유로 소송을 제기한 사례.</video></figure>
+<figure class="rights-case-story rights-case-story-2"><video src="./video/story2.mp4" muted loop playsinline preload="metadata" aria-label="두 살 딸의 목욕 사진을 게시한 어머니. 미국의 Katherine Revelle은 비난 댓글을 받고 사진을 삭제했으며, 아이를 보호하고 싶지만 아이의 신체를 위험의 대상으로만 바라보고 싶지는 않다고 밝힌 사례.">두 살 딸의 목욕 사진을 게시한 어머니. 미국의 Katherine Revelle은 비난 댓글을 받고 사진을 삭제했으며, 아이를 보호하고 싶지만 아이의 신체를 위험의 대상으로만 바라보고 싶지는 않다고 밝힌 사례.</video></figure>
 </section>
 
       <section class="creative-interface section-shell" id="creative-interface" aria-label="사진 갤러리와 이미지 편집 창이 열린 컴퓨터">
         <svg class="creative-monitor" viewBox="26 8 105.5 64" role="group" aria-label="공유된 사진이 모이는 컴퓨터 화면" aria-describedby="creative-monitor-description">
           <desc id="creative-monitor-description">연회색 화면에 여러 사진이 모인 갤러리와 사진을 끌어오는 이미지 편집 창이 나란히 열려 있습니다.</desc>
           <defs>
-            <linearGradient id="desktop-generate-pink" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b64d88"/><stop offset="1" stop-color="#ad3278"/></linearGradient>
             <linearGradient id="desktop-wallpaper" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="#e6e6e6"/><stop offset="1" stop-color="#929292"/></linearGradient>
             <pattern id="desktop-process-grid" width=".8" height=".8" patternUnits="userSpaceOnUse"><rect width=".8" height=".8" fill="#171b1c"/><path d="M.8 0H0V.8" fill="none" stroke="#333a3b" stroke-width=".05"/></pattern>
             <filter id="creative-window-shadow" x="-20%" y="-20%" width="150%" height="160%"><feDropShadow dx="0" dy=".6" stdDeviation="1" flood-opacity=".4"/></filter>
@@ -180,9 +178,8 @@
           <text class="desktop-prompt-label" x="79.2" y="43.5" fill="#ddd" opacity=".65" font-size=".64">prompt</text>
           <text class="desktop-prompt-text" x="79.2" y="44.6" font-size=".72" fill="#ccc">원하시는 행동을 입력해주세요</text>
           <g class="desktop-generate" role="button" tabindex="0" aria-label="Generate 생성 과정 보기" aria-disabled="true">
-            <rect x="78" y="61.5" width="15.7" height="2.1" rx=".5" fill="url(#desktop-generate-pink)"/>
-            <text x="85.85" y="62.95" text-anchor="middle" font-size="1.1" font-weight="700" fill="#f3dce9">Generate</text>
-            <circle class="desktop-generate-guide" cx="85.85" cy="62.55" r="1.05" aria-hidden="true"/>
+            <rect class="desktop-generate-surface" x="78" y="61.5" width="15.7" height="2.1" rx=".5" fill="#d7d7d7"/>
+            <text x="85.85" y="62.95" text-anchor="middle" font-size="1.1" font-weight="700" fill="#292329">Generate</text>
           </g>
           <clipPath id="desktop-results-viewport">
             <rect x="94.3" y="19" width="33.4" height="44.6"/>
@@ -208,7 +205,7 @@
       </section>
 
       <section id="spread" class="crime-summary section-shell" aria-label="범죄 악용">
-        <video class="spread-story-video" src="./video/story3.mov" width="3580" height="1800" muted loop playsinline preload="metadata" aria-label="셰어런팅으로 인해 아이가 범죄의 위험에 노출될 수 있습니다. 월평균 부모가 공유하는 자녀 이미지는 63장이며, 전문가가 경고한 딥페이크 제작에 충분할 수 있는 이미지는 20장입니다."></video>
+        <video class="spread-story-video" src="./video/story3.mp4" width="3580" height="1800" muted loop playsinline preload="metadata" aria-label="셰어런팅으로 인해 아이가 범죄의 위험에 노출될 수 있습니다. 월평균 부모가 공유하는 자녀 이미지는 63장이며, 전문가가 경고한 딥페이크 제작에 충분할 수 있는 이미지는 20장입니다."></video>
       </section>
 
 
@@ -282,7 +279,6 @@
           <a class="wordmark" href="#home" aria-label="Posted by, 홈으로">Posted by</a>
           <nav aria-label="주요 메뉴">
             <a href="#home">Home</a>
-            <a href="./about.html">About</a>
             <a href="#cases" aria-current="page">Archive</a>
           </nav>
         </header>
