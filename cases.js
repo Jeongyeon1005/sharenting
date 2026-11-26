@@ -457,7 +457,7 @@ const archiveCases = [
       "privacy",
       "crime"
     ],
-    "summary": "아역 배우 Kaylin Hayman의 인스타그램 사진을 57세 남성이 내려받아 AI로 성적 이미지를 제작했다. 피해자는 법정에서 증언했고, 가해자는 아동 성착취물 관련 혐의로 유죄 판결을 받았다.",
+    "summary": "아역 배우 Kaylin Hayman의 인스타그램 사진을 57세 남성이\n내려받아 AI로 성적 이미지를 제작했다. 피해자는 법정에서\n증언했고, 가해자는 아동 성착취물 관련 혐의로 유죄 판결을 받았다.",
     "sources": [
       "https://www.theguardian.com/technology/ng-interactive/2024/oct/26/ai-child-sexual-abuse-images-kaylin-hayman"
     ],
@@ -475,11 +475,28 @@ const archiveCases = [
       "crime",
       "footprint"
     ],
-    "summary": "워싱턴포스트는 법원 서류에서 Jane Doe 4로 익명 처리된 여성의 주장을 보도했다. 피해자는 어린 시절 사진이 AI 도구 Grok으로 성적으로 노골적인 허위 이미지로 변형됐으며, 계부가 7,000장 이상을 제작해 온라인에 유통했다고 주장했다.",
+    "summary": "워싱턴포스트는 법원 서류에서 Jane Doe 4로 익명 처리된\n여성의 주장을 보도했다. 피해자는 어린 시절 사진이 AI 도구\nGrok으로 성적으로 노골적인 허위 이미지로 변형됐으며,\n계부가 7,000장 이상을 제작해 온라인에 유통했다고 주장했다.",
     "sources": [
       "https://www.washingtonpost.com/technology/2026/08/15/woman-alleges-grok-made-thousands-sexual-abuse-images-childhood-snap/"
     ],
     "note": ""
+  },
+  {
+    "id": "pittman",
+    "image": "./images/pittman-courtroom.jpg",
+    "title": "실제 아동 사진과 영상을 AI로 합성해 유포한 사건",
+    "date": "2026-05",
+    "country": "미국",
+    "age": "자료에 미기재",
+    "categories": [
+      "privacy",
+      "crime"
+    ],
+    "summary": "미국 오하이오주에서 오스틴 피트먼은 실제 아동의 사진과 영상을\nAI로 변형해 성착취물을 만들고 온라인에 유포한 사실을 인정했다.\n2026년 5월 연방법원은 아동 성착취물 관련 두 범죄에 대해\n징역 14년을 선고했다.",
+    "sources": [
+      "https://www.justice.gov/usao-sdoh/pr/hilliard-man-sentenced-14-years-prison-using-ai-morph-images-real-minors-child"
+    ],
+    "note": "이미지는 사건을 설명하기 위한 법원 삽화입니다."
   },
   {
     "id": "claire",

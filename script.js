@@ -1,7 +1,94 @@
+const sceneSounds = new Map([
+  'deep_hover.wav', 'photo.wav', 'comment.mp3', 'deep_photo.wav', 'keyboard.wav',
+  'line.mp3', 'baby_photo.wav', 'coding.mp3', 'generate.wav', 'click.wav'
+].map(file => {
+  const audio = new Audio();
+  audio.preload = 'auto';
+  audio.src = `./audio/${file}`;
+  return [file, audio];
+}));
+const backgroundMusic = new Audio('./audio/back.mp3');
+backgroundMusic.loop = true;
+backgroundMusic.preload = 'auto';
+backgroundMusic.volume = 0;
+let backgroundMusicBlocked = false;
+let blockedSceneSound;
+const sceneSoundButton = document.createElement('button');
+sceneSoundButton.type = 'button';
+sceneSoundButton.className = 'scene-sound-button';
+sceneSoundButton.textContent = '소리 켜기';
+sceneSoundButton.hidden = true;
+document.body.append(sceneSoundButton);
+sceneSoundButton.addEventListener('click', () => {
+  startBackgroundMusic();
+  if (blockedSceneSound) playSceneSound(blockedSceneSound);
+});
+
+function updateSceneSoundButton() {
+  const host = document.querySelector('dialog:modal') || document.body;
+  if (sceneSoundButton.parentElement !== host) host.append(sceneSoundButton);
+  sceneSoundButton.hidden = !backgroundMusicBlocked && !blockedSceneSound;
+}
+
+function startBackgroundMusic() {
+  if (!backgroundMusic.paused) return;
+  backgroundMusic.play().then(() => {
+    backgroundMusicBlocked = false;
+    updateSceneSoundButton();
+    const fadeStarted = performance.now();
+    const fadeIn = now => {
+      const progress = Math.max(0, Math.min(1, (now - fadeStarted) / 2000));
+      backgroundMusic.volume = .06 * progress;
+      if (progress < 1) requestAnimationFrame(fadeIn);
+    };
+    requestAnimationFrame(fadeIn);
+  }).catch(error => {
+    if (error.name === 'NotAllowedError') {
+      backgroundMusicBlocked = true;
+      updateSceneSoundButton();
+    }
+  });
+}
+
+function playSceneSound(file) {
+  if (document.hidden) return;
+  const audio = sceneSounds.get(file);
+  const restart = file === 'deep_hover.wav' || file === 'click.wav';
+  const player = audio.paused || restart ? audio : audio.cloneNode();
+  if (file === 'baby_photo.wav') player.volume = .5;
+  if (file === 'comment.mp3') player.volume = .5;
+  if (file === 'photo.wav') player.volume = .5;
+  if (file === 'click.wav') player.volume = .5;
+  if (file === 'deep_hover.wav') {
+    player.volume = .75;
+    player.playbackRate = 1.15;
+  }
+  player.currentTime = 0;
+  player.play().then(() => {
+    blockedSceneSound = undefined;
+    updateSceneSoundButton();
+  }).catch(error => {
+    if (error.name === 'NotAllowedError') {
+      blockedSceneSound = file;
+      updateSceneSoundButton();
+    }
+  });
+  return player;
+}
+
+document.addEventListener('pointerdown', event => {
+  if (event.isTrusted && event.pointerType === 'mouse' && event.button === 0) {
+    playSceneSound('click.wav');
+  }
+}, true);
+
 // Play the opening, then settle the same wordmark above the scroll prompt.
 (async function playIntro() {
   const screen = document.querySelector('.intro-screen');
-  if (!screen) return;
+  if (!screen) {
+    startBackgroundMusic();
+    return;
+  }
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
   const pageContent = [...document.body.children].filter(element => element !== screen);
@@ -17,6 +104,7 @@
       wait(1500)
     ]);
     const wordmark = screen.querySelector('.intro-wordmark');
+    startBackgroundMusic();
     const entrance = wordmark.animate([
       { opacity: 0, transform: reducedMotion ? 'none' : 'translateY(70px)' },
       { opacity: 1, transform: 'translateY(0)' }
@@ -399,11 +487,13 @@ if (portraitInteraction) {
     clearTimeout(codeTimer);
     codeTimer = 0;
     const show = active && codeInView && !document.hidden;
+    const wasShowing = codeCanvas.classList.contains('is-visible');
     codeCanvas.classList.toggle('is-visible', show);
     if (show) {
       sizeCode();
       codeStarted = performance.now();
       drawCode();
+      if (!wasShowing) playSceneSound('coding.mp3');
     }
   };
   addEventListener('resize', () => { if (active) sizeCode(); });
@@ -454,6 +544,9 @@ if (portraitInteraction) {
   });
   const togglePortrait = () => { pinned = !pinned; setAnalysis(pinned); };
   portrait.addEventListener("click", togglePortrait);
+  portrait.addEventListener('pointerenter', event => {
+    if (event.pointerType !== 'touch') playSceneSound('baby_photo.wav');
+  });
   portraitInteraction.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
@@ -500,6 +593,7 @@ if (rights) {
       figures[index].classList.toggle("is-active", active);
       tracks[index].classList.toggle("is-active", active);
     });
+    if (pinned && stage >= 0) playSceneSound('comment.mp3');
   };
   const scheduleStages = () => {
     if (!stageFrame) stageFrame = motionFrame(updateStages);
@@ -805,6 +899,7 @@ if (exploreButton && caseExplorer && casesDialog) {
     exploreButton.setAttribute("aria-expanded", "true");
     document.body.classList.add("cases-open");
     casesDialog.showModal();
+    updateSceneSoundButton();
     casesDialog.scrollTop = 0;
     caseExplorer.classList.add("is-visible");
     playCaseGalleryEntrance();
@@ -828,6 +923,7 @@ if (exploreButton && caseExplorer && casesDialog) {
     });
   });
   casesDialog.addEventListener("close", () => {
+    updateSceneSoundButton();
     document.body.classList.remove("cases-open");
     exploreButton.setAttribute("aria-expanded", "false");
     caseExplorer.classList.remove("is-visible");
@@ -1123,6 +1219,32 @@ if (sharingComposition) {
     return { halo, head, samples, curve: null };
   });
 
+  const revealSounds = new Map();
+  const playRevealSound = sound => {
+    if (!sound.revealed || !sound.inView || sound.played) return;
+    sound.played = true;
+    playSceneSound(sound.file);
+  };
+  const soundObserver = 'IntersectionObserver' in window ? new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      const sound = revealSounds.get(entry.target);
+      if (!sound) return;
+      sound.inView = entry.isIntersecting;
+      playRevealSound(sound);
+    });
+  }) : null;
+  const observeRevealSound = (element, file) => {
+    if (revealSounds.has(element)) return;
+    revealSounds.set(element, { file, revealed: false, inView: !soundObserver, played: false });
+    soundObserver?.observe(element);
+  };
+  const updateRevealSound = (element, revealed) => {
+    const sound = revealSounds.get(element);
+    sound.revealed = revealed;
+    if (!revealed) sound.played = false;
+    playRevealSound(sound);
+  };
+
   const people = [...sharingComposition.querySelectorAll('.sharing-person-reveal')].map((group, index) => {
     const image = group.querySelector('image');
     const x = Number(image.getAttribute('x'));
@@ -1156,22 +1278,25 @@ if (sharingComposition) {
     const photoGroup = document.createElementNS(svgNS, 'g');
     photoGroup.append(photo);
     receivedPhotos.append(photoGroup);
+    observeRevealSound(photoGroup, 'photo.wav');
     return { group, photo, photoGroup, y, reveal: 0, phoneX, phoneY };
   });
   let comments = [];
   const collectComments = () => {
-  const previous = new Map(comments.map(comment => [comment.group, comment]));
-  comments = [...sharingComposition.querySelectorAll('.sharing-chat-reveal')].filter(group => group.dataset.commentDeleted !== 'true').map((group, index) => {
-    const bubble = group.querySelector('image');
-    const centerX = Number(bubble.getAttribute('x')) + Number(bubble.getAttribute('width')) / 2;
-    return { ...(previous.get(group) || {}), group, centerX, width: Number(bubble.getAttribute('width')), shiftX: 0, y: Number(group.dataset.y), order: index, reveal: previous.get(group)?.reveal || 0 };
-  });
+    const previous = new Map(comments.map(comment => [comment.group, comment]));
+    comments = [...sharingComposition.querySelectorAll('.sharing-chat-reveal')].filter(group => group.dataset.commentDeleted !== 'true').map((group, index) => {
+      const oldComment = previous.get(group);
+      const bubble = group.querySelector('image');
+      const centerX = Number(bubble.getAttribute('x')) + Number(bubble.getAttribute('width')) / 2;
+      return { ...oldComment, group, centerX, width: Number(bubble.getAttribute('width')), shiftX: 0, y: Number(group.dataset.y), order: index, reveal: oldComment?.reveal || 0 };
+    });
   };
   collectComments();
   const clamp = value => Math.max(0, Math.min(1, value));
   sharingComposition.classList.add('has-scroll-lines');
   let sharingFrame = 0;
   let hasSharingScroll = false;
+  let openingSoundPlayed = false;
   let smoothDistance = null;
   let previousFrameTime = 0;
   let viewHeight = 1;
@@ -1275,7 +1400,8 @@ if (sharingComposition) {
     const finalRouteIndex = Math.max(0, scrollLines.length - 25);
     const finalRouteProgress = clamp((routesProgress - finalRouteIndex * .22) / .25);
     const commentsReady = hasSharingScroll && finalRouteProgress >= 1 && commentsProgress > 0;
-    const anchors = [{ x: 539, y: 480 }];
+    // Branch from inside the opening bundle, just above its phone connection.
+    const anchors = [{ x: 553, y: 452 }];
     let peopleSettling = false;
     people.forEach(person => {
       const screenY = person.y * scale - cameraPan;
@@ -1303,6 +1429,7 @@ if (sharingComposition) {
         person.lastRise = rise;
       }
       anchors.push({ x: person.phoneX, y: person.phoneY + rise });
+      updateRevealSound(person.photoGroup, hasSharingScroll && reveal > 0 && person.photo.classList.contains('is-received'));
     });
     let commentsSettling = false;
     const completion = clamp((commentsProgress - .65) / .35);
@@ -1332,14 +1459,16 @@ if (sharingComposition) {
       const from = anchors[index];
       const to = anchors[index + 1];
       const curveY = Math.min(from.y, to.y) - 95;
+      const control1 = { x: from.x, y: index === 0 ? from.y + 65 : curveY };
+      const control2 = { x: to.x, y: index === 0 ? to.y - 95 : curveY };
       const light = lineLights[index + 24];
-      const d = `M${from.x} ${from.y} C${from.x} ${curveY} ${to.x} ${curveY} ${to.x} ${to.y}`;
+      const d = `M${from.x} ${from.y} C${control1.x} ${control1.y} ${control2.x} ${control2.y} ${to.x} ${to.y}`;
       if (light.d !== d) {
         line.setAttribute('d', d);
         light.halo.setAttribute('d', d);
         light.d = d;
         // Sample equal parameter steps, then use cumulative length to locate the head.
-        const curve = [from, { x: from.x, y: curveY }, { x: to.x, y: curveY }, to];
+        const curve = [from, control1, control2, to];
         let total = 0;
         light.arcSamples = Array.from({ length: 65 }, (_, i) => {
           const t = i / 64, u = 1 - t;
@@ -1354,8 +1483,10 @@ if (sharingComposition) {
         light.arcLength = total;
       }
     });
+    let allOpeningLinesConnected = hasSharingScroll && bounds.top <= headerHeight;
     extraOpeningLines.forEach(line => {
       const progress = reducedMotion.matches ? 1 : hasSharingScroll ? clamp((openingProgress - .12) / .55) : 0;
+      if (progress < 1) allOpeningLinesConnected = false;
       line.style.strokeDasharray = '1';
       line.style.strokeDashoffset = String(1 - progress);
       line.style.opacity = progress > 0 ? '.75' : '0';
@@ -1363,6 +1494,7 @@ if (sharingComposition) {
     upwardLines.forEach(({ line, start, duration, opacity }) => {
       const progress = reducedMotion.matches ? 1
         : hasSharingScroll ? clamp((openingProgress - start) / duration) : 0;
+      if (progress < 1) allOpeningLinesConnected = false;
       line.style.strokeDashoffset = String(1 - progress);
       line.style.opacity = progress > 0 ? String(opacity) : '0';
     });
@@ -1371,6 +1503,9 @@ if (sharingComposition) {
         ? clamp((openingProgress - (index * 7 % 23) / 100) / (.36 + (index * 13 % 37) / 100))
         : clamp((routesProgress - (index - 24) * .22) / .25);
       const visibleProgress = !hasSharingScroll ? 0 : reducedMotion.matches ? 1 : progress;
+      if (index < 24 && visibleProgress < 1 && line.dataset.lineDeleted !== 'true') {
+        allOpeningLinesConnected = false;
+      }
       const light = lineLights[index];
       const offset = (1 - visibleProgress).toFixed(4);
       if (light.offset !== offset) {
@@ -1410,6 +1545,8 @@ if (sharingComposition) {
       }
 
     });
+    if (allOpeningLinesConnected && !openingSoundPlayed) playSceneSound('line.mp3');
+    openingSoundPlayed = allOpeningLinesConnected;
     const cameraTransform = reducedMotion.matches ? 'none' : `translate3d(0, ${-cameraPan}px, 0)`;
     if (camera.style.transform !== cameraTransform) camera.style.transform = cameraTransform;
     if ((Math.abs(targetDistance - smoothDistance) > .05 || peopleSettling || commentsSettling) && !reducedMotion.matches) {
@@ -1675,25 +1812,58 @@ if (photoDesktop) {
   projectedCases.className = 'computer-projected-cases';
   projectedCases.setAttribute('aria-label', '사진을 악용한 AI 합성 피해 사례');
   projectedCases.hidden = true;
-  const projectionItems = archiveCases.filter(item => item.title.includes('AI 성착취')).slice(0, 3);
-  if (projectionItems.length < 3) projectionItems.push({
-    id: 'pittman',
-    title: '실제 아동 사진과 영상을 AI로 합성해 유포한 사건',
-    summary: '미국 오하이오주에서 오스틴 피트먼은 실제 아동의 사진과 영상을 AI로 변형해 성착취물을 만들고 온라인에 유포한 사실을 인정했다. 2026년 5월 연방법원은 아동 성착취물 관련 두 범죄에 대해 징역 14년을 선고했다.',
-    sources: ['https://www.justice.gov/usao-sdoh/pr/hilliard-man-sentenced-14-years-prison-using-ai-morph-images-real-minors-child']
-  });
   const projectedTitleLines = {
     kaylin: ['인스타그램 사진을 이용한', 'AI 성착취 이미지 제작'],
     grok: ['어린 시절 사진을 이용한', 'AI 성착취 이미지 제작·유포'],
     pittman: ['실제 아동 사진과 영상을', 'AI로 합성해 유포']
   };
-  const appendTypedText = (element, text) => [...text].map(character => {
+  const projectionItems = Object.keys(projectedTitleLines)
+    .map(id => archiveCases.find(item => item.id === id))
+    .filter(Boolean);
+  const projectedPreview = document.createElement('img');
+  projectedPreview.className = 'computer-case-preview';
+  projectedPreview.alt = '';
+  projectedPreview.decoding = 'async';
+  computerSection.append(projectedPreview);
+  const appendTypedText = (element, text) => [...text].flatMap(character => {
+    if (character === '\n') {
+      element.append(document.createElement('br'));
+      return [];
+    }
     const letter = document.createElement('span');
     letter.className = 'computer-case-letter';
     letter.textContent = character;
     element.append(letter);
     return letter;
   });
+  let openProjectedCard = null;
+  let projectedPreviewEntrance;
+  let projectedPreviewRequest = 0;
+  const setOpenProjectedCard = card => {
+    if (openProjectedCard === card) return;
+    const request = ++projectedPreviewRequest;
+    openProjectedCard?.classList.remove('is-open');
+    openProjectedCard = card;
+    openProjectedCard?.classList.add('is-open');
+    const image = card?.querySelector('.computer-case-image');
+    const previewSource = image?.getAttribute('src');
+    projectedPreviewEntrance?.cancel();
+    if (!previewSource) {
+      projectedPreview.removeAttribute('src');
+      return;
+    }
+    image.decode().then(() => {
+      if (request !== projectedPreviewRequest) return;
+      projectedPreview.src = previewSource;
+      if (reducedMotion.matches) return;
+      projectedPreviewEntrance = projectedPreview.animate([
+        { transform: 'translate(-50%, calc(-50% + 28px))', opacity: 0 },
+        { transform: 'translate(-50%, -50%)', opacity: 1 }
+      ], { duration: 650, easing: 'cubic-bezier(.25, .55, .35, 1)' });
+    }).catch(() => {
+      if (request === projectedPreviewRequest) projectedPreview.removeAttribute('src');
+    });
+  };
   projectionItems.forEach(item => {
     const card = document.createElement('article');
     card.className = 'computer-projected-case';
@@ -1716,7 +1886,16 @@ if (photoDesktop) {
     else source.hidden = true;
     source.target = '_blank';
     source.rel = 'noopener noreferrer';
-    copy.append(summary, source);
+    copy.append(summary);
+    if (item.image) {
+      const image = document.createElement('img');
+      image.className = 'computer-case-image';
+      image.src = item.image;
+      image.alt = '';
+      image.decoding = 'async';
+      copy.append(image);
+    }
+    copy.append(source);
     card.append(title, copy);
     let typingStarted = false;
     const startTyping = () => {
@@ -1738,15 +1917,42 @@ if (photoDesktop) {
       };
       motionFrame(type);
     };
-    card.addEventListener('pointerenter', startTyping);
-    card.addEventListener('focusin', startTyping);
-    card.addEventListener('click', event => {
-      if (!event.target.closest('a')) {
-        card.classList.toggle('is-open');
-        startTyping();
+    const openCard = () => {
+      setOpenProjectedCard(card);
+      startTyping();
+    };
+    card.addEventListener('pointerenter', event => {
+      if (event.pointerType === 'mouse') {
+        if (!projectedCases.hidden) playSceneSound('deep_hover.wav');
+        openCard();
       }
     });
+    card.addEventListener('pointerleave', event => {
+      if (event.pointerType === 'mouse' && openProjectedCard === card &&
+          !card.querySelector(':focus-visible') && !card.matches(':focus-visible')) {
+        setOpenProjectedCard(null);
+      }
+    });
+    card.addEventListener('focusin', event => {
+      if (event.target.matches(':focus-visible')) openCard();
+    });
+    card.addEventListener('focusout', event => {
+      if (openProjectedCard === card && !card.contains(event.relatedTarget)) {
+        setOpenProjectedCard(null);
+      }
+    });
+    card.addEventListener('click', event => {
+      if (event.pointerType === 'mouse' || event.target.closest('a')) return;
+      if (openProjectedCard === card) setOpenProjectedCard(null);
+      else openCard();
+    });
     projectedCases.append(card);
+  });
+  document.addEventListener('pointerdown', event => {
+    if (openProjectedCard && !openProjectedCard.contains(event.target)) setOpenProjectedCard(null);
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') setOpenProjectedCard(null);
   });
   computerSection.append(projectedCases);
   const revealProjection = async () => {
@@ -1832,6 +2038,7 @@ if (photoDesktop) {
   const generate = () => {
     if (generating || generateButton.getAttribute('aria-disabled') === 'true') return;
     generating = true;
+    playSceneSound('generate.wav');
     generateButton.setAttribute('aria-disabled', 'true');
     expandTypingInput(false);
     photoDesktop.classList.add('is-generating');
@@ -1845,6 +2052,7 @@ if (photoDesktop) {
       processArea.append(log);
       const processCode = log.querySelector('.desktop-process-code');
       const started = performance.now();
+      let pixelSoundPlayed = false;
       const draw = now => {
         const progress = reducedMotion.matches ? 1 : Math.min(1, (now - started) / 2200);
         status.textContent = `이미지 ${number + 1} / 3 · ${Math.round(progress * 100)}%`;
@@ -1861,6 +2069,10 @@ if (photoDesktop) {
           const reveal = Math.max(0, Math.min(1, (progress * 1.5 - order) * 3));
           const gray = Math.round(20 + (shade - 20) * reveal);
           rect.setAttribute('fill', `rgb(${gray},${gray},${gray})`);
+          if (!pixelSoundPlayed && gray > 24) {
+            pixelSoundPlayed = true;
+            playSceneSound('photo.wav');
+          }
         });
         if (progress < 1) { motionFrame(draw); return; }
         if (number === 2) {
@@ -1952,6 +2164,7 @@ if (photoDesktop) {
   const promptText = photoDesktop.querySelector('.desktop-prompt-text');
   const demonstrationPrompt = '업로드한 사진을 참조하여\n인물의 얼굴과 배경을 다른 이미지에 합성해줘.';
   let promptTimer;
+  let keyboardSound;
   let placedCount = 0;
   let inputExpanding = false;
   let promptValue = '';
@@ -2026,11 +2239,16 @@ if (photoDesktop) {
   };
   const typeDemonstration = () => {
     clearTimeout(promptTimer);
+    keyboardSound = playSceneSound('keyboard.wav');
     let length = 0;
     const tick = () => {
       showPrompt(demonstrationPrompt.slice(0, ++length));
       if (length < demonstrationPrompt.length) promptTimer = setTimeout(tick, 24);
-      else readyToGenerate();
+      else {
+        keyboardSound?.pause();
+        keyboardSound = undefined;
+        readyToGenerate();
+      }
     };
     if (reducedMotion.matches) { showPrompt(demonstrationPrompt); readyToGenerate(); }
     else tick();
@@ -2087,12 +2305,16 @@ if (photoDesktop) {
       const zone = dropZone.getBBox();
       const dropped = at && at.x >= zone.x && at.x <= zone.x + zone.width
         && at.y >= zone.y && at.y <= zone.y + zone.height && action.origins.length > 0;
+      const columns = 4;
+      const rowStep = 4;
+      const placedScale = .72;
+      const gridHeight = (Math.ceil(photos.length / columns) - 1) * rowStep + 4.15 * placedScale;
       action.origins.forEach(({item,x,y}) => {
         if (dropped) {
           const slot = placedCount++;
-          const rowWidth = 3 * 3.1 + 3.3 * .72;
-          item.dataset.x = zone.x + (zone.width - rowWidth) / 2 + (slot % 4) * 3.1;
-          item.dataset.y = zone.y + .5 + Math.floor(slot / 4) * 4;
+          const rowWidth = (columns - 1) * 3.1 + 3.3 * placedScale;
+          item.dataset.x = zone.x + (zone.width - rowWidth) / 2 + (slot % columns) * 3.1;
+          item.dataset.y = zone.y + (zone.height - gridHeight) / 2 + Math.floor(slot / columns) * rowStep;
           setSelected(item, false);
           item.classList.add('is-placed');
           editor.insertBefore(item, inputPanel);
@@ -2111,15 +2333,17 @@ if (photoDesktop) {
           item.dataset.x = galleryDrop ? x + groupDx : x;
           item.dataset.y = galleryDrop ? y + groupDy : y;
         }
-        item.setAttribute('transform', `translate(${item.dataset.x} ${item.dataset.y})${item.classList.contains('is-placed') ? ' scale(.72)' : ''}`);
+        item.setAttribute('transform', `translate(${item.dataset.x} ${item.dataset.y})${item.classList.contains('is-placed') ? ` scale(${placedScale})` : ''}`);
       });
       if (dropped) {
+        playSceneSound('deep_photo.wav');
         dragGuide.style.display = 'none';
         clear();
         photoDesktop.classList.remove('is-photo-group-hovered');
         if (document.activeElement?.closest('.desktop-photo')) document.activeElement.blur();
         dropHint.style.display = 'none';
         clearTimeout(promptTimer);
+        keyboardSound?.pause();
         showPrompt('');
         expandTypingInput();
       }

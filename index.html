@@ -10,6 +10,21 @@
     >
     <title>Posted by — 아이의 사진은 어디까지 기록될까요?</title>
     <script>
+      if (performance.getEntriesByType('navigation')[0]?.type === 'reload') {
+        const previousScrollRestoration = history.scrollRestoration;
+        history.scrollRestoration = 'manual';
+        if (location.hash) {
+          const topUrl = new URL(location.href);
+          topUrl.hash = '';
+          history.replaceState(history.state, '', topUrl);
+        }
+        addEventListener('pageshow', () => {
+          requestAnimationFrame(() => {
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+            history.scrollRestoration = previousScrollRestoration;
+          });
+        }, { once: true });
+      }
       document.documentElement.classList.add('intro-active');
       // Reveal the page even if the main script fails to load.
       window.introSafetyTimer = setTimeout(() => {
