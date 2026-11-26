@@ -1855,7 +1855,7 @@ if (photoDesktop) {
     const summary = document.createElement('p');
     const summaryLetters = appendTypedText(summary, item.summary);
     const source = document.createElement('a');
-    const sourceLetters = appendTypedText(source, '원문 보기 ↗');
+    const sourceLetters = appendTypedText(source, '원문 보기');
     if (item.sources[0]) source.href = item.sources[0];
     else source.hidden = true;
     source.target = '_blank';

@@ -2567,12 +2567,13 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
   color: #efe3eb;
   font-size: .85rem;
   line-height: 1.55;
-  margin: 0 0 1rem;
+  margin: 0;
+  word-break: keep-all;
   overflow-wrap: anywhere;
 }
 .computer-case-copy a {
   align-self: flex-end;
-  margin-top: auto;
+  margin-top: 1rem;
   font-size: .75rem;
   color: #fff;
   text-decoration: none;
@@ -2586,43 +2587,33 @@ html { scroll-padding-top: calc(var(--header-height) + 1rem); }
   pointer-events: none;
 }
 .computer-projected-case.is-open {
-  --case-copy-inset: clamp(.85rem, 2vw, 1.75rem);
-  --case-text-offset: .35rem;
+  --case-copy-inset: clamp(.85rem, 1.5vw, 1.5rem);
   display: flex;
   flex-direction: column;
   width: 100%;
-  min-height: clamp(190px, 15vw, 240px);
+  min-height: 0;
   transform: scale(1);
   background: rgb(215 119 167 / 21%);
   border-color: #f0e7ed;
   z-index: 5;
 }
 .computer-projected-case.is-open .computer-case-title {
-  position: relative;
-  top: var(--case-text-offset);
   display: block;
   height: auto;
   min-height: 0;
-  padding: 1.25rem var(--case-copy-inset) .85rem;
+  padding: 1rem var(--case-copy-inset) .65rem;
   text-align: left;
   font-size: clamp(.9rem, 1.22vw, 1.2rem);
   font-weight: 700;
   line-height: 1.3;
 }
-.computer-projected-case.is-open .computer-case-title span + span::before {
-  content: " ";
-}
-.computer-projected-case:nth-child(2).is-open .computer-case-title span {
+.computer-projected-case.is-open .computer-case-title > span {
   display: block;
 }
 .computer-projected-case.is-open .computer-case-copy {
   display: flex;
   flex-direction: column;
   flex: 1;
-}
-.computer-projected-case.is-open .computer-case-copy p {
-  position: relative;
-  top: var(--case-text-offset);
 }
 @media (prefers-reduced-motion: no-preference) {
   .computer-projected-case:not(.is-typed) .computer-case-letter:not(.is-visible) { opacity: 0; }
@@ -3219,9 +3210,6 @@ html.intro-active { overflow: hidden; }
     height: clamp(105px, 10.5vw, 176px);
     font-size: clamp(.9rem, 1.45vw, 1.55rem);
   }
-  .computer-projected-case.is-open {
-    min-height: clamp(190px, 16vw, 275px);
-  }
   .computer-projected-case.is-open .computer-case-title {
     font-size: clamp(.95rem, 1.3vw, 1.4rem);
   }
@@ -3234,6 +3222,10 @@ html.intro-active { overflow: hidden; }
 
 .computer-case-preview { display: none; }
 @media (min-width: 1000px) {
+  .computer-projected-case.is-open {
+    width: max-content;
+    max-width: 100%;
+  }
   #main > .creative-interface.has-projected-cases { translate: -1% 0; }
   .has-projected-cases:has(.computer-case-preview[src]) .computer-scene-motion {
     visibility: hidden;
@@ -3291,7 +3283,7 @@ html.intro-active { overflow: hidden; }
   letter-spacing: -.045em;
   word-break: keep-all;
   overflow-wrap: normal;
-  white-space: normal;
+  white-space: pre-line;
 }
 @media(max-width:600px) { .case-detail { --case-title-inset: 24px; } }
 

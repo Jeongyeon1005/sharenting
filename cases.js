@@ -6,7 +6,7 @@ const archiveCases = [
   {
     "id": "jake",
     "image": "./images/1.jpg",
-    "title": "Jake의 아기 사진 입양 사기 도용 사건",
+    "title": "아기 사진 입양 사기 도용 사건",
     "date": "2009-08-03",
     "country": "미국",
     "age": "생후 9개월",
@@ -24,10 +24,10 @@ const archiveCases = [
   {
     "id": "darren",
     "image": "./images/2.jpg",
-    "title": "자녀 사진 올렸다간 셰어런팅으로 고소당해",
+    "title": "셰어런팅으로 인해 생긴\n부모 자식 간의 법적 분쟁",
     "date": "2016",
     "country": "캐나다 앨버타주 캘거리시",
-    "age": "고소 당시 13세 / 사진은 어린 시절",
+    "age": "고소 당시 13세",
     "categories": [
       "privacy",
       "footprint"
@@ -41,10 +41,10 @@ const archiveCases = [
   {
     "id": "roman",
     "image": "./images/3.jpg",
-    "title": "어머니가 올린 글이 전 세계에 퍼진 11세 소년",
+    "title": "어머니가 올린 글이\n전 세계에 퍼진 소년",
     "date": "2016-11-05",
     "country": "영국",
-    "age": "최초 게시 당시 약 10세 / 인터뷰 당시 11세",
+    "age": "10세",
     "categories": [
       "privacy",
       "footprint"
@@ -58,14 +58,14 @@ const archiveCases = [
   {
     "id": "boram",
     "image": "./images/4.jpg",
-    "title": "보람튜브 아동 출연 강요 및 아동 권리 침해 논란",
+    "title": "보람튜브 출연 강요 및 아동 권리 침해",
     "date": "2017",
     "country": "대한민국",
     "age": "미상",
     "categories": [
       "rights"
     ],
-    "summary": "2017년 세이브더칠드런은 보람튜브 등 아동 출연 채널 운영자를 아동학대 혐의로 고발했다. 아동이 돈을 훔치거나 자동차를 운전하는 상황, 임신·출산을 연기하는 영상 등이 공개돼 논란이 됐다.",
+    "summary": "2017년 세이브더칠드런은 보람튜브 등 아동 출연 채널 운영자를 아동학대 혐의로 고발했다. 아동이 돈을 훔치거나 자동차를 운전하는 상황, 임신·출산을 연기하는 영상 등이 공개돼 사건이 됐다.",
     "sources": [
       "https://www.mk.co.kr/news/society/8910493"
     ],
@@ -74,7 +74,7 @@ const archiveCases = [
   {
     "id": "italy",
     "image": "./images/5.jpg",
-    "title": "어머니가 아들의 사생활을 SNS에 반복적으로 공개한 사건",
+    "title": "SNS를 통한 사생활 반복 공개",
     "date": "2017-12-23",
     "country": "이탈리아",
     "age": "16세",
@@ -92,14 +92,14 @@ const archiveCases = [
   {
     "id": "familyofive",
     "image": "./images/6.jpg",
-    "title": "FamilyOFive — 조회수를 위한 장난 콘텐츠와 아동 권리 침해",
+    "title": "조회수를 위한 장난 콘텐츠와\n아동 권리 침해",
     "date": "2018-07-19",
     "country": "미국",
     "age": "미상",
     "categories": [
       "rights"
     ],
-    "summary": "부모 마이클 마틴과 헤더 마틴은 자녀들에게 장난을 치고 그 반응을 촬영해 가족 유튜브 채널에 공개했다. 아이들이 울거나 당황하는 모습까지 콘텐츠로 활용하면서 아동학대 논란이 발생했다.",
+    "summary": "부모 마이클 마틴과 헤더 마틴은 자녀들에게 장난을 치고 그 반응을 촬영해 가족 유튜브 채널에 공개했다. 아이들이 울거나 당황하는 모습까지 콘텐츠로 활용하면서 아동학대 사건이 발생했다.",
     "sources": [
       "https://www.theguardian.com/technology/2018/jul/19/youtube-bans-familyofive-pranksters-michael-heather-martin-child-abuse-conviction"
     ],
@@ -108,7 +108,7 @@ const archiveCases = [
   {
     "id": "estonia",
     "image": "./images/7.jpg",
-    "title": "육아 블로그 사진을 ‘성적 거래’ 게시물에 사용",
+    "title": "육아 블로그 사진을\n‘성적 거래’ 게시물에 사용",
     "date": "2019",
     "country": "에스토니아",
     "age": "미상",
@@ -125,7 +125,7 @@ const archiveCases = [
   {
     "id": "bath",
     "image": "./images/8.jpg",
-    "title": "2세 딸의 목욕 사진을 게시한 뒤 낯선 사람들의 비난 댓글을 받은 어머니",
+    "title": "딸의 목욕 사진을 게시한 어머니",
     "date": "2019-07",
     "country": "미국",
     "age": "2세",
@@ -141,7 +141,7 @@ const archiveCases = [
   {
     "id": "barnes",
     "image": "./images/9.jpg",
-    "title": "아버지가 11세 아동의 사진을 촬영해 온라인에 유포한 사건",
+    "title": "아동의 성착취 사진을 촬영해\n온라인에 유포",
     "date": "2020-03",
     "country": "미국",
     "age": "11세",
@@ -175,7 +175,7 @@ const archiveCases = [
   {
     "id": "hoodie",
     "image": "./images/11.jpg",
-    "title": "“취업하거나 연애할 때도 검색될 것” — 인플루언서 어머니의 콘텐츠에 반대한 자녀",
+    "title": "인플루언서 어머니의 콘텐츠에 반대한 자녀",
     "date": "2020-10-11",
     "country": "미국",
     "age": "본인 미상 / 여동생 9세",
@@ -192,7 +192,7 @@ const archiveCases = [
   {
     "id": "claudia",
     "image": "./images/12.jpg",
-    "title": "어머니의 트위터 계정에 게시된 16세 딸의 상반신 노출 사진",
+    "title": "어머니의 SNS에 게시된\n딸의 상반신 노출 사진",
     "date": "2021-01-26",
     "country": "미국",
     "age": "16세",
@@ -209,7 +209,7 @@ const archiveCases = [
   {
     "id": "momcafe",
     "image": "./images/13.jpg",
-    "title": "“엄마가 제 사진을 맘카페에 올려요” — 부모의 게시물에 수치심을 느낀 13세 아동",
+    "title": "부모의 게시물에 수치심을 느낀 아동",
     "date": "2021-08-11",
     "country": "대한민국",
     "age": "13세",
@@ -226,10 +226,10 @@ const archiveCases = [
   {
     "id": "minois",
     "image": "./images/15.jpg",
-    "title": "어머니가 아들의 사진을 화장품 브랜드 광고에 사용한 사건",
+    "title": "아들의 사진을\n화장품 브랜드 광고에 사용한 어머니",
     "date": "2021-12",
     "country": "프랑스",
-    "age": "사진 게시 당시 약 1~2세",
+    "age": "2세",
     "categories": [
       "privacy",
       "rights"
@@ -243,7 +243,7 @@ const archiveCases = [
   {
     "id": "prichard",
     "image": "./images/16.jpg",
-    "title": "인스타그램에 공개한 아이 사진의 무단 도용 및 신원 사칭",
+    "title": "인스타그램에 공개한 아이 사진의\n무단 도용 및 신원 사칭",
     "date": "2022-02",
     "country": "미국",
     "age": "미상",
@@ -260,9 +260,9 @@ const archiveCases = [
   {
     "id": "actor",
     "image": "./images/31.jpg",
-    "title": "배우 A씨의 아들 나체 사진 게시 논란",
+    "title": "배우 A씨의 아들 나체 사진 게시 사건",
     "date": "",
-    "country": "자료에 미기재",
+    "country": "대한민국",
     "age": "5세",
     "categories": [
       "privacy"
@@ -276,9 +276,9 @@ const archiveCases = [
   {
     "id": "vlog",
     "image": "./images/17.jpg",
-    "title": "가족 브이로그 속에서 자란 청소년의 사생활 침해",
+    "title": "가족 브이로그 속에서 자란\n청소년 사생활 침해",
     "date": "2022-09",
-    "country": "호주(제공 자료 기준)",
+    "country": "호주",
     "age": "미상",
     "categories": [
       "privacy",
@@ -294,7 +294,7 @@ const archiveCases = [
   {
     "id": "steele",
     "image": "./images/18.jpg",
-    "title": "Meredith Steele 가족사진 도용 및 ‘디지털 납치’",
+    "title": "가족사진 도용 및 디지털 납치",
     "date": "2022-12-15",
     "country": "미국",
     "age": "9세, 11세",
@@ -311,7 +311,7 @@ const archiveCases = [
   {
     "id": "jurik",
     "image": "./images/19.jpg",
-    "title": "Stacey Jurik의 자녀 인스타그램 계정 사건",
+    "title": "자녀 인스타그램 계정 운영을 통한 성착취",
     "date": "2023",
     "country": "미국",
     "age": "8세",
@@ -329,7 +329,7 @@ const archiveCases = [
   {
     "id": "bella",
     "image": "./images/20.jpg",
-    "title": "만성질환을 앓는 딸의 의료정보를 대규모 팔로워에게 공개한 어머니",
+    "title": "만성질환을 앓는 딸의 의료정보를 대규모 팔로워에게 공개",
     "date": "2023-05-11",
     "country": "캐나다",
     "age": "보도 당시 9세",
@@ -345,10 +345,10 @@ const archiveCases = [
   {
     "id": "cam",
     "image": "./images/22.jpg",
-    "title": "Cam Barrett — 초경·사고·병원 사진과 어린 시절 사진의 지속적 노출",
+    "title": "사진 공개로 인한 스토킹과 불안",
     "date": "2023-07-06",
     "country": "미국",
-    "age": "메시지 수신 당시 12세 / 각 게시물 공개 당시 미상",
+    "age": "12세",
     "categories": [
       "privacy",
       "footprint"
@@ -362,7 +362,7 @@ const archiveCases = [
   {
     "id": "kasket",
     "image": "./images/24.jpg",
-    "title": "부모가 7년간 올린 이야기를 아이가 직접 삭제해 달라고 요구한 사례",
+    "title": "7년간의 게시물 삭제 요구",
     "date": "2023-08-30",
     "country": "영국",
     "age": "당시 9세",
@@ -379,10 +379,10 @@ const archiveCases = [
   {
     "id": "indiana",
     "image": "./images/25.jpg",
-    "title": "생후 18개월 자녀를 성적으로 학대하고 영상·사진을 제작한 부모",
+    "title": "어린 자녀 성적 학대 및 영상·사진 제작",
     "date": "2023-12",
     "country": "미국 인디애나주",
-    "age": "생후 약 18개월",
+    "age": "1세",
     "categories": [
       "privacy",
       "crime",
@@ -397,7 +397,7 @@ const archiveCases = [
   {
     "id": "colombia",
     "image": "./images/26.jpg",
-    "title": "콜롬비아 메데인의 어머니 사건",
+    "title": "페이스북을 통한 아동 성착취 사진 유포",
     "date": "2024",
     "country": "콜롬비아 / 미국 연계",
     "age": "1세",
@@ -405,7 +405,7 @@ const archiveCases = [
       "privacy",
       "crime"
     ],
-    "summary": "제공 자료는 어머니가 아이의 성착취 사진을 촬영해 SNS로 유포하고, 미국 경찰관 Angad Beharry와 페이스북으로 연락했으며 그가 관련 자료를 요구했다고 진술한 사건을 소개한다.",
+    "summary": "어머니가 아이의 성착취 사진을 촬영해 SNS로 유포하고, 미국 경찰관 Angad Beharry와 페이스북으로 연락했으며 그가 관련 자료를 요구했다고 진술한 사건을 소개한다.",
     "sources": [
       "https://www.justice.gov/usao-sdny/pr/us-attorney-charges-nypd-officer-sexual-exploitation-minor-and-possession-child"
     ],
@@ -414,7 +414,7 @@ const archiveCases = [
   {
     "id": "brisbane",
     "image": "./images/27.jpg",
-    "title": "어린 자녀 사진을 WhatsApp에서 교환한 아버지",
+    "title": "WhatsApp을 통해 자녀의 성착취물 유포",
     "date": "2024",
     "country": "호주 브리즈번",
     "age": "친아들 3세 / 동거인의 딸 1세",
@@ -449,7 +449,7 @@ const archiveCases = [
   {
     "id": "kaylin",
     "image": "./images/29.jpg",
-    "title": "Kaylin Hayman의 인스타그램 사진을 이용한 AI 성착취 이미지 제작",
+    "title": "인스타그램 사진을 이용한 AI 성착취 이미지 제작",
     "date": "2024-10",
     "country": "미국",
     "age": "사진 게시 당시 12세",
@@ -484,10 +484,10 @@ const archiveCases = [
   {
     "id": "pittman",
     "image": "./images/pittman-courtroom.jpg",
-    "title": "실제 아동 사진과 영상을 AI로 합성해 유포한 사건",
+    "title": "실제 아동 사진과 영상을 AI로 합성해 유포",
     "date": "2026-05",
     "country": "미국",
-    "age": "자료에 미기재",
+    "age": "미상",
     "categories": [
       "privacy",
       "crime"
@@ -518,7 +518,7 @@ const archiveCases = [
   {
     "id": "jordan-cheyenne",
     "image": "./images/14.jpg",
-    "title": "Jordan Cheyenne의 아들 — 썸네일을 위한 울음 연출 요구",
+    "title": "썸네일을 위한 울음 연출 요구",
     "date": "2021-09-08",
     "country": "미국",
     "age": "9세",
@@ -534,7 +534,7 @@ const archiveCases = [
   {
     "id": "korean-study-14",
     "image": "./images/21.jpg",
-    "title": "온라인 사진을 보고 현실에서 아이를 알아본 낯선 사람 — 국내 연구 참여자 #14",
+    "title": "온라인 사진을 보고 현실에서 아이를 알아본 낯선 사람",
     "date": "2023-06-30",
     "country": "대한민국",
     "age": "미상",
@@ -550,10 +550,10 @@ const archiveCases = [
   {
     "id": "kodye-elyse",
     "image": "./images/23.jpg",
-    "title": "Kodye Elyse의 딸 — 영상 삭제 후에도 학교 주소 유출과 협박",
+    "title": "영상 삭제 후에도 학교 주소 유출과 협박",
     "date": "2023-07-06",
     "country": "미국",
-    "age": "화제가 된 영상 속 딸 5세",
+    "age": "5세",
     "categories": [
       "privacy",
       "crime",
