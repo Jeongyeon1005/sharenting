@@ -3312,18 +3312,3 @@ html.intro-active { overflow: hidden; }
   box-shadow: none;
   transition: none;
 }
-
-.scene-sound-button {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 101;
-  padding: 10px 16px;
-  border: 1px solid #ded5db;
-  border-radius: 6px;
-  background: #332a30;
-  color: #fff;
-  font: inherit;
-  cursor: pointer;
-}
-

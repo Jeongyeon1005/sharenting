@@ -11,30 +11,19 @@ const backgroundMusic = new Audio('./audio/back.mp3');
 backgroundMusic.loop = true;
 backgroundMusic.preload = 'auto';
 backgroundMusic.volume = 0;
-let backgroundMusicBlocked = false;
-let blockedSceneSound;
-const sceneSoundButton = document.createElement('button');
-sceneSoundButton.type = 'button';
-sceneSoundButton.className = 'scene-sound-button';
-sceneSoundButton.textContent = '소리 켜기';
-sceneSoundButton.hidden = true;
-document.body.append(sceneSoundButton);
-sceneSoundButton.addEventListener('click', () => {
-  startBackgroundMusic();
-  if (blockedSceneSound) playSceneSound(blockedSceneSound);
-});
-
-function updateSceneSoundButton() {
-  const host = document.querySelector('dialog:modal') || document.body;
-  if (sceneSoundButton.parentElement !== host) host.append(sceneSoundButton);
-  sceneSoundButton.hidden = !backgroundMusicBlocked && !blockedSceneSound;
+// Retry when a browser requires a user gesture for audible autoplay.
+function startBackgroundMusicOnInteraction(event) {
+  if (event.isTrusted) startBackgroundMusic();
 }
+
+document.addEventListener('click', startBackgroundMusicOnInteraction, true);
+document.addEventListener('keydown', startBackgroundMusicOnInteraction, true);
 
 function startBackgroundMusic() {
   if (!backgroundMusic.paused) return;
   backgroundMusic.play().then(() => {
-    backgroundMusicBlocked = false;
-    updateSceneSoundButton();
+    document.removeEventListener('click', startBackgroundMusicOnInteraction, true);
+    document.removeEventListener('keydown', startBackgroundMusicOnInteraction, true);
     const fadeStarted = performance.now();
     const fadeIn = now => {
       const progress = Math.max(0, Math.min(1, (now - fadeStarted) / 2000));
@@ -42,12 +31,7 @@ function startBackgroundMusic() {
       if (progress < 1) requestAnimationFrame(fadeIn);
     };
     requestAnimationFrame(fadeIn);
-  }).catch(error => {
-    if (error.name === 'NotAllowedError') {
-      backgroundMusicBlocked = true;
-      updateSceneSoundButton();
-    }
-  });
+  }).catch(() => {});
 }
 
 function playSceneSound(file) {
@@ -64,15 +48,7 @@ function playSceneSound(file) {
     player.playbackRate = 1.15;
   }
   player.currentTime = 0;
-  player.play().then(() => {
-    blockedSceneSound = undefined;
-    updateSceneSoundButton();
-  }).catch(error => {
-    if (error.name === 'NotAllowedError') {
-      blockedSceneSound = file;
-      updateSceneSoundButton();
-    }
-  });
+  player.play().catch(() => {});
   return player;
 }
 
@@ -899,7 +875,6 @@ if (exploreButton && caseExplorer && casesDialog) {
     exploreButton.setAttribute("aria-expanded", "true");
     document.body.classList.add("cases-open");
     casesDialog.showModal();
-    updateSceneSoundButton();
     casesDialog.scrollTop = 0;
     caseExplorer.classList.add("is-visible");
     playCaseGalleryEntrance();
@@ -923,7 +898,6 @@ if (exploreButton && caseExplorer && casesDialog) {
     });
   });
   casesDialog.addEventListener("close", () => {
-    updateSceneSoundButton();
     document.body.classList.remove("cases-open");
     exploreButton.setAttribute("aria-expanded", "false");
     caseExplorer.classList.remove("is-visible");
