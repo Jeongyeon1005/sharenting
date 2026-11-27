@@ -974,12 +974,12 @@ if (caseExplorer && caseDetail) {
   const position = caseDetail.querySelector(".case-detail-position");
   const availableCards = () => [...caseExplorer.querySelectorAll('.case-card:not([data-loop-copy]):not([aria-disabled="true"])')];
   let activeCard = null;
-  const openCase = (card, index) => {
+  const openCase = (card, index, showCover = true) => {
     if (card.getAttribute("aria-disabled") === "true") return;
     cancelFlip();
     activeCard = card;
     const item = sortedCases[index];
-    caseDetail.classList.add('is-cover');
+    caseDetail.classList.toggle('is-cover', showCover);
     cover.querySelector('.case-detail-cover-title').textContent = item.title;
     caseDetail.querySelector('#case-detail-title').textContent = item.title;
     const coverImage = cover.querySelector('img');
@@ -1024,13 +1024,13 @@ if (caseExplorer && caseDetail) {
     const selected = caseExplorer.querySelector('.case-filters button[aria-pressed="true"]');
     position.textContent = `${selected?.textContent || "모든 사례"} · ${current + 1} / ${available.length}`;
     if (!caseDetail.open) caseDetail.showModal();
-    cover.focus({ preventScroll: true });
+    (showCover ? cover : sheet).focus({ preventScroll: true });
     detailScroll.scrollTop = 0;
   };
   const moveCase = (direction) => {
     const available = availableCards();
     const card = available[available.indexOf(activeCard) + direction];
-    if (card) openCase(card, detailCards.indexOf(card));
+    if (card) openCase(card, detailCards.indexOf(card), caseDetail.classList.contains('is-cover'));
   };
   previousCase.addEventListener("click", () => moveCase(-1));
   nextCase.addEventListener("click", () => moveCase(1));
